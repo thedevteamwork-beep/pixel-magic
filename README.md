@@ -1,2 +1,3 @@
 # pixel-magic
-AI Image and Video Generations
+
+AI Image and Video Generations.
