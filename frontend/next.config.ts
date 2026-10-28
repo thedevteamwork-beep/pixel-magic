@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  images: {
+    // Placeholder media is linked from Higgsfield until Pixel Magic has its own assets.
+    remotePatterns: [
+      new URL("https://static.higgsfield.ai/**"),
+      new URL("https://static-public-media.higgsfield.ai/**"),
+    ],
+  },
   turbopack: {
     rules: {
       "*.css": {
