@@ -9,5 +9,5 @@ type ContainerProps = {
 
 /** Page-width wrapper with the site's side padding. */
 export function Container({ as: Tag = "div", className, children }: ContainerProps) {
-  return <Tag className={cn("mx-auto w-full max-w-[120rem] px-4 sm:px-6", className)}>{children}</Tag>;
+  return <Tag className={cn("page-container", className)}>{children}</Tag>;
 }

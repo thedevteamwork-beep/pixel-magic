@@ -1,0 +1,56 @@
+/* Single source of truth. Change the semantic brand tokens to recolor
+ * buttons, links, focus rings, active states and banners together. */
+:root {
+  --black-950: #0b0e0b;
+  --black-900: #11150f;
+  --gray-850: #171c15;
+  --gray-800: #222920;
+  --gray-400: #c0c7ba;
+  --gray-500: #9ba493;
+  --white-50: #f3f5ed;
+  --white: #ffffff;
+  --ink-900: #1b2514;
+  --violet-400: #a083f6;
+  --lime-400: #d0f87b;
+
+  --primary: var(--lime-400);
+  --primary-foreground: var(--ink-900);
+  --primary-hover: color-mix(in srgb, var(--primary) 82%, var(--white));
+  --secondary: var(--white-50);
+  --secondary-foreground: var(--ink-900);
+  --secondary-hover: color-mix(in srgb, var(--secondary) 85%, transparent);
+  --background: var(--black-950);
+  --foreground: var(--white-50);
+  --surface: var(--black-900);
+  --surface-raised: var(--gray-850);
+  --muted: var(--gray-500);
+  --subtle: var(--gray-400);
+  --border: color-mix(in srgb, var(--foreground) 11%, transparent);
+  --border-strong: color-mix(in srgb, var(--foreground) 23%, transparent);
+  --overlay-hover: color-mix(in srgb, var(--foreground) 6%, transparent);
+  --promo-from: color-mix(in srgb, var(--primary) 12%, var(--background));
+  --promo-to: color-mix(in srgb, var(--primary) 40%, var(--background));
+
+  --on-media: var(--white);
+  --on-media-muted: #e0e7dc;
+  --media-ink: #071009;
+  --art-paper: #eeeae0;
+  --art-ink: #243421;
+  --art-forest: #173e31;
+  --art-plum: #442e44;
+  --art-peach: #f1c7b5;
+  --art-sage: #d5dfca;
+  --shadow-color: #000000;
+
+  --font-editorial: Georgia, "Times New Roman", serif;
+  --font-display: var(--font-space-grotesk);
+  --page-max-width: 1580px;
+  --page-gutter: clamp(16px, 2.65vw, 42px);
+  --header-height: 80px;
+  --radius-sm: 8px;
+  --radius-card: 12px;
+  --radius-panel: 20px;
+  --radius-lg: var(--radius-card);
+  --radius-xl: var(--radius-panel);
+  --section-space: clamp(48px, 5.5vw, 88px);
+}

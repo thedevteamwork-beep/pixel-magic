@@ -1,31 +1,20 @@
-import Link from "next/link";
-import { headerContent } from "@/constants/navigation";
-import { Logo } from "@/components/layout/Logo";
-import { ButtonWithLink } from "@/ui/Button";
-import { Container } from "@/ui/Container";
+import { navigationLinks } from "@/constants/navigation";
+import { Logo } from "./Logo";
+import { MotionToggle } from "@/components/landing/MotionToggle";
+import styles from "./Layout.module.css";
 
 export function Header() {
-  const { links, cta } = headerContent;
-
   return (
-    <header className="sticky top-0 z-40 h-(--header-height) border-b border-border bg-background/85 backdrop-blur">
-      <Container className="flex h-full items-center gap-6">
+    <header className={styles.header}>
+      <div className={`page-container ${styles.headerInner}`}>
         <Logo />
-        <nav aria-label="Main">
-          <ul className="flex items-center gap-5 text-sm">
-            {links.map((link) => (
-              <li key={link.label}>
-                <Link href={link.href} className="text-subtle transition-colors hover:text-foreground">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <nav className={styles.navigation} aria-label="Main navigation">
+          <ul>{navigationLinks.map((link) => (
+            <li key={link.href}><a href={link.href}>{link.label}</a></li>
+          ))}</ul>
         </nav>
-        <ButtonWithLink href={cta.href} variant={cta.variant ?? "primary"} size="sm" className="ml-auto">
-          {cta.label}
-        </ButtonWithLink>
-      </Container>
+        <MotionToggle />
+      </div>
     </header>
   );
 }
