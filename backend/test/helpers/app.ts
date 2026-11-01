@@ -49,7 +49,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     SUPABASE_URL: "https://test.supabase.co",
     CORS_ORIGINS: [],
     PADDLE_API_KEY: "test-paddle-key",
-    PADDLE_WEBHOOK_SECRET: "test-webhook-secret",
+    PADDLE_WEBHOOK_SECRET: "test_secret",
     PADDLE_ENV: "sandbox",
     FREE_PLAN_NAME: "free",
     CARRYOVER_VALIDITY_DAYS: 30,

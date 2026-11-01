@@ -1,0 +1,27 @@
+{
+  "event_id": "evt_txn_01",
+  "event_type": "transaction.completed",
+  "occurred_at": "2026-03-10T12:00:05Z",
+  "notification_id": "ntf_01",
+  "data": {
+    "id": "txn_01",
+    "status": "completed",
+    "origin": "api",
+    "customer_id": "ctm_01",
+    "subscription_id": "sub_01",
+    "currency_code": "USD",
+    "custom_data": {
+      "user_id": "user-1",
+      "plan_id": "plan-1",
+      "kind": "subscription"
+    },
+    "items": [
+      { "price": { "id": "pri_01", "name": "Pro monthly" }, "quantity": 1 }
+    ],
+    "details": { "totals": { "total": "1000", "currency_code": "USD" } },
+    "billing_period": {
+      "starts_at": "2026-03-10T12:00:00Z",
+      "ends_at": "2026-04-10T12:00:00Z"
+    }
+  }
+}
