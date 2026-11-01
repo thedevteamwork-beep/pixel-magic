@@ -9,6 +9,7 @@ import { T } from "../../../src/db/tables.js";
 import type { Deps } from "../../../src/deps.js";
 import {
   moveToPlan,
+  StaleSubscriptionError,
   type MoveParams,
 } from "../../../src/services/billing/subscriptions.js";
 import { makeDeps } from "../../helpers/app.js";
@@ -162,5 +163,60 @@ describe("moveToPlan", () => {
     expect(next.previous_subscription_id).toBe(late.sub.id);
     const kept = await testDb(T.subscriptions).where("id", late.sub.id).first();
     expect(kept.current_period_end).toEqual(late.sub.current_period_end);
+  });
+
+  it("moveToPlan on an already-closed from throws StaleSubscriptionError and changes nothing", async () => {
+    const { userId, sub } = await userOn("free");
+    await move({ from: sub, toPlan: plans.starter_monthly });
+    const subsBefore = await testDb(T.subscriptions).orderBy("id");
+    const grantsBefore = await testDb(T.creditGrants).orderBy("id");
+    await expect(
+      move({
+        from: sub,
+        toPlan: plans.pro_monthly,
+        t: new Date(t.getTime() + day),
+      }),
+    ).rejects.toBeInstanceOf(StaleSubscriptionError);
+    expect(await testDb(T.subscriptions).orderBy("id")).toEqual(subsBefore);
+    expect(await testDb(T.creditGrants).orderBy("id")).toEqual(grantsBefore);
+    expect(await grantsOf(userId)).toHaveLength(2);
+  });
+
+  it("moveToPlan inherits Paddle state from the DB row, not the from snapshot", async () => {
+    const { userId, sub } = await userOn("starter_monthly", "sub_1");
+    const eventAt = new Date("2026-03-16T00:00:00Z");
+    await testDb(T.subscriptions)
+      .where("id", sub.id)
+      .update({ last_event_occurred_at: eventAt, paddle_status: "active" });
+    const next = await move({
+      from: sub, // stale: still has null paddle_status
+      toPlan: plans.pro_monthly,
+      paddleSubscriptionId: "sub_1",
+    });
+    expect(next.last_event_occurred_at).toEqual(eventAt);
+    expect(next.paddle_status).toBe("active");
+    expect(next.user_id).toBe(userId);
+  });
+
+  it("moveToPlan renewed from Free keeps the old Free grant untouched", async () => {
+    const { userId, sub } = await userOn("free");
+    const [before] = await grantsOf(userId);
+    await move({ from: sub, toPlan: plans.free, status: "renewed" });
+    const after = (await grantsOf(userId)).find((g) => g.id === before.id)!;
+    expect(after.expires_at).toEqual(before.expires_at);
+    expect(after.kind).toBe("plan");
+  });
+
+  it("moveToPlan downgraded from a paid plan converts leftovers to carryover", async () => {
+    const { userId, sub } = await userOn("pro_monthly");
+    const [old] = await grantsOf(userId);
+    await move({
+      from: sub,
+      toPlan: plans.starter_monthly,
+      status: "downgraded",
+    });
+    const converted = (await grantsOf(userId)).find((g) => g.id === old.id)!;
+    expect(converted.kind).toBe("carryover");
+    expect(converted.converted_at).toEqual(t);
   });
 });

@@ -23,6 +23,14 @@ import type {
 import { addMonths } from "../../lib/time.js";
 import { planGrantExpiry } from "./rules.js";
 
+/** The row to move was already closed by someone else; the caller's snapshot is stale. */
+export class StaleSubscriptionError extends Error {
+  constructor(subscriptionId: string) {
+    super(`Subscription ${subscriptionId} is no longer active`);
+    this.name = "StaleSubscriptionError";
+  }
+}
+
 export type OpenParams = {
   userId: string;
   plan: PlanWithCredits;
@@ -128,11 +136,12 @@ export async function moveToPlan(
 ): Promise<SubscriptionRow> {
   const { from } = p;
   await lockProfile(trx, from.user_id);
-  await closeSubscriptionRow(trx, from.id, {
+  const closed = await closeSubscriptionRow(trx, from.id, {
     status: p.status,
     at: p.t,
     paddleCancelPending: p.paddleCancelPending,
   });
+  if (!closed) throw new StaleSubscriptionError(from.id);
   const fromFree = from.plan.name === deps.config.FREE_PLAN_NAME;
   if (fromFree && p.status !== "renewed") {
     await endGrantsOfSubscription(trx, from.id, p.t);
@@ -149,7 +158,7 @@ export async function moveToPlan(
   }
   const samePaddle =
     p.paddleSubscriptionId !== null &&
-    p.paddleSubscriptionId === from.paddle_subscription_id;
+    p.paddleSubscriptionId === closed.paddle_subscription_id;
   return openSubscription(trx, deps, {
     userId: from.user_id,
     plan: p.toPlan,
@@ -158,7 +167,7 @@ export async function moveToPlan(
     paddleSubscriptionId: p.paddleSubscriptionId,
     invoiceId: p.invoiceId,
     previousSubscriptionId: from.id,
-    lastEventOccurredAt: samePaddle ? from.last_event_occurred_at : null,
-    paddleStatus: samePaddle ? from.paddle_status : null,
+    lastEventOccurredAt: samePaddle ? closed.last_event_occurred_at : null,
+    paddleStatus: samePaddle ? closed.paddle_status : null,
   });
 }

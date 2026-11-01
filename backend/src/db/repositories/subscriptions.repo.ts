@@ -72,6 +72,7 @@ export async function insertSubscription(
   return rows[0] ?? null;
 }
 
+/** Closes the row only if it's still active; returns the closed row, or null if it wasn't. */
 export async function closeSubscriptionRow(
   trx: Knex.Transaction,
   id: string,
@@ -80,9 +81,9 @@ export async function closeSubscriptionRow(
     at: Date;
     paddleCancelPending: boolean;
   },
-): Promise<void> {
-  await trx(T.subscriptions)
-    .where("id", id)
+): Promise<SubscriptionRow | null> {
+  const rows: SubscriptionRow[] = await trx(T.subscriptions)
+    .where({ id, active: true })
     .update({
       status: p.status,
       active: false,
@@ -92,7 +93,9 @@ export async function closeSubscriptionRow(
       ]),
       paddle_cancel_pending: p.paddleCancelPending,
       updated_at: p.at,
-    });
+    })
+    .returning("*");
+  return rows[0] ?? null;
 }
 
 export async function setNextPlan(
