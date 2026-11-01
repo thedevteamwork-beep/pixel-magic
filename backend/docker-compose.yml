@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: postgres:${POSTGRES_VERSION:-17}
     ports:
       - "54329:5432"
     environment:
@@ -8,3 +8,30 @@ services:
       POSTGRES_DB: pixel_magic
     volumes:
       - ./docker/initdb:/docker-entrypoint-initdb.d
+
+  api:
+    build: .
+    command: ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment: &app-env
+      MODE: api
+      PORT: "8080"
+      DATABASE_URL: postgres://postgres:postgres@db:5432/pixel_magic
+      DATABASE_MIGRATION_URL: postgres://postgres:postgres@db:5432/pixel_magic
+      SUPABASE_URL: https://example.supabase.co
+      PADDLE_API_KEY: dummy-paddle-api-key
+      PADDLE_WEBHOOK_SECRET: dummy-paddle-webhook-secret
+
+  worker:
+    build: .
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db
+    environment:
+      <<: *app-env
+      MODE: worker
+      PORT: "8081"

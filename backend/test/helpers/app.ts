@@ -1,0 +1,70 @@
+import Transport from "winston-transport";
+import type { Config } from "../../src/config.js";
+import type { Deps } from "../../src/deps.js";
+import { createLogger } from "../../src/logger.js";
+import { FakePaddle } from "../fakes/paddle.js";
+import { testJwks } from "./auth.js";
+import { TEST_DATABASE_URL, testDb } from "./db.js";
+
+export class TestClock {
+  private current = new Date("2026-03-10T12:00:00Z");
+  now(): Date {
+    return new Date(this.current.getTime());
+  }
+  set(d: Date): void {
+    this.current = new Date(d.getTime());
+  }
+  advance(ms: number): void {
+    this.current = new Date(this.current.getTime() + ms);
+  }
+}
+
+class MemoryTransport extends Transport {
+  constructor(private readonly sink: Record<string, unknown>[]) {
+    super();
+  }
+  override log(info: Record<string, unknown>, next: () => void): void {
+    this.sink.push(info);
+    next();
+  }
+}
+
+export function makeDeps(overrides: Partial<Deps> = {}): {
+  deps: Deps;
+  paddle: FakePaddle;
+  clock: TestClock;
+  logs: Array<Record<string, unknown>>;
+} {
+  const logs: Array<Record<string, unknown>> = [];
+  const paddle = new FakePaddle();
+  const clock = new TestClock();
+  const config: Config = {
+    MODE: "api",
+    PORT: 8080,
+    NODE_ENV: "test",
+    LOG_LEVEL: "debug",
+    DATABASE_URL: TEST_DATABASE_URL,
+    DATABASE_MIGRATION_URL: TEST_DATABASE_URL,
+    DB_POOL_MAX: 5,
+    SUPABASE_URL: "https://test.supabase.co",
+    CORS_ORIGINS: [],
+    PADDLE_API_KEY: "test-paddle-key",
+    PADDLE_WEBHOOK_SECRET: "test-webhook-secret",
+    PADDLE_ENV: "sandbox",
+    FREE_PLAN_NAME: "free",
+    CARRYOVER_VALIDITY_DAYS: 30,
+    PLAN_CHANGE_LOCK_MINUTES: 60,
+    CHECKOUT_REUSE_MINUTES: 30,
+    RENEWAL_GRACE_MINUTES: 60,
+  };
+  const deps: Deps = {
+    config,
+    db: testDb,
+    logger: createLogger("debug", [new MemoryTransport(logs)]),
+    paddle,
+    clock,
+    jwks: testJwks,
+    ...overrides,
+  };
+  return { deps, paddle, clock, logs };
+}
