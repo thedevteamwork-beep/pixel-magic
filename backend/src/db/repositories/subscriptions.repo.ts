@@ -161,3 +161,50 @@ export async function clearPendingCancel(
     .where({ id: subscriptionId })
     .update({ paddle_cancel_pending: false, updated_at: now });
 }
+
+export async function listExpiredFreeRows(
+  db: Db,
+  freePlanId: string,
+  now: Date,
+  limit: number,
+): Promise<ActiveSubscription[]> {
+  const rows: SubscriptionRow[] = await db(T.subscriptions)
+    .where({ active: true, plan_id: freePlanId })
+    .where("current_period_end", "<=", now)
+    .orderBy("current_period_end")
+    .limit(limit);
+  const result: ActiveSubscription[] = [];
+  for (const row of rows) result.push((await withPlan(db, row))!);
+  return result;
+}
+
+export async function listPendingCancels(
+  db: Db,
+  limit: number,
+): Promise<SubscriptionRow[]> {
+  return db(T.subscriptions)
+    .where({ paddle_cancel_pending: true })
+    .orderBy("canceled_at")
+    .limit(limit);
+}
+
+/** Active paid rows whose period ended before `endedBefore`, or that Paddle paused. */
+export async function listStuckRows(
+  db: Db,
+  endedBefore: Date,
+  limit: number,
+): Promise<SubscriptionRow[]> {
+  return db(T.subscriptions)
+    .where({ active: true })
+    .where(function () {
+      this.where(function () {
+        this.whereNotNull("paddle_subscription_id").andWhere(
+          "current_period_end",
+          "<",
+          endedBefore,
+        );
+      }).orWhere("paddle_status", "paused");
+    })
+    .orderBy("current_period_end")
+    .limit(limit);
+}
