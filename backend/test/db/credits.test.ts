@@ -134,6 +134,32 @@ describe("reserveCredits", () => {
     expect(sumReserved).toBe(90);
   });
 
+  it("job creation then reserve in one transaction neither deadlocks nor overspends", async () => {
+    await insertGrant(testDb, { user_id: userId, kind: "manual", total: 100 });
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () =>
+        tx(async (trx) => {
+          const job = await insertJob(trx, userId);
+          return reserveCredits(trx, {
+            userId,
+            jobId: job.id,
+            amount: 15,
+            now: t0,
+          });
+        }),
+      ),
+    );
+    for (const r of results) {
+      if (r.status === "rejected") {
+        expect(r.reason).not.toMatchObject({ code: "40P01" });
+        expect(r.reason).toMatchObject({ code: "INSUFFICIENT_CREDITS" });
+      }
+    }
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(6);
+    const grants = await testDb(T.creditGrants).where({ user_id: userId });
+    expect(grants.reduce((s, g) => s + g.reserved, 0)).toBe(90);
+  });
+
   it("rejects a non-integer or non-positive amount", async () => {
     await insertGrant(testDb, { user_id: userId, kind: "manual", total: 100 });
     for (const amount of [0, -1, 1.5]) {
@@ -349,6 +375,15 @@ describe("endGrantsOfSubscription", () => {
     });
     expect((await grantRow(long.id)).expires_at).toEqual(t0);
     expect((await grantRow(past.id)).expires_at).toEqual(addDays(t0, -1));
+    const adjusts = await testDb(T.creditLedger).where({ type: "adjust" });
+    expect(adjusts).toHaveLength(1);
+    expect(adjusts[0]).toMatchObject({
+      grant_id: long.id,
+      user_id: userId,
+      amount: 10,
+      note: "grant ended early",
+    });
+    expect(adjusts[0].created_at).toEqual(t0);
   });
 });
 

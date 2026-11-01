@@ -47,9 +47,13 @@ export async function insertGrant(db: Db, g: NewGrant): Promise<GrantRow> {
   return row;
 }
 
-/** Per-user lock; always taken before any of the user's grant rows. */
+/**
+ * Per-user lock; always taken before any of the user's grant rows. NO KEY
+ * UPDATE serializes lockers but doesn't conflict with the FOR KEY SHARE that
+ * FK checks (jobs.user_id, subscriptions.user_id, ...) take on the profile.
+ */
 async function lockProfile(trx: Knex.Transaction, userId: string) {
-  await trx.raw("SELECT 1 FROM ?? WHERE id = ? FOR UPDATE", [
+  await trx.raw("SELECT 1 FROM ?? WHERE id = ? FOR NO KEY UPDATE", [
     T.profiles,
     userId,
   ]);
@@ -224,16 +228,32 @@ export async function convertToCarryover(
 }
 
 export async function endGrantsOfSubscription(
-  trx: Db,
+  trx: Knex.Transaction,
   subscriptionId: string,
   now: Date,
 ): Promise<void> {
-  await trx(T.creditGrants)
+  const sub = await trx(T.subscriptions)
+    .where("id", subscriptionId)
+    .first("user_id");
+  if (!sub) return;
+  await lockProfile(trx, sub.user_id);
+  const ending: GrantRow[] = await trx(T.creditGrants)
     .where("subscription_id", subscriptionId)
-    .update({
-      expires_at: trx.raw("LEAST(expires_at, ?::timestamptz)", [now]),
-      updated_at: now,
+    .andWhere("expires_at", ">", now)
+    .forUpdate();
+  for (const g of ending) {
+    await trx(T.creditGrants)
+      .where("id", g.id)
+      .update({ expires_at: now, updated_at: now });
+    await trx(T.creditLedger).insert({
+      user_id: sub.user_id,
+      grant_id: g.id,
+      type: "adjust",
+      amount: g.total - g.used - g.reserved,
+      note: "grant ended early",
+      created_at: now,
     });
+  }
 }
 
 export type CreditSummary = {
