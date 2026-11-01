@@ -327,4 +327,84 @@ describe("billing subscription changes API", () => {
     });
     expect(ctx.paddle.calls.map((c) => c.method)).toEqual(["getSubscription"]);
   });
+
+  it("preview of a past-due cancel says it happens immediately", async () => {
+    const { userId } = await paidUser("pro_monthly", { status: "past_due" });
+    ctx.paddle.calls.length = 0;
+    const res = await request(app)
+      .get("/v1/billing/subscription/preview?plan=free")
+      .set(await authHeader(userId));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      changeType: "cancel",
+      action: "now",
+      effectiveAt: T0.toISOString(),
+      description: "You'll be moved to the Free plan immediately.",
+    });
+    expect(ctx.paddle.calls.map((c) => c.method)).toEqual(["getSubscription"]);
+  });
+
+  it("undoes the cleared cancel when the price revert fails (revert)", async () => {
+    const { userId } = await paidUser(
+      "pro_monthly",
+      {
+        priceId: priceOf("starter_monthly"),
+        scheduledChange: { action: "cancel", effectiveAt: addDays(T0, 20) },
+      },
+      "starter_monthly",
+    );
+    ctx.paddle.failNext("updateSubscriptionPrice");
+    const res = await del(userId);
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe("PAYMENT_PROVIDER_ERROR");
+    expect(ctx.paddle.callsTo("cancelSubscription")[0]!.args).toEqual([
+      "sub_01",
+      "next_billing_period",
+    ]);
+    expect((await active(userId)).next_plan_id).toBe(P.starter_monthly!.id);
+  });
+
+  it("a paid row without a Paddle subscription id is a 500 and logged", async () => {
+    await register("pro_monthly");
+    const { userId, sub } = await createUserOnPlan(ctx.deps, {
+      planName: "pro_monthly",
+      periodStart: T0,
+      periodEnd: addDays(T0, 20),
+    });
+    const calls: Array<() => Promise<request.Response>> = [
+      () => post(userId, "starter_monthly"),
+      () => del(userId),
+    ];
+    for (const call of calls) {
+      ctx.logs.length = 0;
+      const res = await call();
+      expect(res.status).toBe(500);
+      expect(res.body.code).toBe("INTERNAL");
+      expect(
+        ctx.logs.some(
+          (l) =>
+            l.severity === "ERROR" &&
+            JSON.stringify(l).includes(userId) &&
+            JSON.stringify(l).includes(sub.id),
+        ),
+      ).toBe(true);
+    }
+    const preview = await request(app)
+      .get("/v1/billing/subscription/preview?plan=starter_monthly")
+      .set(await authHeader(userId));
+    expect(preview.status).toBe(500);
+    expect((await active(userId)).next_plan_id).toBe(P.pro_monthly!.id);
+    expect(ctx.paddle.calls).toHaveLength(0);
+  });
+
+  it("an upgrade with no email is a 422 before any Paddle registration", async () => {
+    const { userId } = await paidUser("starter_monthly");
+    const res = await post(userId, "pro_monthly");
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe("VALIDATION_FAILED");
+    const methods = ctx.paddle.calls.map((c) => c.method);
+    expect(methods).not.toContain("createProduct");
+    expect(methods).not.toContain("createPrice");
+    expect(methods).not.toContain("createTransaction");
+  });
 });

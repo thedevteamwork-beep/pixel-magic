@@ -65,9 +65,17 @@ async function loadLive(
   deps: Deps,
   sub: ActiveSubscription,
 ): Promise<Live | null> {
-  return sub.paddle_subscription_id
-    ? deps.paddle.getSubscription(sub.paddle_subscription_id)
-    : null;
+  if (sub.paddle_subscription_id) {
+    return deps.paddle.getSubscription(sub.paddle_subscription_id);
+  }
+  if (sub.plan.name !== deps.config.FREE_PLAN_NAME) {
+    deps.logger.error("Paid subscription has no Paddle subscription id", {
+      userId: sub.user_id,
+      subscriptionId: sub.id,
+    });
+    throw new AppError(500, "INTERNAL", "Internal error");
+  }
+  return null;
 }
 
 function isScheduled(live: Live | null, sub: ActiveSubscription): boolean {
@@ -125,8 +133,13 @@ async function evaluate(
       );
     }
   }
-  const action = getAction(sub.plan, target, changeType);
-  if (live?.status === "past_due" && action === "period_end") {
+  const pastDue = live?.status === "past_due";
+  // A past-due cancel is applied immediately (§3.2 call 17).
+  const action: Action =
+    pastDue && changeType === "cancel"
+      ? "now"
+      : getAction(sub.plan, target, changeType);
+  if (pastDue && action === "period_end") {
     if (changeType === "downgrade") {
       throw new AppError(
         409,
@@ -209,19 +222,13 @@ export async function requestPlanChange(
     const { sub, target, live, changeType, action } = ev;
     const paddleId = sub.paddle_subscription_id;
 
-    if (
-      live &&
-      paddleId &&
-      live.status === "past_due" &&
-      changeType === "cancel"
-    ) {
+    if (live && paddleId && changeType === "cancel" && action === "now") {
       await deps.paddle.cancelSubscription(paddleId, "immediately");
       await cancelNow(deps, sub);
       return { action: "canceled" };
     }
 
     if (action === "now" && changeType !== "cancel") {
-      await ensurePaddlePrice(deps, "plan", target.id);
       return openCheckout(deps, {
         userId,
         itemType: "plan",
@@ -318,12 +325,20 @@ async function revert(
   live: Live,
 ): Promise<void> {
   const paddleId = sub.paddle_subscription_id!;
-  if (live.scheduledChange?.action === "cancel") {
-    await deps.paddle.removeScheduledChange(paddleId);
-  }
+  const cleared = live.scheduledChange?.action === "cancel";
+  if (cleared) await deps.paddle.removeScheduledChange(paddleId);
   const currentPrice = sub.plan.paddle_price_id;
   if (currentPrice && live.priceId !== currentPrice) {
-    await deps.paddle.updateSubscriptionPrice(paddleId, currentPrice);
+    try {
+      await deps.paddle.updateSubscriptionPrice(paddleId, currentPrice);
+    } catch (err) {
+      if (cleared) {
+        await undoQuietly(deps, "restore scheduled cancel", () =>
+          deps.paddle.cancelSubscription(paddleId, "next_billing_period"),
+        );
+      }
+      throw err;
+    }
   }
   await setNext(deps, sub, sub.plan_id);
 }
