@@ -6,7 +6,7 @@ export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
   "postgres://postgres:postgres@localhost:54329/pixel_magic_test";
 
-export const testDb: Knex = createDb(TEST_DATABASE_URL, 5);
+export const testDb: Knex = createDb(TEST_DATABASE_URL, 10);
 
 export async function resetDb(): Promise<void> {
   await testDb.raw(
