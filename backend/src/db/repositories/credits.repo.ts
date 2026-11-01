@@ -2,6 +2,7 @@ import type { Knex } from "knex";
 import { AppError } from "../../lib/errors.js";
 import type { AllocationRow, GrantRow } from "../rows.js";
 import { T } from "../tables.js";
+import { lockProfile } from "./profiles.repo.js";
 
 type Db = Knex | Knex.Transaction;
 
@@ -45,18 +46,6 @@ export async function insertGrant(db: Db, g: NewGrant): Promise<GrantRow> {
     created_at: g.created_at,
   });
   return row;
-}
-
-/**
- * Per-user lock; always taken before any of the user's grant rows. NO KEY
- * UPDATE serializes lockers but doesn't conflict with the FOR KEY SHARE that
- * FK checks (jobs.user_id, subscriptions.user_id, ...) take on the profile.
- */
-async function lockProfile(trx: Knex.Transaction, userId: string) {
-  await trx.raw("SELECT 1 FROM ?? WHERE id = ? FOR NO KEY UPDATE", [
-    T.profiles,
-    userId,
-  ]);
 }
 
 export async function reserveCredits(

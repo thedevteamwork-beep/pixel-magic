@@ -5,6 +5,7 @@ import type { Deps } from "../deps.js";
 import { errorHandler, notFound } from "./middlewares/errorHandler.js";
 import { catalogRouter } from "./routes/catalog.js";
 import { healthRouter } from "./routes/health.js";
+import { meRouter } from "./routes/me.js";
 
 export function createApp(deps: Deps): Express {
   const app = express();
@@ -12,6 +13,7 @@ export function createApp(deps: Deps): Express {
   app.use(cors({ origin: deps.config.CORS_ORIGINS }));
   app.use(healthRouter(deps));
   app.use(catalogRouter(deps));
+  app.use(meRouter(deps));
   app.use(notFound);
   app.use(errorHandler(deps.logger));
   return app;

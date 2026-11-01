@@ -1,7 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
+import { getPlanByName } from "../../src/db/repositories/catalog.repo.js";
+import { upsertProfile } from "../../src/db/repositories/profiles.repo.js";
+import { getActiveSubscription } from "../../src/db/repositories/subscriptions.repo.js";
+import type { Deps } from "../../src/deps.js";
+import { openSubscription } from "../../src/services/billing/subscriptions.js";
 import { insertGrant as insertGrantRepo } from "../../src/db/repositories/credits.repo.js";
-import type { GrantRow, JobRow, SubscriptionRow } from "../../src/db/rows.js";
+import type {
+  ActiveSubscription,
+  GrantRow,
+  JobRow,
+  SubscriptionRow,
+} from "../../src/db/rows.js";
 import { T } from "../../src/db/tables.js";
 
 export async function insertProfile(
@@ -64,4 +74,30 @@ export async function insertJob(db: Knex, userId: string): Promise<JobRow> {
     })
     .returning("*");
   return row;
+}
+
+export async function createUserOnPlan(
+  deps: Deps,
+  p: {
+    userId?: string;
+    planName: string;
+    periodStart: Date;
+    periodEnd: Date;
+    paddleSubscriptionId?: string;
+  },
+): Promise<{ userId: string; sub: ActiveSubscription }> {
+  const userId = p.userId ?? randomUUID();
+  const plan = await getPlanByName(deps.db, p.planName);
+  if (!plan) throw new Error(`Unknown plan ${p.planName}`);
+  await upsertProfile(deps.db, { id: userId, email: null });
+  await deps.db.transaction((trx) =>
+    openSubscription(trx, deps, {
+      userId,
+      plan,
+      periodStart: p.periodStart,
+      periodEnd: p.periodEnd,
+      paddleSubscriptionId: p.paddleSubscriptionId ?? null,
+    }),
+  );
+  return { userId, sub: (await getActiveSubscription(deps.db, userId))! };
 }
