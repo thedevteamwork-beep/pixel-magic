@@ -143,7 +143,11 @@ export class FakePaddle implements PaddleClient {
     if (!signature) return false;
     try {
       return Boolean(
-        await this.sdk.webhooks.unmarshal(rawBody, WEBHOOK_SECRET, signature),
+        await this.sdk.webhooks.isSignatureValid(
+          rawBody,
+          WEBHOOK_SECRET,
+          signature,
+        ),
       );
     } catch {
       return false;

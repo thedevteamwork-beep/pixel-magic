@@ -170,7 +170,7 @@ export function createPaddleClient(config: Config): PaddleClient {
       if (!signature) return false;
       try {
         return Boolean(
-          await paddle.webhooks.unmarshal(
+          await paddle.webhooks.isSignatureValid(
             rawBody,
             config.PADDLE_WEBHOOK_SECRET,
             signature,
