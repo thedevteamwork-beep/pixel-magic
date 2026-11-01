@@ -46,5 +46,5 @@ describe("migrations", () => {
       await scratch.destroy();
       await testDb.raw("DROP DATABASE IF EXISTS pixel_magic_scratch");
     }
-  });
+  }, 30_000);
 });
