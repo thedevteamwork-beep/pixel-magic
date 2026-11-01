@@ -93,6 +93,17 @@ describe("billing add-ons and invoices API", () => {
     expect(inv.status).toBe("canceled");
   });
 
+  it.each(["createCustomer", "createProduct", "createPrice"] as const)(
+    "returns 502 when Paddle %s fails and leaves no draft",
+    async (method) => {
+      ctx.paddle.failNext(method);
+      const res = await post("/v1/billing/addons", { addon: "credits_1000" });
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe("PAYMENT_PROVIDER_ERROR");
+      expect(await testDb(T.invoices).where("status", "draft")).toHaveLength(0);
+    },
+  );
+
   it("returns 422 when the profile has no email, before any Paddle call", async () => {
     const res = await request(app)
       .post("/v1/billing/addons")

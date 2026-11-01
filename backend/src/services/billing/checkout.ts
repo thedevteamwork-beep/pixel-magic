@@ -1,7 +1,9 @@
 import type { Deps } from "../../deps.js";
 import { PaddleProviderError } from "../../clients/paddle.js";
 import {
+  getAddonById,
   getAddonByName,
+  getPlanById,
   lockCatalogRow,
   setPaddleIds,
 } from "../../db/repositories/catalog.repo.js";
@@ -17,7 +19,6 @@ import {
   setPaddleCustomerId,
 } from "../../db/repositories/profiles.repo.js";
 import type { PlanRow } from "../../db/rows.js";
-import { T } from "../../db/tables.js";
 import { AppError } from "../../lib/errors.js";
 import { addMinutes } from "../../lib/time.js";
 import { paddleInterval, toCents } from "./rules.js";
@@ -110,14 +111,15 @@ export async function openCheckout(
     };
   }
 
-  const customerId = await ensurePaddleCustomer(deps, p.userId);
   let invoiceId: string | null = null;
   try {
+    const customerId = await ensurePaddleCustomer(deps, p.userId);
     const priceId = await ensurePaddlePrice(deps, p.itemType, p.itemId);
-    const item = await deps
-      .db(p.itemType === "plan" ? T.plans : T.addons)
-      .where({ id: p.itemId })
-      .first("amount", "currency");
+    const item =
+      p.itemType === "plan"
+        ? await getPlanById(deps.db, p.itemId)
+        : await getAddonById(deps.db, p.itemId);
+    if (!item) throw new AppError(404, "NOT_FOUND", "Item not found");
     const invoice = await insertDraftInvoice(deps.db, {
       user_id: p.userId,
       item_type: p.itemType,
