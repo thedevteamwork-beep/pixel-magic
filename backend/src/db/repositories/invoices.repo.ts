@@ -5,7 +5,7 @@ import { T } from "../tables.js";
 type Db = Knex | Knex.Transaction;
 
 /** Converts integer cents ("2000") to a dollar string ("20.00") using string math. */
-function centsToDollars(cents: string): string {
+export function centsToDollars(cents: string): string {
   const digits = BigInt(cents).toString().padStart(3, "0");
   return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
 }
@@ -123,7 +123,7 @@ export async function insertPaidInvoice(
   p: {
     user_id: string;
     item_type: "plan";
-    item_id: string;
+    item_id: string | null;
     origin: string;
     paddle_transaction_id: string;
     paddle_subscription_id: string | null;

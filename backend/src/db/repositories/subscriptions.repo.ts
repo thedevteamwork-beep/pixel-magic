@@ -51,6 +51,18 @@ export async function getActiveByPaddleSubscriptionId(
   );
 }
 
+export async function getLatestByPaddleSubscriptionId(
+  db: Db,
+  paddleSubscriptionId: string,
+): Promise<SubscriptionRow | null> {
+  return (
+    (await db(T.subscriptions)
+      .where({ paddle_subscription_id: paddleSubscriptionId })
+      .orderBy("created_at", "desc")
+      .first()) ?? null
+  );
+}
+
 /** Returns null when the user already has an active row. */
 export async function insertSubscription(
   trx: Knex.Transaction,
