@@ -132,3 +132,20 @@ export async function applyPaddleState(
     });
   return n > 0;
 }
+
+export async function getSubscriptionById(
+  db: Db,
+  id: string,
+): Promise<SubscriptionRow | null> {
+  return (await db(T.subscriptions).where({ id }).first()) ?? null;
+}
+
+export async function clearPendingCancel(
+  db: Db,
+  subscriptionId: string,
+  now: Date,
+): Promise<void> {
+  await db(T.subscriptions)
+    .where({ id: subscriptionId })
+    .update({ paddle_cancel_pending: false, updated_at: now });
+}

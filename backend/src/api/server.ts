@@ -7,11 +7,13 @@ import { billingRouter } from "./routes/billing.js";
 import { catalogRouter } from "./routes/catalog.js";
 import { healthRouter } from "./routes/health.js";
 import { meRouter } from "./routes/me.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 
 export function createApp(deps: Deps): Express {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: deps.config.CORS_ORIGINS }));
+  app.use(webhooksRouter(deps));
   app.use(healthRouter(deps));
   app.use(catalogRouter(deps));
   app.use(meRouter(deps));
