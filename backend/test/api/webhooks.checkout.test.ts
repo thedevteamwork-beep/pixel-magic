@@ -274,6 +274,7 @@ describe("Paddle webhook: checkout completion", () => {
   it.each([
     {},
     { invoiceId: "00000000-0000-4000-8000-000000000000", userId: "x" },
+    { invoiceId: "inv_123", userId: "x" },
   ])(
     "records and ignores an api transaction we didn't create (%j)",
     async (customData) => {
@@ -328,5 +329,58 @@ describe("Paddle webhook: checkout completion", () => {
       (await testDb(T.subscriptions).where({ id: sub.id }).first())
         .paddle_cancel_pending,
     ).toBe(true);
+  });
+
+  it("records a signed event whose data fails parsing, once, and logs ERROR", async () => {
+    const { userId } = await userOn("free");
+    const bad = txnCompleted({ eventId: "evt_bad", txnId: "txn_bad" }) as {
+      data: Record<string, unknown>;
+    };
+    delete bad.data.details;
+    const a = await postPaddle(app, bad);
+    const b = await postPaddle(app, bad);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    const evs = await testDb(T.paymentEvents);
+    expect(evs).toHaveLength(1);
+    expect(evs[0]).toMatchObject({
+      paddle_event_id: "evt_bad",
+      processed_at: null,
+    });
+    expect(
+      ctx.logs.some(
+        (l) => l.severity === "ERROR" && JSON.stringify(l).includes("evt_bad"),
+      ),
+    ).toBe(true);
+    expect(
+      await testDb(T.creditGrants).where({ user_id: userId, kind: "plan" }),
+    ).toHaveLength(1);
+  });
+
+  it("rolls back and returns non-2xx when processing throws, then grants once on a valid retry", async () => {
+    const { userId } = await userOn("free");
+    const txn = await openPlan(userId, "starter_monthly");
+    const inv = await invoiceOf(txn);
+    const mk = (subscriptionId: string | null) =>
+      txnCompleted({
+        eventId: "evt_retry",
+        txnId: txn,
+        subscriptionId,
+        customData: { userId, invoiceId: inv.id, checkout: "true" },
+        billingPeriod: BP,
+      });
+    const first = await postPaddle(app, mk(null));
+    expect(first.status).toBeGreaterThanOrEqual(500);
+    expect(await testDb(T.paymentEvents)).toHaveLength(0);
+    expect((await invoiceOf(txn)).status).toBe("draft");
+    const second = await postPaddle(app, mk("sub_01"));
+    expect(second.status).toBe(200);
+    expect(
+      await testDb(T.creditGrants).where({
+        user_id: userId,
+        kind: "plan",
+        total: 500,
+      }),
+    ).toHaveLength(1);
+    expect(await testDb(T.paymentEvents)).toHaveLength(1);
   });
 });

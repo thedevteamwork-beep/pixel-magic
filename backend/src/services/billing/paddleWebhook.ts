@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import { z } from "zod";
 import type { Deps } from "../../deps.js";
 import type { PaddleEvent, PaddleTxn } from "../../clients/paddleEvents.js";
 import { parsePaddleEvent } from "../../clients/paddleEvents.js";
@@ -25,6 +26,14 @@ import { moveToPlan } from "./subscriptions.js";
 
 const CANCEL_WAIT_MS = 3000;
 
+const looseEnvelope = z.object({
+  event_id: z.string().min(1),
+  event_type: z.string().min(1),
+  occurred_at: z.string().nullish(),
+  data: z.object({ id: z.string().nullish() }).nullish(),
+});
+const uuid = z.string().uuid();
+
 // Task 12 replaces these stubs.
 async function handleRenewal(): Promise<string[]> {
   return [];
@@ -41,12 +50,38 @@ export async function handlePaddleWebhook(
   if (!(await deps.paddle.verifyWebhook(rawBody, signature))) return 401;
 
   let json: unknown;
-  let event: PaddleEvent;
   try {
     json = JSON.parse(rawBody);
+  } catch (err) {
+    deps.logger.error("Unreadable Paddle webhook body", { err });
+    return 200;
+  }
+  const loose = looseEnvelope.safeParse(json);
+  if (!loose.success) {
+    deps.logger.error("Paddle webhook without a readable envelope");
+    return 200;
+  }
+  const env = loose.data;
+  let event: PaddleEvent;
+  try {
     event = parsePaddleEvent(json);
   } catch (err) {
-    deps.logger.error("Unparseable Paddle webhook", { err });
+    deps.logger.error("Unparseable Paddle webhook", {
+      eventId: env.event_id,
+      eventType: env.event_type,
+      dataId: env.data?.id,
+      err,
+    });
+    const occurred = new Date(env.occurred_at ?? deps.clock.now());
+    await recordPaymentEvent(deps.db, {
+      paddleEventId: env.event_id,
+      eventType: env.event_type,
+      occurredAt: Number.isNaN(occurred.getTime())
+        ? deps.clock.now()
+        : occurred,
+      payload: json,
+      createdAt: deps.clock.now(),
+    });
     return 200;
   }
 
@@ -90,7 +125,8 @@ export async function routeEvent(
     event.eventType === "transaction.completed"
   ) {
     const { txn } = event;
-    if (txn.origin === "api") return completeCheckout(trx, deps, txn);
+    if (txn.origin === "api")
+      return completeCheckout(trx, deps, txn, event.eventId);
     if (txn.origin === "subscription_recurring") {
       return handleRenewal();
     }
@@ -110,13 +146,18 @@ export async function completeCheckout(
   trx: Knex.Transaction,
   deps: Deps,
   txn: PaddleTxn,
+  eventId?: string,
 ): Promise<string[]> {
-  const invoiceId = txn.customData?.invoiceId;
-  const invoice =
-    typeof invoiceId === "string" ? await getInvoice(trx, invoiceId) : null;
+  const parsedId = uuid.safeParse(txn.customData?.invoiceId);
+  const invoice = parsedId.success
+    ? await getInvoice(trx, parsedId.data)
+    : null;
   if (!invoice || txn.customData?.userId !== invoice.user_id) {
     deps.logger.error("Paddle transaction doesn't match one of our invoices", {
       transactionId: txn.id,
+      eventId,
+      invoiceId: txn.customData?.invoiceId,
+      userId: txn.customData?.userId,
     });
     return [];
   }
