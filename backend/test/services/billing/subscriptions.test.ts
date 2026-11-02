@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { reserveCredits } from "../../../src/db/repositories/credits.repo.js";
 import { getActiveSubscription } from "../../../src/db/repositories/subscriptions.repo.js";
 import type {
   ActiveSubscription,
@@ -7,6 +8,7 @@ import type {
 } from "../../../src/db/rows.js";
 import { T } from "../../../src/db/tables.js";
 import type { Deps } from "../../../src/deps.js";
+import { addMinutes } from "../../../src/lib/time.js";
 import {
   moveToPlan,
   StaleSubscriptionError,
@@ -15,7 +17,7 @@ import {
 import { makeDeps } from "../../helpers/app.js";
 import { seedTestCatalog } from "../../helpers/catalog.js";
 import { resetDb, testDb } from "../../helpers/db.js";
-import { createUserOnPlan } from "../../helpers/factories.js";
+import { createUserOnPlan, insertJob } from "../../helpers/factories.js";
 
 const t0 = new Date("2026-03-10T12:00:00Z");
 const t = new Date("2026-03-20T12:00:00Z");
@@ -218,5 +220,34 @@ describe("moveToPlan", () => {
     const converted = (await grantsOf(userId)).find((g) => g.id === old.id)!;
     expect(converted.kind).toBe("carryover");
     expect(converted.converted_at).toEqual(t);
+  });
+});
+
+describe("plan grant renewal grace (spec §9)", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await seedTestCatalog(testDb);
+  });
+
+  it("a plan grant whose period ended at T is spendable at T+59 min, not at T+61 min", async () => {
+    const { deps } = makeDeps();
+    expect(deps.config.RENEWAL_GRACE_MINUTES).toBe(60);
+    const periodEnd = new Date(t0.getTime() + 30 * day);
+    const { userId } = await createUserOnPlan(deps, {
+      planName: "starter_monthly",
+      periodStart: t0,
+      periodEnd,
+    });
+    const reserveOne = (now: Date) =>
+      testDb.transaction(async (trx) => {
+        const job = await insertJob(trx, userId);
+        return reserveCredits(trx, { userId, jobId: job.id, amount: 1, now });
+      });
+    await expect(reserveOne(addMinutes(periodEnd, 59))).resolves.toHaveLength(
+      1,
+    );
+    await expect(reserveOne(addMinutes(periodEnd, 61))).rejects.toMatchObject({
+      code: "INSUFFICIENT_CREDITS",
+    });
   });
 });

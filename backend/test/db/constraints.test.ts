@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { lockCatalogRow } from "../../src/db/repositories/catalog.repo.js";
 import { T } from "../../src/db/tables.js";
 import { resetDb, testDb } from "../helpers/db.js";
 
@@ -124,5 +125,31 @@ describe("constraints", () => {
     await expect(testDb(T.paymentEvents).insert(ev)).rejects.toMatchObject({
       code: "23505",
     });
+  });
+});
+
+describe("lockCatalogRow", () => {
+  it("doesn't block a subscription insert that references the locked plan", async () => {
+    const userId = await profile();
+    const planId = await plan();
+    await testDb.transaction(async (locker) => {
+      await lockCatalogRow(locker, "plan", planId);
+      // The FK check on plan_id takes FOR KEY SHARE on the plan row.
+      await testDb.transaction(async (other) => {
+        await other.raw("SET LOCAL lock_timeout = '500ms'");
+        await other(T.subscriptions).insert({
+          user_id: userId,
+          plan_id: planId,
+          next_plan_id: planId,
+          status: "renewed",
+          active: false,
+          current_period_start: now,
+          current_period_end: later,
+        });
+      });
+    });
+    expect(
+      await testDb(T.subscriptions).where({ plan_id: planId }),
+    ).toHaveLength(1);
   });
 });

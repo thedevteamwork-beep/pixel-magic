@@ -185,7 +185,21 @@ export async function completeCheckout(
     currency: txn.currency,
     paidAt: now,
   });
-  if (!paid) return [];
+  if (!paid) {
+    // Already paid. The same transaction again is a replay; a different one
+    // is a real second payment that grants nothing, so it must be visible.
+    const settled = await getInvoice(trx, invoice.id);
+    if (settled && settled.paddle_transaction_id !== txn.id) {
+      deps.logger.error("Second payment for an already-paid invoice", {
+        invoiceId: invoice.id,
+        transactionId: txn.id,
+        paidTransactionId: settled.paddle_transaction_id,
+        userId: invoice.user_id,
+        eventId,
+      });
+    }
+    return [];
+  }
 
   if (invoice.item_type === "addon") {
     const addon = invoice.item_id

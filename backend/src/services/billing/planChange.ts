@@ -186,8 +186,13 @@ export async function previewPlanChange(
   });
 }
 
+/**
+ * A failed undo leaves Paddle out of step with what the user asked for (for
+ * example, their scheduled cancel is gone); the log is the only trace of it.
+ */
 async function undoQuietly(
   deps: Deps,
+  sub: ActiveSubscription,
   what: string,
   fn: () => Promise<void>,
 ): Promise<void> {
@@ -196,6 +201,8 @@ async function undoQuietly(
   } catch (err) {
     deps.logger.error("Failed to undo Paddle change", {
       what,
+      userId: sub.user_id,
+      paddleSubscriptionId: sub.paddle_subscription_id,
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -243,7 +250,7 @@ export async function requestPlanChange(
         await scheduleCancel(deps, sub, live, paddleId);
       } else {
         const targetPrice = await ensurePaddlePrice(deps, "plan", target.id);
-        await scheduleDowngrade(live, paddleId, targetPrice, deps);
+        await scheduleDowngrade(deps, sub, live, paddleId, targetPrice);
       }
     }
     await setNext(deps, sub, target.id);
@@ -276,10 +283,11 @@ async function cancelNow(deps: Deps, sub: ActiveSubscription): Promise<void> {
 }
 
 async function scheduleDowngrade(
+  deps: Deps,
+  sub: ActiveSubscription,
   live: Live,
   paddleId: string,
   targetPrice: string,
-  deps: Deps,
 ): Promise<void> {
   const cleared = live.scheduledChange !== null;
   if (cleared) await deps.paddle.removeScheduledChange(paddleId);
@@ -287,7 +295,7 @@ async function scheduleDowngrade(
     await deps.paddle.updateSubscriptionPrice(paddleId, targetPrice);
   } catch (err) {
     if (cleared) {
-      await undoQuietly(deps, "restore scheduled cancel", () =>
+      await undoQuietly(deps, sub, "restore scheduled cancel", () =>
         deps.paddle.cancelSubscription(paddleId, "next_billing_period"),
       );
     }
@@ -311,7 +319,7 @@ async function scheduleCancel(
   } catch (err) {
     if (resetPrice && live.priceId) {
       const previous = live.priceId;
-      await undoQuietly(deps, "restore scheduled downgrade", () =>
+      await undoQuietly(deps, sub, "restore scheduled downgrade", () =>
         deps.paddle.updateSubscriptionPrice(paddleId, previous),
       );
     }
@@ -333,7 +341,7 @@ async function revert(
       await deps.paddle.updateSubscriptionPrice(paddleId, currentPrice);
     } catch (err) {
       if (cleared) {
-        await undoQuietly(deps, "restore scheduled cancel", () =>
+        await undoQuietly(deps, sub, "restore scheduled cancel", () =>
           deps.paddle.cancelSubscription(paddleId, "next_billing_period"),
         );
       }

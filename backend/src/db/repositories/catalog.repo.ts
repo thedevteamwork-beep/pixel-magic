@@ -77,6 +77,12 @@ export async function getAddonById(
   return (await addonsQuery(db).where("a.id", id).first()) ?? null;
 }
 
+/**
+ * Serializes Paddle registration of one catalog row. NO KEY UPDATE (like
+ * lockProfile) doesn't conflict with the FOR KEY SHARE that FK checks take,
+ * so inserts referencing the row (subscriptions, customer add-ons) and
+ * setNextPlan on it are not blocked.
+ */
 export async function lockCatalogRow(
   trx: Knex.Transaction,
   kind: "plan" | "addon",
@@ -84,7 +90,7 @@ export async function lockCatalogRow(
 ): Promise<PlanRow | AddonRow> {
   return trx(kind === "plan" ? T.plans : T.addons)
     .where({ id })
-    .forUpdate()
+    .forNoKeyUpdate()
     .first();
 }
 

@@ -3,7 +3,11 @@ import { T } from "../tables.js";
 
 type Db = Knex | Knex.Transaction;
 
-/** Returns true if the event is new, false if its id was already recorded. */
+/**
+ * Returns true if the event is to be processed: it is new, or it was recorded
+ * but never processed (a signed delivery we couldn't parse), in which case the
+ * redelivered payload replaces the stored one. False once it was processed.
+ */
 export async function recordPaymentEvent(
   trx: Db,
   p: {
@@ -23,7 +27,8 @@ export async function recordPaymentEvent(
       created_at: p.createdAt,
     })
     .onConflict("paddle_event_id")
-    .ignore()
+    .merge(["payload", "occurred_at"])
+    .whereNull(`${T.paymentEvents}.processed_at`)
     .returning("id");
   return rows.length > 0;
 }

@@ -1,6 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/server.js";
+import { reserveCredits } from "../../src/db/repositories/credits.repo.js";
 import type { PlanWithCredits } from "../../src/db/rows.js";
 import { T } from "../../src/db/tables.js";
 import { addDays, addMinutes } from "../../src/lib/time.js";
@@ -8,7 +9,7 @@ import { makeDeps } from "../helpers/app.js";
 import { authHeader } from "../helpers/auth.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
 import { resetDb, testDb } from "../helpers/db.js";
-import { createUserOnPlan } from "../helpers/factories.js";
+import { createUserOnPlan, insertJob } from "../helpers/factories.js";
 import { postPaddle, txnCompleted } from "../helpers/paddleEvents.js";
 
 const T0 = new Date("2026-03-10T12:00:00Z");
@@ -142,6 +143,39 @@ describe("Paddle webhook: checkout completion", () => {
     expect((await invoiceOf(txn)).status).toBe("paid");
   });
 
+  it("Free → Starter end to end: reserves come from the Starter grant, never the ended Free grant", async () => {
+    const { userId, sub: freeSub } = await userOn("free");
+    const txn = await openPlan(userId, "starter_monthly");
+    expect((await complete(userId, txn)).status).toBe(200);
+    const starter = (await rows(userId))[1];
+    const starterGrant = await grantFor(starter.id);
+    const freeGrant = await grantFor(freeSub.id);
+    const reserve = (amount: number) =>
+      testDb.transaction(async (trx) => {
+        const job = await insertJob(trx, userId);
+        return reserveCredits(trx, {
+          userId,
+          jobId: job.id,
+          amount,
+          now: addMinutes(T0, 1),
+        });
+      });
+
+    const first = await reserve(500);
+    expect(first.map((a) => [a.grant_id, a.amount])).toEqual([
+      [starterGrant.id, 500],
+    ]);
+    await expect(reserve(1)).rejects.toMatchObject({
+      code: "INSUFFICIENT_CREDITS",
+    });
+    expect(await grantFor(freeSub.id)).toMatchObject({
+      id: freeGrant.id,
+      total: 50,
+      used: 0,
+      reserved: 0,
+    });
+  });
+
   it("Starter → Pro carries leftovers over and cancels the old Paddle subscription", async () => {
     const { userId, sub } = await userOn("starter_monthly", "sub_old");
     const oldGrant = await grantFor(sub.id);
@@ -254,6 +288,45 @@ describe("Paddle webhook: checkout completion", () => {
     expect(await testDb(T.customerAddons)).toHaveLength(1);
   });
 
+  it("a second Paddle transaction for an already-paid invoice grants nothing and logs ERROR", async () => {
+    const { userId } = await userOn("free");
+    const txn = await open(userId, "/v1/billing/addons", {
+      addon: "credits_1000",
+    });
+    const inv = await invoiceOf(txn);
+    await complete(userId, txn, { subscriptionId: null });
+    ctx.logs.length = 0;
+
+    // A replay of the paying transaction stays silent.
+    await complete(userId, txn, { subscriptionId: null });
+    expect(ctx.logs.filter((l) => l.severity === "ERROR")).toHaveLength(0);
+
+    const res = await postPaddle(
+      app,
+      txnCompleted({
+        txnId: "txn_second",
+        subscriptionId: null,
+        customData: { userId, invoiceId: inv.id, checkout: "true" },
+        totalCents: "2000",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await testDb(T.creditGrants).where({ kind: "addon" })).toHaveLength(
+      1,
+    );
+    expect(await testDb(T.customerAddons)).toHaveLength(1);
+    expect((await invoiceOf(txn)).status).toBe("paid");
+    expect(
+      ctx.logs.filter((l) => l.severity === "ERROR").map((l) => l.message),
+    ).toEqual(["Second payment for an already-paid invoice"]);
+    expect(ctx.logs.find((l) => l.severity === "ERROR")).toMatchObject({
+      invoiceId: inv.id,
+      transactionId: "txn_second",
+      paidTransactionId: txn,
+      userId,
+    });
+  });
+
   it("honours a checkout paid after the sweep canceled its draft", async () => {
     const { userId } = await userOn("free");
     const txn = await openPlan(userId, "starter_monthly");
@@ -331,13 +404,14 @@ describe("Paddle webhook: checkout completion", () => {
     ).toBe(true);
   });
 
-  it("records a signed event whose data fails parsing, once, and logs ERROR", async () => {
+  it("records a signed event whose data fails parsing in one row, unprocessed, and logs ERROR", async () => {
     const { userId } = await userOn("free");
     const bad = txnCompleted({ eventId: "evt_bad", txnId: "txn_bad" }) as {
       data: Record<string, unknown>;
     };
     delete bad.data.details;
     const a = await postPaddle(app, bad);
+    // The redelivery, still unparseable, updates the same unprocessed row.
     const b = await postPaddle(app, bad);
     expect([a.status, b.status]).toEqual([200, 200]);
     const evs = await testDb(T.paymentEvents);
@@ -354,6 +428,39 @@ describe("Paddle webhook: checkout completion", () => {
     expect(
       await testDb(T.creditGrants).where({ user_id: userId, kind: "plan" }),
     ).toHaveLength(1);
+  });
+
+  it("processes a recorded unparseable event when it is redelivered parseable, then dedupes", async () => {
+    const { userId } = await userOn("free");
+    const txn = await open(userId, "/v1/billing/addons", {
+      addon: "credits_1000",
+    });
+    const inv = await invoiceOf(txn);
+    const good = txnCompleted({
+      eventId: "evt_fixed",
+      txnId: txn,
+      subscriptionId: null,
+      customData: { userId, invoiceId: inv.id, checkout: "true" },
+      totalCents: "2000",
+    });
+    const bad = structuredClone(good) as { data: Record<string, unknown> };
+    delete bad.data.details;
+    expect((await postPaddle(app, bad)).status).toBe(200);
+    expect((await testDb(T.paymentEvents).first()).processed_at).toBeNull();
+    expect((await invoiceOf(txn)).status).toBe("draft");
+
+    expect((await postPaddle(app, good)).status).toBe(200);
+    const evs = await testDb(T.paymentEvents);
+    expect(evs).toHaveLength(1);
+    expect(evs[0].processed_at).toEqual(T0);
+    expect(evs[0].payload).toEqual(good);
+    expect((await invoiceOf(txn)).status).toBe("paid");
+
+    expect((await postPaddle(app, good)).status).toBe(200);
+    expect(await testDb(T.paymentEvents)).toHaveLength(1);
+    expect(await testDb(T.creditGrants).where({ kind: "addon" })).toHaveLength(
+      1,
+    );
   });
 
   it("rolls back and returns non-2xx when processing throws, then grants once on a valid retry", async () => {

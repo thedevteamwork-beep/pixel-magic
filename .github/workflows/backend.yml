@@ -35,3 +35,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
+      - name: Run the compiled migrations on a fresh database
+        env:
+          DATABASE_MIGRATION_URL: postgres://postgres:postgres@localhost:54329/pixel_magic_ci
+        run: |
+          psql "postgres://postgres:postgres@localhost:54329/postgres" -c "create database pixel_magic_ci"
+          node dist/db/migrate.js

@@ -1,6 +1,7 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/api/server.js";
+import { PaddleProviderError } from "../../src/clients/paddle.js";
 import {
   getPlanByName,
   setPaddleIds,
@@ -285,6 +286,67 @@ describe("billing subscription changes API", () => {
     request(app)
       .delete("/v1/billing/subscription/scheduled-change")
       .set(await authHeader(userId));
+
+  const cancelScheduled = {
+    scheduledChange: {
+      action: "cancel" as const,
+      effectiveAt: addDays(T0, 20),
+    },
+  };
+
+  it.each([
+    {
+      name: "downgrade",
+      what: "restore scheduled cancel",
+      live: cancelScheduled,
+      next: undefined,
+      call: (userId: string) => post(userId, "starter_monthly"),
+      arrange: () => {
+        ctx.paddle.failNext("updateSubscriptionPrice");
+        ctx.paddle.failNext("cancelSubscription");
+      },
+    },
+    {
+      name: "cancel",
+      what: "restore scheduled downgrade",
+      live: { priceId: priceOf("starter_monthly") },
+      next: "starter_monthly",
+      call: (userId: string) => post(userId, "free"),
+      arrange: () => {
+        ctx.paddle.failNext("cancelSubscription");
+        vi.spyOn(ctx.paddle, "updateSubscriptionPrice")
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new PaddleProviderError("fake undo failure"));
+      },
+    },
+    {
+      name: "revert",
+      what: "restore scheduled cancel",
+      live: { priceId: priceOf("starter_monthly"), ...cancelScheduled },
+      next: "starter_monthly",
+      call: (userId: string) => del(userId),
+      arrange: () => {
+        ctx.paddle.failNext("updateSubscriptionPrice");
+        ctx.paddle.failNext("cancelSubscription");
+      },
+    },
+  ])(
+    "a failed undo ($name) logs ERROR with the user and Paddle subscription",
+    async ({ what, live, next, call, arrange }) => {
+      const { userId } = await paidUser("pro_monthly", live, next);
+      arrange();
+      const res = await call(userId);
+      expect(res.status).toBe(502);
+      expect(
+        ctx.logs.find((l) => l.message === "Failed to undo Paddle change"),
+      ).toMatchObject({
+        severity: "ERROR",
+        what,
+        userId,
+        paddleSubscriptionId: "sub_01",
+      });
+    },
+  );
 
   it("DELETE scheduled-change without one → 409 NO_SCHEDULED_CHANGE", async () => {
     const { userId } = await paidUser("pro_monthly");

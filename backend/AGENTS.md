@@ -2,7 +2,7 @@
 
 ## Layering
 
-`routes` (HTTP, validation, auth) call `services` (business rules, transactions), which call `db/repositories` (SQL) and `clients` (Paddle). Dependencies are passed in through `Deps` (`src/deps.ts`). Routes never touch the DB or Paddle directly; repositories contain no business rules; clients know nothing about the DB.
+`routes` (HTTP, validation, auth) call `services` (business rules, transactions), which call `db/repositories` (SQL) and `clients` (Paddle). Dependencies are passed in through `Deps` (`src/deps.ts`). Routes may call a repository directly for a simple read (for example the catalog, `GET /v1/billing/invoices`, the active subscription for a response); anything with a business rule, a write or a Paddle call goes through a service. Routes never call Paddle or write SQL; repositories contain no business rules; clients know nothing about the DB.
 
 ## SQL only in repositories
 

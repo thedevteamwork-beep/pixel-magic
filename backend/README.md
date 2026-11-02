@@ -67,7 +67,7 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 | `PADDLE_ENV`               | sandbox        | `sandbox` or `production`                               |
 | `FREE_PLAN_NAME`           | free           | name of the Free plan row                               |
 | `CARRYOVER_VALIDITY_DAYS`  | 30             | how long carried-over credits stay valid                |
-| `PLAN_CHANGE_LOCK_MINUTES` | 60             | lock on further plan changes after one starts           |
+| `PLAN_CHANGE_LOCK_MINUTES` | 60             | no plan changes this close to renewal                   |
 | `CHECKOUT_REUSE_MINUTES`   | 30             | a draft checkout younger than this is reused            |
 | `RENEWAL_GRACE_MINUTES`    | 60             | grace after a period ends before its credits stop       |
 
@@ -86,9 +86,9 @@ Paddle products and prices are created from the catalog on first use. Replace th
 Plans spec section 10, milestone 3. Done when each step works and credits are granted exactly once, even if the webhook is replayed (resend it from the Paddle dashboard). Sign in as a fresh user with an email. Check state with `GET /v1/me` and in the DB (`app.subscriptions`, `app.invoices`, `app.credit_grants`, `app.payment_events`).
 
 1. Sign-up: `GET /v1/me` shows the Free plan and its grant. One active Free `app.subscriptions` row, one grant.
-2. Buy Starter: `POST /v1/billing/subscription {"plan":"starter"}`, open `checkoutUrl`, pay with a sandbox card. After `transaction.completed`: invoice `paid`, Starter row `active`, Free row no longer active (carried over), one Starter grant. Replay the webhook: nothing changes.
-3. Upgrade to Pro: same call with `pro`. After payment: Pro `active`, Starter `upgraded`, Starter's old Paddle subscription flagged and then cancelled, leftover credits converted into a carryover grant, one Pro grant. Replay: nothing changes.
-4. Schedule a downgrade: `POST /v1/billing/subscription {"plan":"starter"}` while on Pro. Pro row has `next_plan_id` = Starter and nothing is charged now. Use a sandbox subscription with a short billing period, let it renew: the renewal `transaction.completed` makes Starter `active`, Pro `downgraded`, one new grant. Replay: nothing changes. Also try `DELETE /v1/billing/subscription/scheduled-change` before renewal: `next_plan_id` goes back to the current plan.
+2. Buy Starter: `POST /v1/billing/subscription {"plan":"starter_monthly"}`, open `checkoutUrl`, pay with a sandbox card. After `transaction.completed`: invoice `paid`, Starter row `active`, Free row `upgraded` and its leftover credits end (Free credits are not carried over), one Starter grant. Replay the webhook: nothing changes.
+3. Upgrade to Pro: same call with `{"plan":"pro_monthly"}`. After payment: Pro `active`, Starter `upgraded`, Starter's old Paddle subscription flagged and then cancelled, leftover credits converted into a carryover grant, one Pro grant. Replay: nothing changes.
+4. Schedule a downgrade: `POST /v1/billing/subscription {"plan":"starter_monthly"}` while on Pro. Pro row has `next_plan_id` = Starter and nothing is charged now. Use a sandbox subscription with a short billing period, let it renew: the renewal `transaction.completed` makes Starter `active`, Pro `downgraded`, one new grant. Replay: nothing changes. Also try `DELETE /v1/billing/subscription/scheduled-change` before renewal: `next_plan_id` goes back to the current plan.
 5. Cancel: `POST /v1/billing/subscription {"plan":"free"}` schedules the cancel (`next_plan_id` = Free). At period end `subscription.canceled` arrives: paid row `canceled`, a Free row and grant open, old credits are not converted and expire on their own date.
 6. Buy an add-on: `POST /v1/billing/addons {"addon":"<name>"}`, pay. Invoice `paid`, one `app.customer_addons` row with `expires_at = bought_at + duration_days`, credits grant exists once. Replay: nothing changes.
 7. Existing Paddle customer: sign up a second user with an email that already exists in Paddle and start a checkout. It must reuse that Paddle customer (`app.profiles.paddle_customer_id` equals the existing id) and not fail.
@@ -103,4 +103,4 @@ Also confirm, because these could not be tested locally:
 
 ## Cloud Scheduler
 
-The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) needs an hourly Cloud Scheduler job: `POST /tasks/billing-sweep` on the worker service. Set it up in the deploy milestone, not here.
+The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) also logs ERROR for rows it can't fix: active paid rows whose period ended over 7 days ago or that Paddle paused, and Paddle cancels still failing after 24 hours. Alert on those logs. It needs an hourly Cloud Scheduler job: `POST /tasks/billing-sweep` on the worker service. Set it up in the deploy milestone, not here.
