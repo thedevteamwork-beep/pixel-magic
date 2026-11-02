@@ -56,9 +56,35 @@ export class PaddleProviderError extends Error {
   }
 }
 
+/**
+ * Callers hold a pool connection and the user's or catalog row's lock while
+ * they wait for Paddle, so no call may wait for long.
+ */
+export const PADDLE_TIMEOUT_MS = 10_000;
+
+/** Rejects with PaddleProviderError when `call` takes longer than `ms`. */
+export async function withTimeout<T>(
+  call: Promise<T>,
+  ms: number = PADDLE_TIMEOUT_MS,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new PaddleProviderError("Paddle request timed out")),
+      ms,
+    );
+  });
+  try {
+    return await Promise.race([call, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Every SDK call goes through here: bounded in time, errors normalised. */
 async function wrap<T>(op: string, fn: () => Promise<T>): Promise<T> {
   try {
-    return await fn();
+    return await withTimeout(fn());
   } catch (err) {
     if (err instanceof PaddleProviderError) throw err;
     const detail = err instanceof Error ? err.message : String(err);
