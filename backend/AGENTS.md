@@ -10,7 +10,7 @@ All Knex queries live in `src/db/repositories/*.repo.ts`. Services pass a `db` o
 
 ## Schema-qualified tables
 
-Use the `T` map in `src/db/tables.ts` (for example `app.subscriptions`), never bare table names. Migrations create everything in the `app` schema.
+Use the `T` map in `src/db/tables.ts` (for example `app.subscriptions`), never bare table names. Migrations create everything in the `app` schema. Knex's own bookkeeping tables live in `app_migrations` (revoked from Supabase's API roles), never in `public`.
 
 ## Clock rule
 

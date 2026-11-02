@@ -1,7 +1,14 @@
 import { pathToFileURL } from "node:url";
 import type { Knex } from "knex";
 import { createDb } from "./knex.js";
+import { revokeIfRolesExist } from "./migrationHelpers.js";
 import { migrations } from "./migrations/index.js";
+
+/**
+ * Knex's bookkeeping tables live here: not in `public` (Supabase's Data API
+ * exposes it) and not in `app` (which holds only the application's tables).
+ */
+export const MIGRATIONS_SCHEMA = "app_migrations";
 
 export const migrationSource: Knex.MigrationSource<
   (typeof migrations)[number]
@@ -13,11 +20,15 @@ export const migrationSource: Knex.MigrationSource<
 
 export const migrationConfig: Knex.MigratorConfig = {
   migrationSource,
-  // Keep knex's bookkeeping out of search_path-dependent places.
-  schemaName: "public",
+  schemaName: MIGRATIONS_SCHEMA,
 };
 
 export async function runMigrations(db: Knex): Promise<void> {
+  await db.raw(`CREATE SCHEMA IF NOT EXISTS ${MIGRATIONS_SCHEMA}`);
+  await revokeIfRolesExist(
+    db,
+    `REVOKE ALL ON SCHEMA ${MIGRATIONS_SCHEMA} FROM anon, authenticated; ALTER DEFAULT PRIVILEGES IN SCHEMA ${MIGRATIONS_SCHEMA} REVOKE ALL ON TABLES FROM anon, authenticated;`,
+  );
   await db.migrate.latest(migrationConfig);
 }
 

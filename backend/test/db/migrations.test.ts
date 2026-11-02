@@ -23,6 +23,22 @@ describe("migrations", () => {
     ).toBe(true);
   });
 
+  it("keeps knex's bookkeeping tables in schema app_migrations, not public", async () => {
+    const pub = await testDb.raw(
+      `select count(*)::int as n from pg_tables
+       where schemaname='public' and tablename like 'knex%'`,
+    );
+    expect(pub.rows[0].n).toBe(0);
+    const own = await testDb.raw(
+      `select tablename from pg_tables
+       where schemaname='app_migrations' order by tablename`,
+    );
+    expect(own.rows.map((r: { tablename: string }) => r.tablename)).toEqual([
+      "knex_migrations",
+      "knex_migrations_lock",
+    ]);
+  });
+
   it("rolls all the way down and up again", async () => {
     await testDb.raw("DROP DATABASE IF EXISTS pixel_magic_scratch");
     await testDb.raw("CREATE DATABASE pixel_magic_scratch");
@@ -32,6 +48,11 @@ describe("migrations", () => {
     );
     try {
       await runMigrations(scratch);
+      const knexTables = await scratch.raw(
+        `select schemaname, count(*)::int as n from pg_tables
+         where tablename like 'knex%' group by schemaname`,
+      );
+      expect(knexTables.rows).toEqual([{ schemaname: "app_migrations", n: 2 }]);
       await scratch.migrate.rollback(migrationConfig, true);
       const left = await scratch.raw(
         `select count(*)::int as n from pg_tables where schemaname='app'`,

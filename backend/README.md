@@ -29,7 +29,7 @@ npm test                # vitest
 npm run lint && npm run typecheck
 ```
 
-Tests use `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:54329/pixel_magic_test`, created by `docker/initdb`). They never call Paddle; it is faked.
+Tests use `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:54329/pixel_magic_test`). Each run drops and recreates that database and migrates it from scratch, so its name must end in `_test`. They never call Paddle; it is faked.
 
 ## Endpoints
 
