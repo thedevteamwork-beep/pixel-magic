@@ -8,6 +8,10 @@ services:
       POSTGRES_DB: pixel_magic
     volumes:
       - ./docker/initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 2s
+      retries: 15
 
   api:
     build: .
@@ -15,7 +19,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment: &app-env
       MODE: api
       PORT: "8080"
@@ -30,7 +35,8 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       <<: *app-env
       MODE: worker

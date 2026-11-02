@@ -17,7 +17,7 @@ npm run dev:worker      # http://localhost:8081 (separate terminal)
 
 `docker-compose.yml` uses `postgres:${POSTGRES_VERSION:-17}`. On a machine that already has another image, for example `postgres:14`, run `POSTGRES_VERSION=14 npm run db:up`.
 
-`docker compose up -d --build` starts the db, api (runs migrations first) and worker with dummy Paddle/Supabase values. Check with `curl localhost:8080/_readyz` and `curl localhost:8081/_healthz`.
+`docker compose up -d --build` starts the db, api and worker with dummy Paddle/Supabase values. Compose waits until Postgres is healthy before the api runs migrations and starts, and before the worker starts; no need to start the db first. Check with `curl localhost:8080/_readyz` and `curl localhost:8081/_healthz`.
 
 Grant credits manually: `npm run credits:grant -- <userId> <n> <days>`.
 
