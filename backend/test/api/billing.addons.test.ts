@@ -115,6 +115,26 @@ describe("billing add-ons and invoices API", () => {
     expect(ctx.paddle.calls).toHaveLength(0);
   });
 
+  it("stores the token's email on a profile created without one, then buys", async () => {
+    const me = await request(app)
+      .get("/v1/me")
+      .set(await authHeader(userId, { email: null }));
+    expect(me.status).toBe(200);
+    const before = await testDb(T.profiles).where({ id: userId }).first();
+    expect(before.email).toBeNull();
+
+    const res = await request(app)
+      .post("/v1/billing/addons")
+      .set(await authHeader(userId, { email: "later@test.dev" }))
+      .send({ addon: "credits_1000" });
+    expect(res.status).toBe(200);
+    expect(ctx.paddle.callsTo("createCustomer")[0]!.args).toEqual([
+      "later@test.dev",
+    ]);
+    const after = await testDb(T.profiles).where({ id: userId }).first();
+    expect(after.email).toBe("later@test.dev");
+  });
+
   it.each(["nope", "archived_addon"])(
     "rejects %s with 422 ADDON_NOT_AVAILABLE",
     async (addon) => {

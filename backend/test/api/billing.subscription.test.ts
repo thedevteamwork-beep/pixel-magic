@@ -397,9 +397,31 @@ describe("billing subscription changes API", () => {
     expect(ctx.paddle.calls).toHaveLength(0);
   });
 
+  it("a plan checkout stores the token's email when the profile has none", async () => {
+    const { userId } = await createUserOnPlan(ctx.deps, {
+      planName: "free",
+      periodStart: T0,
+      periodEnd: addDays(T0, 30),
+    });
+    const res = await request(app)
+      .post("/v1/billing/subscription")
+      .set(await authHeader(userId, { email: "plan@test.dev" }))
+      .send({ plan: "starter_monthly" });
+    expect(res.status).toBe(200);
+    expect(res.body.action).toBe("checkout");
+    expect(ctx.paddle.callsTo("createCustomer")[0]!.args).toEqual([
+      "plan@test.dev",
+    ]);
+    const profile = await testDb(T.profiles).where({ id: userId }).first();
+    expect(profile.email).toBe("plan@test.dev");
+  });
+
   it("an upgrade with no email is a 422 before any Paddle registration", async () => {
     const { userId } = await paidUser("starter_monthly");
-    const res = await post(userId, "pro_monthly");
+    const res = await request(app)
+      .post("/v1/billing/subscription")
+      .set(await authHeader(userId, { email: null }))
+      .send({ plan: "pro_monthly" });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("VALIDATION_FAILED");
     const methods = ctx.paddle.calls.map((c) => c.method);

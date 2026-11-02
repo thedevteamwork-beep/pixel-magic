@@ -40,6 +40,14 @@ export async function lockProfile(
   return row;
 }
 
+export async function setProfileEmail(
+  db: Db,
+  id: string,
+  email: string,
+): Promise<void> {
+  await db(T.profiles).where("id", id).update({ email });
+}
+
 export async function setPaddleCustomerId(
   db: Db,
   id: string,

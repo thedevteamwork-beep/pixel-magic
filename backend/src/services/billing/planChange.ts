@@ -13,7 +13,7 @@ import type { ActiveSubscription, PlanWithCredits } from "../../db/rows.js";
 import { AppError } from "../../lib/errors.js";
 import { addMonths } from "../../lib/time.js";
 import { ensurePaddlePrice, openCheckout } from "./checkout.js";
-import type { CheckoutResult } from "./checkout.js";
+import type { CheckoutResult, TokenUser } from "./checkout.js";
 import {
   describeAction,
   getAction,
@@ -203,11 +203,11 @@ async function undoQuietly(
 
 export async function requestPlanChange(
   deps: Deps,
-  userId: string,
+  user: TokenUser,
   planName: string,
 ): Promise<PlanChangeResult> {
   return withProviderErrors(async () => {
-    const ev = await evaluate(deps, userId, planName);
+    const ev = await evaluate(deps, user.id, planName);
     if ("same" in ev) {
       if (!isScheduled(ev.live, ev.sub)) {
         throw new AppError(
@@ -230,7 +230,7 @@ export async function requestPlanChange(
 
     if (action === "now" && changeType !== "cancel") {
       return openCheckout(deps, {
-        userId,
+        user,
         itemType: "plan",
         itemId: target.id,
         changeType,

@@ -30,7 +30,7 @@ export function billingRouter(deps: Deps): Router {
     json,
     validate({ body: addonBody }),
     async (req, res) => {
-      res.json(await buyAddon(deps, req.user!.id, req.body.addon));
+      res.json(await buyAddon(deps, req.user!, req.body.addon));
     },
   );
 
@@ -50,7 +50,7 @@ export function billingRouter(deps: Deps): Router {
     json,
     validate({ body: planBody }),
     async (req, res) => {
-      res.json(await requestPlanChange(deps, req.user!.id, req.body.plan));
+      res.json(await requestPlanChange(deps, req.user!, req.body.plan));
     },
   );
 
