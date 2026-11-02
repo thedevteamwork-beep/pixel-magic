@@ -1,6 +1,35 @@
 import type { Knex } from "knex";
 import { T } from "../tables.js";
 
+type CatalogPlan = {
+  name: string;
+  display: string;
+  description: string;
+  priority: number;
+  interval: "monthly" | "yearly";
+  amount: string;
+  currency?: string;
+  credits: number;
+};
+
+type CatalogAddon = {
+  name: string;
+  display: string;
+  description: string;
+  amount: string;
+  currency?: string;
+  durationDays: number;
+  credits: number;
+};
+
+export type Catalog = {
+  features: readonly { name: string; display: string; description: string }[];
+  plans: readonly CatalogPlan[];
+  addons: readonly CatalogAddon[];
+};
+
+const DEFAULT_CURRENCY = "USD";
+
 // TODO(pricing): placeholder names, prices and credits (plans spec §4.1, §11).
 export const CATALOG = {
   features: [
@@ -54,16 +83,47 @@ export const CATALOG = {
       credits: 1000,
     },
   ],
-} as const;
+} as const satisfies Catalog;
 
-/** Upserts by name. Never touches paddle_product_id / paddle_price_id. */
+type PriceFields = { amount: string; currency: string; interval?: string };
+
+/**
+ * A row registered on Paddle has a Paddle price with its amount, currency and
+ * interval fixed; changing them here would bill a different price than the
+ * catalog shows. A price change is a new row (and the old one archived).
+ */
+async function assertSamePrice(
+  trx: Knex.Transaction,
+  table: string,
+  name: string,
+  wanted: PriceFields,
+): Promise<void> {
+  const row: (PriceFields & { paddle_price_id: string | null }) | undefined =
+    await trx(table).where({ name }).forNoKeyUpdate().first();
+  if (!row?.paddle_price_id) return;
+  if (
+    Number(row.amount) !== Number(wanted.amount) ||
+    row.currency !== wanted.currency ||
+    row.interval !== wanted.interval
+  ) {
+    throw new Error(
+      `Price change for ${name} needs a new catalog row; archive the old one`,
+    );
+  }
+}
+
+/**
+ * Upserts by name. Never touches paddle_product_id / paddle_price_id, and
+ * refuses to re-price a row already registered on Paddle.
+ */
 export async function seedCatalog(
   db: Knex,
   now: Date = new Date(),
+  catalog: Catalog = CATALOG,
 ): Promise<void> {
   await db.transaction(async (trx) => {
     const featureIds: Record<string, string> = {};
-    for (const f of CATALOG.features) {
+    for (const f of catalog.features) {
       const [row] = await trx(T.features)
         .insert({ ...f, created_at: now, updated_at: now })
         .onConflict("name")
@@ -72,7 +132,13 @@ export async function seedCatalog(
       featureIds[row.name] = row.id;
     }
     const creditsId = featureIds.credits;
-    for (const p of CATALOG.plans) {
+    for (const p of catalog.plans) {
+      const currency = p.currency ?? DEFAULT_CURRENCY;
+      await assertSamePrice(trx, T.plans, p.name, {
+        amount: p.amount,
+        currency,
+        interval: p.interval,
+      });
       const [row] = await trx(T.plans)
         .insert({
           name: p.name,
@@ -81,6 +147,7 @@ export async function seedCatalog(
           priority: p.priority,
           interval: p.interval,
           amount: p.amount,
+          currency,
           created_at: now,
           updated_at: now,
         })
@@ -91,6 +158,7 @@ export async function seedCatalog(
           "priority",
           "interval",
           "amount",
+          "currency",
           "updated_at",
         ])
         .returning("id");
@@ -104,13 +172,19 @@ export async function seedCatalog(
         .onConflict(["plan_id", "feature_id"])
         .merge(["quantity"]);
     }
-    for (const a of CATALOG.addons) {
+    for (const a of catalog.addons) {
+      const currency = a.currency ?? DEFAULT_CURRENCY;
+      await assertSamePrice(trx, T.addons, a.name, {
+        amount: a.amount,
+        currency,
+      });
       const [row] = await trx(T.addons)
         .insert({
           name: a.name,
           display: a.display,
           description: a.description,
           amount: a.amount,
+          currency,
           duration_days: a.durationDays,
           created_at: now,
           updated_at: now,
@@ -120,6 +194,7 @@ export async function seedCatalog(
           "display",
           "description",
           "amount",
+          "currency",
           "duration_days",
           "updated_at",
         ])
