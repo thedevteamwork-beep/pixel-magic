@@ -64,6 +64,27 @@ export async function getJobByFalRequestId(
   return (await db(T.jobs).where("fal_request_id", requestId).first()) ?? null;
 }
 
+/** Compare-and-set: links a request to a job still `submitting` without one. */
+export async function linkFalRequest(
+  db: Db,
+  jobId: string,
+  requestId: string,
+  now: Date,
+): Promise<JobRow | null> {
+  const rows: JobRow[] = await db(T.jobs)
+    .where({ id: jobId, status: "submitting" })
+    .whereNull("fal_request_id")
+    .update({
+      status: "submitted",
+      fal_request_id: requestId,
+      submitted_at: now,
+      lease_expires_at: null,
+      updated_at: now,
+    })
+    .returning("*");
+  return rows[0] ?? null;
+}
+
 export async function countActiveJobs(db: Db, userId: string): Promise<number> {
   const r = await db(T.jobs)
     .where("user_id", userId)
