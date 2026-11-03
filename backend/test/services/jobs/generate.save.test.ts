@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const control = vi.hoisted(() => ({
   throwTimes: 0,
   forceNull: false,
+  writeBeforeThrow: false,
 }));
 vi.mock("../../../src/db/repositories/jobs.repo.js", async (importOriginal) => {
   const actual =
@@ -18,6 +19,7 @@ vi.mock("../../../src/db/repositories/jobs.repo.js", async (importOriginal) => {
         from.includes("submitting") && patch.status === "submitted";
       if (isSave && control.throwTimes > 0) {
         control.throwTimes -= 1;
+        if (control.writeBeforeThrow) await actual.transitionJob(...args);
         throw new Error("db down");
       }
       if (isSave && control.forceNull) return null;
@@ -41,6 +43,7 @@ describe("runGenerate: saving the request id", () => {
   beforeEach(async () => {
     control.throwTimes = 0;
     control.forceNull = false;
+    control.writeBeforeThrow = false;
     await resetDb();
     await seedTestCatalog(testDb);
     h = makeDeps();
@@ -80,6 +83,13 @@ describe("runGenerate: saving the request id", () => {
         requestId: "req_1",
       }),
     );
+  });
+
+  it("doesn't cancel when the save threw but the row was written", async () => {
+    control.throwTimes = 3;
+    control.writeBeforeThrow = true;
+    expect(await runGenerate(h.deps, id)).toBe(200);
+    expect(h.fal.calls.some((c) => c.method === "cancel")).toBe(false);
   });
 
   it("doesn't cancel when the webhook already linked our request", async () => {

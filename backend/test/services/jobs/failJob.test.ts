@@ -42,7 +42,7 @@ describe("failJob", () => {
           job.jobId,
           ["queued"],
           "SUBMIT_FAILED",
-          "x".repeat(600),
+          "secret-detail-xyz",
         ),
       );
     expect(await run()).toBe(true);
@@ -56,6 +56,7 @@ describe("failJob", () => {
       lease_expires_at: null,
     });
     expect(row.error_message).toBe(JOB_ERROR_MESSAGES.SUBMIT_FAILED);
+    expect(row.error_message).not.toContain("secret-detail-xyz");
     expect(row.completed_at).toEqual(deps.clock.now());
     const releases = await testDb(T.creditLedger).where({
       job_id: job.jobId,
@@ -70,6 +71,7 @@ describe("failJob", () => {
         from: ["queued"],
         to: "failed",
         message: "Job failed",
+        detail: "secret-detail-xyz",
       }),
     );
   });

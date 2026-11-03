@@ -56,6 +56,8 @@ describe("createFalClient", () => {
   });
 
   it.each([
+    [401, true],
+    [403, true],
     [429, true],
     [502, true],
     [503, true],

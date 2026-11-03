@@ -103,7 +103,16 @@ export async function runGenerate(
     now,
     incrementAttempts: true,
   });
-  if (!job) return 200;
+  if (!job) {
+    deps.logger.info("Generate skipped: job not claimable", { jobId });
+    return 200;
+  }
+  deps.logger.info("Job state changed", {
+    jobId,
+    from: "queued",
+    to: "submitting",
+    attempts: job.attempts,
+  });
 
   const model = getModel(job.model_key);
   if (!model) {
@@ -142,37 +151,57 @@ export async function runGenerate(
       falWebhookUrl(deps.config, jobId),
     ));
   } catch (err) {
-    const retryable =
-      err instanceof StorageError || (err instanceof FalError && err.retryable);
-    if (retryable) {
-      if (job.attempts < MAX_SUBMIT_ATTEMPTS) {
-        const t = deps.clock.now();
-        await transitionJob(
-          deps.db,
-          jobId,
-          ["submitting"],
-          { status: "queued", lease_expires_at: null },
-          t,
-        );
-        deps.logger.warn("Submit failed; will retry", {
-          jobId,
-          attempts: job.attempts,
-          err,
-        });
-        return 503;
-      }
-      await failSubmitting(deps, jobId, "SUBMIT_FAILED", String(err));
-      return 200;
-    }
-    if (err instanceof FalError) {
+    if (err instanceof FalError && !err.retryable) {
       await failSubmitting(deps, jobId, "SUBMIT_REJECTED", err.message);
       return 200;
     }
-    throw err;
+    // Everything else (retryable fal/storage errors and unexpected ones) is
+    // capped by the attempts policy so a poisoned job can't loop forever.
+    const detail = err instanceof Error ? err.message : String(err);
+    if (job.attempts >= MAX_SUBMIT_ATTEMPTS) {
+      await failSubmitting(deps, jobId, "SUBMIT_FAILED", detail);
+      return 200;
+    }
+    const t = deps.clock.now();
+    const requeued = await transitionJob(
+      deps.db,
+      jobId,
+      ["submitting"],
+      { status: "queued", lease_expires_at: null },
+      t,
+    );
+    if (!requeued) {
+      deps.logger.info("Job changed meanwhile; not requeued", { jobId });
+      return 200;
+    }
+    deps.logger.info("Job state changed", {
+      jobId,
+      from: "submitting",
+      to: "queued",
+      attempts: job.attempts,
+    });
+    deps.logger.warn("Submit failed; will retry", {
+      jobId,
+      attempts: job.attempts,
+      err,
+    });
+    return 503;
   }
 
   const result = await saveRequestId(deps, jobId, requestId);
   if ("threw" in result) {
+    try {
+      const now = await getJob(deps.db, jobId);
+      if (now?.status === "submitted" && now.fal_request_id === requestId) {
+        deps.logger.info("Request id was saved despite the error", {
+          jobId,
+          requestId,
+        });
+        return 200;
+      }
+    } catch {
+      // Best effort: fall through and cancel.
+    }
     await cancelQuietly(deps, jobId, model.falModelId, requestId);
     deps.logger.error("couldn't save the fal request id", {
       jobId,
@@ -181,7 +210,15 @@ export async function runGenerate(
     });
     return 503;
   }
-  if (result.saved) return 200;
+  if (result.saved) {
+    deps.logger.info("Job state changed", {
+      jobId,
+      from: "submitting",
+      to: "submitted",
+      attempts: job.attempts,
+    });
+    return 200;
+  }
 
   const current = await getJob(deps.db, jobId);
   if (current?.fal_request_id === requestId) {

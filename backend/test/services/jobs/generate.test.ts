@@ -227,4 +227,74 @@ describe("runGenerate", () => {
         .status,
     ).toBe(200);
   });
+
+  it("caps non-fal errors: fails with SUBMIT_FAILED on the fifth attempt", async () => {
+    const up = await createUpload(h.deps, userId, {
+      filename: "a.png",
+      mimeType: "image/png",
+      sizeBytes: 100,
+    });
+    h.storage.put("inputs", up.path, { sizeBytes: 100, mimeType: "image/png" });
+    const { job } = await createJob(
+      h.deps,
+      userId,
+      {
+        model: "kling-i2v",
+        prompt: "move",
+        uploadIds: [up.uploadId],
+        options: {},
+      },
+      "k-kling",
+    );
+    await testDb(T.uploads).where({ id: up.uploadId }).delete();
+    for (let i = 1; i <= 4; i++) {
+      expect(await runGenerate(h.deps, job.jobId)).toBe(503);
+      expect((await getJob(testDb, job.jobId))?.status).toBe("queued");
+    }
+    expect(await runGenerate(h.deps, job.jobId)).toBe(200);
+    expect(await getJob(testDb, job.jobId)).toMatchObject({
+      status: "failed",
+      error_code: "SUBMIT_FAILED",
+      attempts: 5,
+    });
+    expect(await reserved(job.jobId)).toBe(0);
+  });
+
+  it("logs state changes at info and the empty claim", async () => {
+    const id = await fluxJob();
+    await runGenerate(h.deps, id);
+    expect(h.logs).toContainEqual(
+      expect.objectContaining({
+        level: "info",
+        jobId: id,
+        from: "queued",
+        to: "submitting",
+        attempts: 1,
+      }),
+    );
+    expect(h.logs).toContainEqual(
+      expect.objectContaining({
+        level: "info",
+        jobId: id,
+        from: "submitting",
+        to: "submitted",
+      }),
+    );
+    h.logs.length = 0;
+    await runGenerate(h.deps, id);
+    expect(h.logs).toContainEqual(
+      expect.objectContaining({ level: "info", jobId: id }),
+    );
+  });
+
+  it("returns 200 when the requeue finds the job changed meanwhile", async () => {
+    const id = await fluxJob();
+    h.fal.failNext("submit", retryable());
+    const realSubmit = h.fal.submit.bind(h.fal);
+    h.fal.submit = async (...a) => {
+      await testDb(T.jobs).where({ id }).update({ status: "failed" });
+      return realSubmit(...a);
+    };
+    expect(await runGenerate(h.deps, id)).toBe(200);
+  });
 });

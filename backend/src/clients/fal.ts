@@ -99,7 +99,8 @@ export function createFalClient(
         const s = res.status;
         throw new FalError(
           `fal submit failed: HTTP ${s}`,
-          s === 429 || s >= 500,
+          // A bad or rotated FAL_KEY (401/403) must not fail users' jobs.
+          s === 401 || s === 403 || s === 429 || s >= 500,
           s,
         );
       }
