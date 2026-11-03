@@ -242,4 +242,33 @@ describe("fal webhook", () => {
     expect(res.status).toBe(401);
     expect(await events()).toHaveLength(0);
   });
+
+  const senderLogged = (logs: Array<Record<string, unknown>>) =>
+    logs.some(
+      (l) =>
+        l.severity === "INFO" &&
+        l.falUserId === "fal-user" &&
+        l.requestId === "req_1",
+    );
+
+  it("logs the fal sender id while FAL_WEBHOOK_USER_ID is unset", async () => {
+    await jobWith("submitted", "req_1");
+    const open = makeDeps({
+      config: { ...ctx.deps.config, FAL_WEBHOOK_USER_ID: undefined },
+    });
+    const res = await request(createApp(open.deps))
+      .post("/webhooks/fal")
+      .set(signFalWebhook(OK_BODY).headers)
+      .set("content-type", "application/json")
+      .send(signFalWebhook(OK_BODY).raw.toString("utf8"));
+    expect(res.status).toBe(200);
+    expect(senderLogged(open.logs)).toBe(true);
+  });
+
+  it("doesn't log the sender id once FAL_WEBHOOK_USER_ID is set", async () => {
+    await jobWith("submitted", "req_1");
+    const res = await post(signFalWebhook(OK_BODY));
+    expect(res.status).toBe(200);
+    expect(senderLogged(ctx.logs)).toBe(false);
+  });
 });

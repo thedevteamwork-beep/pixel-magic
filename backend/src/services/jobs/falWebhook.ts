@@ -114,6 +114,12 @@ export async function handleFalWebhook(
     return 503;
   }
   if (!verified) return 401;
+  if (!deps.config.FAL_WEBHOOK_USER_ID) {
+    deps.logger.info("fal webhook from user (set FAL_WEBHOOK_USER_ID)", {
+      falUserId: headers.userId,
+      requestId: headers.requestId,
+    });
+  }
 
   let json: unknown;
   try {

@@ -12,7 +12,7 @@ npm run db:up           # local Postgres on port 54329
 npm run migrate
 npm run seed            # catalog: Free plan, placeholder plans and an add-on
 npm run dev:api         # http://localhost:8080
-npm run dev:worker      # http://localhost:8081 (separate terminal)
+PORT=8081 npm run dev:worker   # http://localhost:8081 (separate terminal)
 ```
 
 `docker-compose.yml` uses `postgres:${POSTGRES_VERSION:-17}`. On a machine that already has another image, for example `postgres:14`, run `POSTGRES_VERSION=14 npm run db:up`.
@@ -121,7 +121,7 @@ Job states: `queued` -> `submitting` -> `submitted` -> `finalizing` -> `complete
 
 The reconciler (`POST /tasks/reconcile`) makes sure every job keeps moving: it re-queues stale `queued` jobs, `submitting` and `finalizing` jobs whose lease ran out, polls `submitted` jobs that fal hasn't called back about (after about 3 minutes), and cancels and fails `submitted` jobs past the model's timeout (`TIMED_OUT`).
 
-fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request id to a `fal_request_id` we saved. If the worker crashed before saving it, the webhook links the request to the job only after `fal.status` succeeds with our own key; a request id from another fal account gets a 4xx and is treated as an orphan (logged, 200, never linked).
+fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request id to a `fal_request_id` we saved. If the worker crashed before saving it, the webhook links the request to the job only after `fal.status` succeeds with our own key; a request id from another fal account makes `fal.status` answer with a 4xx such as 404, and it is treated as an orphan (logged, 200, never linked). A 401 or 403 means our own key is bad: the webhook answers 503 so fal retries, and nothing is linked.
 
 ### What users see when a job fails
 
@@ -146,13 +146,13 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 ## fal setup
 
 - `FAL_KEY`: fal dashboard API key.
-- Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (it is logged), or look in the fal dashboard.
+- Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (while the key is unset, the API logs it at info as `falUserId`), or look in the fal dashboard.
 - `WORKER_URL` and `API_PUBLIC_URL` must not end with a slash.
 - The two models (`flux-schnell`, `kling-i2v`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
 
 ## Local end-to-end run
 
-1. In `.env` set `TASKS_MODE=http` and `WORKER_URL=http://localhost:8081`, plus real `FAL_KEY` and `SUPABASE_*` values and the two buckets above.
+1. In `.env` set `TASKS_MODE=http` and `WORKER_URL=http://localhost:8081`, plus real `FAL_KEY` and `SUPABASE_*` values and the two buckets above. Nothing loads `.env` for you: in each terminal run `set -a; source .env; set +a` before starting a process.
 2. Run the API and the worker side by side: `npm run dev:api` and `PORT=8081 npm run dev:worker` (separate terminals; the worker must listen on the port in `WORKER_URL`).
 3. fal webhooks need a public `API_PUBLIC_URL` (for example an ngrok tunnel to port 8080). Without one, jobs stay `submitted`; about 3 minutes after submission call `curl -X POST localhost:8081/tasks/reconcile` and the reconciler polls fal and queues finalize.
 
@@ -217,7 +217,7 @@ Also confirm, because these could not be tested locally:
 
 ## Cloud Scheduler
 
-The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) also logs ERROR for rows it can't fix: active paid rows whose period ended over 7 days ago or that Paddle paused, and Paddle cancels still failing after 24 hours. Alert on those logs. It needs an hourly Cloud Scheduler job: `POST /tasks/billing-sweep` on the worker service. Set up two Cloud Scheduler jobs on the worker service, both with an OIDC token:
+The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) also logs ERROR for rows it can't fix: active paid rows whose period ended over 7 days ago or that Paddle paused, and Paddle cancels still failing after 24 hours. Alert on those logs. Set up two Cloud Scheduler jobs on the worker service, both with an OIDC token:
 
 - `POST /tasks/reconcile` every 5 minutes (recovers stuck jobs and missed fal webhooks).
 - `POST /tasks/billing-sweep` hourly.
