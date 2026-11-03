@@ -29,64 +29,161 @@ npm test                # vitest
 npm run lint && npm run typecheck
 ```
 
-Tests use `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:54329/pixel_magic_test`). Each run drops and recreates that database and migrates it from scratch, so its name must end in `_test`. They never call Paddle; it is faked.
+Tests never touch the network (fal, Storage and the queue are faked). They use `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:54329/pixel_magic_test`). Each run drops and recreates that database and migrates it from scratch, so its name must end in `_test`. They never call Paddle; it is faked.
 
 ## Endpoints
 
-| Where  | Endpoint                                           | Notes                                                      |
-| ------ | -------------------------------------------------- | ---------------------------------------------------------- |
-| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                            |
-| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                             |
-| api    | `GET /v1/me`                                       | credits and subscription (auth)                            |
-| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                          |
-| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                      |
-| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`) |
-| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                     |
-| api    | `GET /v1/billing/invoices`                         | paid invoices                                              |
-| api    | `POST /webhooks/paddle`                            | signed Paddle events                                       |
-| worker | `GET /_healthz`, `GET /_readyz`                    |                                                            |
-| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                         |
+| Where  | Endpoint                                           | Notes                                                       |
+| ------ | -------------------------------------------------- | ----------------------------------------------------------- |
+| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                             |
+| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                              |
+| api    | `GET /v1/me`                                       | credits and subscription (auth)                             |
+| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                           |
+| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                       |
+| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`)  |
+| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                      |
+| api    | `GET /v1/billing/invoices`                         | paid invoices                                               |
+| api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth) |
+| api    | `GET /v1/models`                                   | model catalog (public)                                      |
+| api    | `POST /v1/jobs`                                    | create a job; `Idempotency-Key` header required (auth)      |
+| api    | `GET /v1/jobs/:id`                                 | job status (auth)                                           |
+| api    | `GET /v1/jobs/:id/download-url?index=`             | signed download URL of a completed output (auth)            |
+| api    | `POST /webhooks/paddle`                            | signed Paddle events                                        |
+| api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)    |
+| worker | `GET /_healthz`, `GET /_readyz`                    |                                                             |
+| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                          |
+| worker | `POST /tasks/reconcile`                            | recovers stuck jobs (every 5 minutes)                       |
+| worker | `POST /tasks/generate`, `POST /tasks/finalize`     | `{jobId}`; called by the task queue                         |
 
 A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 
 ## Environment
 
-| Key                        | Default         | Purpose                                                 |
-| -------------------------- | --------------- | ------------------------------------------------------- |
-| `MODE`                     | required        | `api` or `worker`                                       |
-| `PORT`                     | 8080            | HTTP port                                               |
-| `NODE_ENV`                 | development     | `development`, `test` or `production`                   |
-| `LOG_LEVEL`                | info            | winston log level                                       |
-| `DATABASE_URL`             | required        | app connection string                                   |
-| `DATABASE_MIGRATION_URL`   | `DATABASE_URL`  | connection used by `npm run migrate`                    |
-| `DB_POOL_MAX`              | 5               | max DB pool size                                        |
-| `SUPABASE_URL`             | required        | JWKS is read from `<url>/auth/v1/.well-known/jwks.json` |
-| `CORS_ORIGINS`             | empty           | comma-separated allowed origins                         |
-| `PADDLE_API_KEY`           | required        | Paddle API key                                          |
-| `PADDLE_WEBHOOK_SECRET`    | required        | notification destination secret (`pdl_ntfset_...`)      |
-| `PADDLE_ENV`               | sandbox         | `sandbox` or `production`                               |
-| `FREE_PLAN_NAME`           | free            | name of the Free plan row                               |
-| `CARRYOVER_VALIDITY_DAYS`  | 30              | how long carried-over credits stay valid                |
-| `PLAN_CHANGE_LOCK_MINUTES` | 60              | no plan changes this close to renewal                   |
-| `CHECKOUT_REUSE_MINUTES`   | 30              | a draft checkout younger than this is reused            |
-| `RENEWAL_GRACE_MINUTES`    | 60              | grace after a period ends before its credits stop       |
-| `SUPABASE_SECRET_KEY`      | required        | service key for Storage (server only)                   |
-| `FAL_KEY`                  | required        | fal.ai API key                                          |
-| `API_PUBLIC_URL`           | required        | public URL of the API (fal webhook target)              |
-| `WORKER_URL`               | required        | URL the task queue calls for worker routes              |
-| `STORAGE_BUCKET_INPUTS`    | inputs          | Storage bucket for uploads                              |
-| `STORAGE_BUCKET_OUTPUTS`   | outputs         | Storage bucket for generated files                      |
-| `FAL_JWKS_URL`             | fal public JWKS | verifies fal webhook signatures                         |
-| `FAL_WEBHOOK_USER_ID`      | optional        | set in production to our fal user id                    |
-| `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks)                 |
-| `TASKS_QUEUE_GENERATION`   | generation      | generation queue name                                   |
-| `TASKS_QUEUE_FINALIZATION` | finalization    | finalization queue name                                 |
-| `GCP_PROJECT_ID`           | unset           | required when `TASKS_MODE=cloud`                        |
-| `GCP_REGION`               | unset           | required when `TASKS_MODE=cloud`                        |
-| `TASKS_SERVICE_ACCOUNT`    | unset           | required when `TASKS_MODE=cloud`                        |
-| `MAX_ACTIVE_JOBS_PER_USER` | 4               | concurrent unfinished jobs per user                     |
-| `UPLOAD_MAX_BYTES`         | 20971520        | max upload size in bytes                                |
-| `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types               |
+| Key                        | Default         | Purpose                                                       |
+| -------------------------- | --------------- | ------------------------------------------------------------- |
+| `MODE`                     | required        | `api` or `worker`                                             |
+| `PORT`                     | 8080            | HTTP port                                                     |
+| `NODE_ENV`                 | development     | `development`, `test` or `production`                         |
+| `LOG_LEVEL`                | info            | winston log level                                             |
+| `DATABASE_URL`             | required        | app connection string                                         |
+| `DATABASE_MIGRATION_URL`   | `DATABASE_URL`  | connection used by `npm run migrate`                          |
+| `DB_POOL_MAX`              | 5               | max DB pool size                                              |
+| `SUPABASE_URL`             | required        | JWKS is read from `<url>/auth/v1/.well-known/jwks.json`       |
+| `CORS_ORIGINS`             | empty           | comma-separated allowed origins                               |
+| `PADDLE_API_KEY`           | required        | Paddle API key                                                |
+| `PADDLE_WEBHOOK_SECRET`    | required        | notification destination secret (`pdl_ntfset_...`)            |
+| `PADDLE_ENV`               | sandbox         | `sandbox` or `production`                                     |
+| `FREE_PLAN_NAME`           | free            | name of the Free plan row                                     |
+| `CARRYOVER_VALIDITY_DAYS`  | 30              | how long carried-over credits stay valid                      |
+| `PLAN_CHANGE_LOCK_MINUTES` | 60              | no plan changes this close to renewal                         |
+| `CHECKOUT_REUSE_MINUTES`   | 30              | a draft checkout younger than this is reused                  |
+| `RENEWAL_GRACE_MINUTES`    | 60              | grace after a period ends before its credits stop             |
+| `SUPABASE_SECRET_KEY`      | required        | service key for Storage (server only)                         |
+| `FAL_KEY`                  | required        | fal.ai API key                                                |
+| `API_PUBLIC_URL`           | required        | public URL of the API (fal webhook target), no trailing slash |
+| `WORKER_URL`               | required        | URL the task queue calls for worker routes, no trailing slash |
+| `STORAGE_BUCKET_INPUTS`    | inputs          | Storage bucket for uploads                                    |
+| `STORAGE_BUCKET_OUTPUTS`   | outputs         | Storage bucket for generated files                            |
+| `FAL_JWKS_URL`             | fal public JWKS | verifies fal webhook signatures                               |
+| `FAL_WEBHOOK_USER_ID`      | optional        | set in production to our fal user id                          |
+| `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks)                       |
+| `TASKS_QUEUE_GENERATION`   | generation      | generation queue name                                         |
+| `TASKS_QUEUE_FINALIZATION` | finalization    | finalization queue name                                       |
+| `GCP_PROJECT_ID`           | unset           | required when `TASKS_MODE=cloud`                              |
+| `GCP_REGION`               | unset           | required when `TASKS_MODE=cloud`                              |
+| `TASKS_SERVICE_ACCOUNT`    | unset           | required when `TASKS_MODE=cloud`                              |
+| `MAX_ACTIVE_JOBS_PER_USER` | 4               | concurrent unfinished jobs per user                           |
+| `UPLOAD_MAX_BYTES`         | 20971520        | max upload size in bytes                                      |
+| `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types                     |
+
+## Generation flow
+
+```
+client                API                         Cloud Tasks        worker                      fal
+  | POST /v1/uploads   |                               |               |                         |
+  |------------------->| signed upload URL             |               |                         |
+  | PUT file to Storage (inputs bucket)                |               |                         |
+  | POST /v1/jobs      |                               |               |                         |
+  |------------------->| reserve credits, insert job   |               |                         |
+  |                    | (queued) ---- generate -----> |-------------->| POST /tasks/generate    |
+  |                    |                               |               | submit (with webhook) ->|
+  |                    |                               |               | job -> submitted        |
+  |                    |<------------- signed webhook POST /webhooks/fal ------------------------|
+  |                    | verify, link, ---- finalize ->|-------------->| POST /tasks/finalize    |
+  |                    |                               |               | fetch result, copy to   |
+  |                    |                               |               | outputs bucket, capture |
+  |                    |                               |               | credits -> completed    |
+  | GET /v1/jobs/:id   |                               |               |                         |
+  | GET /v1/jobs/:id/download-url -> signed URL        |               |                         |
+```
+
+Job states: `queued` -> `submitting` -> `submitted` -> `finalizing` -> `completed`. Any state except `completed` can go to `failed`. `completed` and `failed` are final. Creating a job reserves its credits; `completed` captures them, `failed` releases them. A job in an active state (`queued`, `submitting`, `submitted`, `finalizing`) counts toward `MAX_ACTIVE_JOBS_PER_USER`.
+
+The reconciler (`POST /tasks/reconcile`) makes sure every job keeps moving: it re-queues stale `queued` jobs, `submitting` and `finalizing` jobs whose lease ran out, polls `submitted` jobs that fal hasn't called back about (after about 3 minutes), and cancels and fails `submitted` jobs past the model's timeout (`TIMED_OUT`).
+
+fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request id to a `fal_request_id` we saved. If the worker crashed before saving it, the webhook links the request to the job only after `fal.status` succeeds with our own key; a request id from another fal account gets a 4xx and is treated as an orphan (logged, 200, never linked).
+
+### What users see when a job fails
+
+`error.message` is a fixed sentence per code (`JOB_ERROR_MESSAGES` in `src/services/jobs/jobs.ts`). fal's raw error text, request ids and URLs go only to WARN logs. Credits are always released.
+
+| Code                | Message                                                        |
+| ------------------- | -------------------------------------------------------------- |
+| `SUBMIT_REJECTED`   | The model rejected this request.                               |
+| `SUBMIT_FAILED`     | The model service was unavailable. Your credits were returned. |
+| `GENERATION_FAILED` | The model couldn't generate this request.                      |
+| `CONTENT_BLOCKED`   | The result was blocked by the safety filter.                   |
+| `OUTPUT_INVALID`    | The model returned an unusable result.                         |
+| `TIMED_OUT`         | The generation took too long and was cancelled.                |
+| `MODEL_UNAVAILABLE` | This model is no longer available.                             |
+
+## Supabase setup
+
+1. Storage: create two private buckets, `inputs` and `outputs` (the names are `STORAGE_BUCKET_INPUTS` and `STORAGE_BUCKET_OUTPUTS`).
+2. `inputs`: set `file_size_limit` to 20 MB (20971520) and `allowed_mime_types` to `image/png,image/jpeg,image/webp`.
+3. `SUPABASE_SECRET_KEY`: Project Settings > API Keys, the secret key (`sb_secret_...`). Server only; never ship it to a client.
+
+## fal setup
+
+- `FAL_KEY`: fal dashboard API key.
+- Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (it is logged), or look in the fal dashboard.
+- `WORKER_URL` and `API_PUBLIC_URL` must not end with a slash.
+- The two models (`flux-schnell`, `kling-i2v`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
+
+## Local end-to-end run
+
+1. In `.env` set `TASKS_MODE=http` and `WORKER_URL=http://localhost:8081`, plus real `FAL_KEY` and `SUPABASE_*` values and the two buckets above.
+2. Run the API and the worker side by side: `npm run dev:api` and `PORT=8081 npm run dev:worker` (separate terminals; the worker must listen on the port in `WORKER_URL`).
+3. fal webhooks need a public `API_PUBLIC_URL` (for example an ngrok tunnel to port 8080). Without one, jobs stay `submitted`; about 3 minutes after submission call `curl -X POST localhost:8081/tasks/reconcile` and the reconciler polls fal and queues finalize.
+
+## Cloud Tasks queues
+
+| Queue          | Max attempts | Backoff       | Dispatch deadline |
+| -------------- | ------------ | ------------- | ----------------- |
+| `generation`   | 5            | 10 s to 5 min | 60 s              |
+| `finalization` | 10           | default       | 15 min            |
+
+The worker service request timeout is 15 minutes (finalize copies files). Task names are deterministic per job and kind, so the same task is not queued twice.
+
+## Milestone 2 acceptance check
+
+Backend spec section 12. In a dev GCP/Supabase project, run one real image job and one real video job end to end (upload if the model needs one, `POST /v1/jobs`, wait for `completed`, `GET /v1/jobs/:id/download-url`, open the URL). Afterwards available credits have dropped by the cost and nothing is left reserved (check `GET /v1/me` and the job's rows in `app.credit_*`).
+
+Also confirm against the real services, because these could not be tested locally:
+
+- fal answers `queue.status` with a 4xx for a request id that belongs to another fal account (the `?jobId` linking path relies on it).
+- Supabase Storage `info()` on a missing object reports "not found" (not an error).
+- A streamed upload without `Content-Length` works.
+- fal's real input and output shapes match the model files in `src/models/`.
+
+### Counting orphan fal requests
+
+An orphan is a fal request we paid for that no job points to (for example a double submit). Count them from logs (lines with `orphanFalRequest: true`) or with:
+
+```sql
+select count(*) from app.provider_events e
+where not exists (select 1 from app.jobs j where j.fal_request_id = e.request_id);
+```
 
 ## Paddle sandbox setup
 
@@ -120,4 +217,9 @@ Also confirm, because these could not be tested locally:
 
 ## Cloud Scheduler
 
-The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) also logs ERROR for rows it can't fix: active paid rows whose period ended over 7 days ago or that Paddle paused, and Paddle cancels still failing after 24 hours. Alert on those logs. It needs an hourly Cloud Scheduler job: `POST /tasks/billing-sweep` on the worker service. Set it up in the deploy milestone, not here.
+The billing sweep (renews expired Free rows, retries pending Paddle cancels, expires old draft invoices) also logs ERROR for rows it can't fix: active paid rows whose period ended over 7 days ago or that Paddle paused, and Paddle cancels still failing after 24 hours. Alert on those logs. It needs an hourly Cloud Scheduler job: `POST /tasks/billing-sweep` on the worker service. Set up two Cloud Scheduler jobs on the worker service, both with an OIDC token:
+
+- `POST /tasks/reconcile` every 5 minutes (recovers stuck jobs and missed fal webhooks).
+- `POST /tasks/billing-sweep` hourly.
+
+Set them up in the deploy milestone.
