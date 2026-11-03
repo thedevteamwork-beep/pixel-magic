@@ -4,6 +4,7 @@ import type { Deps } from "../../src/deps.js";
 import { createLogger } from "../../src/logger.js";
 import { FakePaddle } from "../fakes/paddle.js";
 import { FakeFal } from "../fakes/fal.js";
+import { FakeQueue } from "../fakes/tasks.js";
 import { FakeStorage } from "../fakes/storage.js";
 import { testJwks } from "./auth.js";
 import { TEST_DATABASE_URL, testDb } from "./db.js";
@@ -37,6 +38,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
   paddle: FakePaddle;
   storage: FakeStorage;
   fal: FakeFal;
+  queue: FakeQueue;
   clock: TestClock;
   logs: Array<Record<string, unknown>>;
 } {
@@ -44,6 +46,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
   const paddle = new FakePaddle();
   const storage = new FakeStorage();
   const fal = new FakeFal();
+  const queue = new FakeQueue();
   const clock = new TestClock();
   const config: Config = {
     MODE: "api",
@@ -85,6 +88,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     paddle,
     storage,
     fal,
+    queue,
     falKeys: testFalKeys,
     clock,
     jwks: testJwks,
@@ -95,6 +99,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     paddle,
     storage: deps.storage as FakeStorage,
     fal: deps.fal as FakeFal,
+    queue: deps.queue as FakeQueue,
     clock,
     logs,
   };
