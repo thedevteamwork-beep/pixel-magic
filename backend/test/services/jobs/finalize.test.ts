@@ -37,9 +37,13 @@ describe("runFinalize", () => {
     userId = await createFundedUser(h.deps, 100);
   });
 
-  async function submittedJob(model = "flux-schnell", key = "k1") {
+  async function submittedJob(
+    model = "flux-schnell",
+    key = "k1",
+    withImage = model === "kling21",
+  ) {
     const uploadIds: string[] = [];
-    if (model === "kling-i2v") {
+    if (withImage) {
       const up = await createUpload(h.deps, userId, {
         filename: "a.png",
         mimeType: "image/png",
@@ -305,10 +309,21 @@ describe("runFinalize", () => {
   });
 
   it("stores kling video outputs as mp4", async () => {
-    const id = await submittedJob("kling-i2v");
-    h.fal.results.set("req_1", { ok: true, data: fixture("kling-i2v") });
+    const id = await submittedJob("kling21");
+    h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.storage.copies[0]?.path).toBe(`${userId}/${id}/0.mp4`);
+  });
+
+  it("finalizes a text-to-video job against the text-to-video endpoint", async () => {
+    const id = await submittedJob("kling21", "k1", false);
+    h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
+      ["submit", "fal-ai/kling-video/v2.1/master/text-to-video"],
+      ["status", "fal-ai/kling-video/v2.1/master/text-to-video"],
+      ["result", "fal-ai/kling-video/v2.1/master/text-to-video"],
+    ]);
   });
 
   it("fails with MODEL_UNAVAILABLE when the model is gone", async () => {

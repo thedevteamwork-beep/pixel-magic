@@ -45,8 +45,9 @@ async function linkViaJobId(
   }
   const model = getModel(job.model_key);
   if (!model) return orphan(deps, jobId, requestId);
+  const endpoint = model.falEndpoint({ uploadCount: job.upload_ids.length });
   try {
-    await deps.fal.status(model.falModelId, requestId);
+    await deps.fal.status(endpoint, requestId);
   } catch (err) {
     // 401/403 mean our own key is bad: never link, let fal retry.
     const authFailure =

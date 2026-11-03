@@ -30,13 +30,14 @@ describe("fal webhook", () => {
   async function jobWith(
     status: JobStatus,
     falRequestId: string | null,
+    modelKey = "flux-schnell",
   ): Promise<JobRow> {
     const job = await insertJob(testDb, userId);
     const [row] = await testDb(T.jobs)
       .where({ id: job.id })
       .update({
         status,
-        model_key: "flux-schnell",
+        model_key: modelKey,
         fal_request_id: falRequestId,
       })
       .returning("*");
@@ -132,11 +133,26 @@ describe("fal webhook", () => {
     expect(ctx.fal.calls).toEqual([
       {
         method: "status",
-        args: [getModel("flux-schnell")?.falModelId, "req_1"],
+        args: [
+          getModel("flux-schnell")?.falEndpoint({ uploadCount: 0 }),
+          "req_1",
+        ],
       },
     ]);
     expect(ctx.queue.tasks).toMatchObject([
       { kind: "finalize", jobId: job.id, suffix: "0" },
+    ]);
+  });
+
+  it("verifies a text-to-video job on the text-to-video endpoint", async () => {
+    const job = await jobWith("submitting", null, "kling21");
+    const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
+    expect(res.status).toBe(200);
+    expect(ctx.fal.calls).toEqual([
+      {
+        method: "status",
+        args: ["fal-ai/kling-video/v2.1/master/text-to-video", "req_1"],
+      },
     ]);
   });
 

@@ -78,7 +78,15 @@ export async function createJob(
     );
   }
 
-  await resolveUploads(deps, userId, uploadIds);
+  const uploads = await resolveUploads(deps, userId, uploadIds);
+  for (const upload of uploads) {
+    if (!model.uploads.supportedContentTypes.includes(upload.mime_type)) {
+      throw new AppError(422, "UPLOAD_NOT_READY", "Upload is not ready", {
+        uploadId: upload.id,
+        reason: "mime_type",
+      });
+    }
+  }
 
   const requestHash = sha256Hex(
     canonicalJson({ model: model.key, prompt, uploadIds, options }),

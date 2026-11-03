@@ -3,6 +3,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/server.js";
 import { T } from "../../src/db/tables.js";
+import { getModel } from "../../src/models/registry.js";
 import { makeDeps } from "../helpers/app.js";
 import { authHeader } from "../helpers/auth.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
@@ -134,7 +135,7 @@ describe("POST /v1/jobs", () => {
       .set(await authHeader(userId))
       .send({ filename: "a.png", mimeType: "image/png", sizeBytes: 100 });
     const res = await post({
-      model: "kling-i2v",
+      model: "kling21",
       prompt: "move",
       uploadIds: [up.body.uploadId],
     });
@@ -142,6 +143,34 @@ describe("POST /v1/jobs", () => {
     expect(res.body.code).toBe("UPLOAD_NOT_READY");
     expect(await jobCount()).toBe(0);
     expect(await testDb(T.creditAllocations)).toHaveLength(0);
+  });
+
+  it("rejects an upload whose real type the model doesn't accept", async () => {
+    const up = await request(createApp(h.deps))
+      .post("/v1/uploads")
+      .set(await authHeader(userId))
+      .send({ filename: "a.png", mimeType: "image/png", sizeBytes: 100 });
+    h.storage.put("inputs", up.body.path, {
+      sizeBytes: 100,
+      mimeType: "image/png",
+    });
+    // The test config allows png everywhere, so narrow the model instead.
+    const model = getModel("kling21")!;
+    const original = model.uploads.supportedContentTypes;
+    model.uploads.supportedContentTypes = ["image/jpeg"];
+    try {
+      const res = await post({
+        model: "kling21",
+        prompt: "move",
+        uploadIds: [up.body.uploadId],
+      });
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe("UPLOAD_NOT_READY");
+      expect(res.body.meta).toMatchObject({ reason: "mime_type" });
+    } finally {
+      model.uploads.supportedContentTypes = original;
+    }
+    expect(await jobCount()).toBe(0);
   });
 
   it("still answers 202 when queueing fails, and logs ERROR", async () => {

@@ -13,14 +13,11 @@ function fixture(name: string): unknown {
 }
 
 const flux = getModel("flux-schnell")!;
-const kling = getModel("kling-i2v")!;
+const kling = getModel("kling21")!;
 
 describe("model registry", () => {
   it("lists both models and looks them up by key", () => {
-    expect(listModels().map((m) => m.key)).toEqual([
-      "flux-schnell",
-      "kling-i2v",
-    ]);
+    expect(listModels().map((m) => m.key)).toEqual(["flux-schnell", "kling21"]);
     expect(getModel("nope")).toBeUndefined();
   });
 
@@ -57,14 +54,24 @@ describe("model registry", () => {
   });
 
   it("kling builds input and parses the video", () => {
+    const options = kling.options.parse({});
+    expect(kling.falEndpoint({ uploadCount: 1 })).toBe(
+      "fal-ai/kling-video/v2.1/master/image-to-video",
+    );
     expect(
       kling.buildInput({
         prompt: "pan",
-        options: kling.options.parse({}),
+        options,
         inputUrls: ["https://x/y.png"],
       }),
     ).toEqual({ prompt: "pan", image_url: "https://x/y.png", duration: "5" });
-    expect(kling.parseOutput(fixture("kling-i2v"))).toEqual({
+    expect(kling.falEndpoint({ uploadCount: 0 })).toBe(
+      "fal-ai/kling-video/v2.1/master/text-to-video",
+    );
+    expect(kling.buildInput({ prompt: "pan", options, inputUrls: [] })).toEqual(
+      { prompt: "pan", duration: "5", aspect_ratio: "16:9" },
+    );
+    expect(kling.parseOutput(fixture("kling21"))).toEqual({
       outputs: [
         { url: "https://fal.media/files/v.mp4", mimeType: "video/mp4" },
       ],
@@ -74,8 +81,8 @@ describe("model registry", () => {
 
   it("credit costs", () => {
     expect(flux.creditCost({ image_size: "square", num_images: 3 })).toBe(3);
-    expect(kling.creditCost({ duration: "5" })).toBe(10);
-    expect(kling.creditCost({ duration: "10" })).toBe(20);
+    expect(kling.creditCost({ duration: "5", aspect_ratio: "16:9" })).toBe(30);
+    expect(kling.creditCost({ duration: "10", aspect_ratio: "16:9" })).toBe(60);
   });
 
   it("rejects out-of-range options", () => {

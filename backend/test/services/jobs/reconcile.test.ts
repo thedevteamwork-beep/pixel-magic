@@ -29,9 +29,12 @@ describe("runReconcile", () => {
     userId = await createFundedUser(h.deps, 1000);
   });
 
-  async function newJob(model = "flux-schnell"): Promise<string> {
+  async function newJob(
+    model = "flux-schnell",
+    withImage = model === "kling21",
+  ): Promise<string> {
     const uploadIds: string[] = [];
-    if (model === "kling-i2v") {
+    if (withImage) {
       const up = await createUpload(h.deps, userId, {
         filename: "a.png",
         mimeType: "image/png",
@@ -53,8 +56,11 @@ describe("runReconcile", () => {
     h.queue.tasks.length = 0; // only reconciler enqueues count
     return job.jobId;
   }
-  async function submittedJob(model = "flux-schnell"): Promise<string> {
-    const id = await newJob(model);
+  async function submittedJob(
+    model = "flux-schnell",
+    withImage = model === "kling21",
+  ): Promise<string> {
+    const id = await newJob(model, withImage);
     await runGenerate(h.deps, id);
     h.queue.tasks.length = 0;
     return id;
@@ -220,7 +226,7 @@ describe("runReconcile", () => {
   });
 
   it("times out a job past its model timeout, cancels at fal and releases once", async () => {
-    const id = await submittedJob("kling-i2v");
+    const id = await submittedJob("kling21");
     h.clock.advance(61 * MIN);
     const counts = await runReconcile(h.deps);
     expect(counts.timedOut).toBe(1);
@@ -235,6 +241,17 @@ describe("runReconcile", () => {
     expect((await runReconcile(h.deps)).timedOut).toBe(0);
     expect(await released()).toHaveLength(1);
     expect(h.fal.calls.filter((c) => c.method === "cancel")).toHaveLength(1);
+  });
+
+  it("polls and cancels a text-to-video job on the text-to-video endpoint", async () => {
+    await submittedJob("kling21", false);
+    h.fal.calls.length = 0;
+    h.clock.advance(61 * MIN);
+    expect((await runReconcile(h.deps)).timedOut).toBe(1);
+    expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
+      ["status", "fal-ai/kling-video/v2.1/master/text-to-video"],
+      ["cancel", "fal-ai/kling-video/v2.1/master/text-to-video"],
+    ]);
   });
 
   it("still fails a timed-out job when fal cancel errors", async () => {
@@ -390,7 +407,7 @@ describe("runReconcile", () => {
         submitted_at: new Date(now.getTime() - 30 * MIN),
         updated_at: new Date(now.getTime() - (40 + i / 100) * MIN),
       }),
-      "kling-i2v",
+      "kling21",
     );
     await bulkSubmitted(
       1,
@@ -399,7 +416,7 @@ describe("runReconcile", () => {
         submitted_at: new Date(now.getTime() - 61 * MIN),
         updated_at: new Date(now.getTime() - 1 * MIN),
       }),
-      "kling-i2v",
+      "kling21",
     );
     const counts = await runReconcile(h.deps);
     expect(counts.timedOut).toBe(1);

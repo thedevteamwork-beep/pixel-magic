@@ -82,7 +82,7 @@ describe("runGenerate", () => {
       h.deps,
       userId,
       {
-        model: "kling-i2v",
+        model: "kling21",
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
@@ -95,6 +95,49 @@ describe("runGenerate", () => {
     const url = await h.storage.createSignedUrl("inputs", up.path, 86400);
     const submit = h.fal.calls.find((c) => c.method === "submit");
     expect(submit?.args[1]).toMatchObject({ image_url: url });
+  });
+
+  it("submits a kling21 job with no upload to the text-to-video endpoint", async () => {
+    const { job } = await createJob(
+      h.deps,
+      userId,
+      { model: "kling21", prompt: "waves", uploadIds: [], options: {} },
+      "k-t2v",
+    );
+    expect(await runGenerate(h.deps, job.jobId)).toBe(200);
+    expect(h.fal.calls[0]).toEqual({
+      method: "submit",
+      args: [
+        "fal-ai/kling-video/v2.1/master/text-to-video",
+        { prompt: "waves", duration: "5", aspect_ratio: "16:9" },
+        `https://api.test/webhooks/fal?jobId=${job.jobId}`,
+      ],
+    });
+  });
+
+  it("submits a kling21 job with an upload to the image-to-video endpoint", async () => {
+    const up = await createUpload(h.deps, userId, {
+      filename: "a.png",
+      mimeType: "image/png",
+      sizeBytes: 100,
+    });
+    h.storage.put("inputs", up.path, { sizeBytes: 100, mimeType: "image/png" });
+    const { job } = await createJob(
+      h.deps,
+      userId,
+      {
+        model: "kling21",
+        prompt: "move",
+        uploadIds: [up.uploadId],
+        options: {},
+      },
+      "k-i2v",
+    );
+    expect(await runGenerate(h.deps, job.jobId)).toBe(200);
+    expect(h.fal.calls[0]?.args[0]).toBe(
+      "fal-ai/kling-video/v2.1/master/image-to-video",
+    );
+    expect(h.fal.calls[0]?.args[1]).not.toHaveProperty("aspect_ratio");
   });
 
   it("ignores a second delivery once submitted", async () => {
@@ -170,7 +213,7 @@ describe("runGenerate", () => {
         h.deps,
         userId,
         {
-          model: "kling-i2v",
+          model: "kling21",
           prompt: "move",
           uploadIds: [up.uploadId],
           options: {},
@@ -214,7 +257,7 @@ describe("runGenerate", () => {
       h.deps,
       userId,
       {
-        model: "kling-i2v",
+        model: "kling21",
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
@@ -299,7 +342,7 @@ describe("runGenerate", () => {
       h.deps,
       userId,
       {
-        model: "kling-i2v",
+        model: "kling21",
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},

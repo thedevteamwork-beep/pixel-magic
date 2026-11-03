@@ -10,19 +10,22 @@ describe("models route", () => {
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     expect(res.body.map((m: { key: string }) => m.key)).toEqual([
       "flux-schnell",
-      "kling-i2v",
+      "kling21",
     ]);
     expect(res.body.map((m: { creditCost: number }) => m.creditCost)).toEqual([
-      1, 10,
+      1, 30,
     ]);
     expect(res.body[0]).toMatchObject({
       name: expect.any(String),
       kind: "image",
-      prompt: { required: true, maxLength: 2000 },
-      uploads: { min: 0, max: 0 },
-      options: { type: "object" },
+      category: ["text-to-image"],
+      description: expect.any(String),
+      input: {
+        prompt: { description: expect.any(String), type: "string" },
+      },
     });
-    expect(JSON.stringify(res.body)).not.toContain("falModelId");
+    expect(res.body[1].category).toEqual(["image-to-video", "text-to-video"]);
+    expect(JSON.stringify(res.body)).not.toContain("falEndpoint");
     expect(JSON.stringify(res.body)).not.toContain("fal-ai/");
   });
 });

@@ -1,18 +1,24 @@
+import {
+  optionsValidator,
+  promptRule,
+  uploadRule,
+} from "../schemaGenerator.js";
 import type { ModelDefinition } from "../types.js";
-import { buildInput, parseOutput } from "./requests.js";
-import { optionsSchema, type FluxOptions } from "./schema.js";
+import { buildInput, falEndpoint, parseOutput } from "./requests.js";
+import { schema } from "./schema.js";
 
-// TODO(pricing): placeholder credit cost. fal price (unverified, see fal model
-// page): about $0.003 per megapixel.
 export const fluxSchnell: ModelDefinition = {
-  key: "flux-schnell",
-  falModelId: "fal-ai/flux/schnell",
-  kind: "image",
-  displayName: "FLUX Schnell",
-  prompt: { required: true, maxLength: 2000 },
-  uploads: { min: 0, max: 0 },
-  options: optionsSchema,
-  creditCost: (o) => (o as FluxOptions).num_images * 1,
+  key: schema.info.name,
+  kind: schema.info.kind,
+  displayName: schema.info.displayName,
+  schema,
+  prompt: promptRule(schema),
+  uploads: uploadRule(schema),
+  options: optionsValidator(schema),
+  // TODO(pricing): placeholder credit cost. fal price (unverified, see fal
+  // model page): about $0.003 per megapixel.
+  creditCost: (o) => (o.num_images as number) * 1,
+  falEndpoint,
   buildInput,
   parseOutput,
   timeoutMinutes: 10,

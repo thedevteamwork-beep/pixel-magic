@@ -137,6 +137,7 @@ export async function runGenerate(
     return 200;
   }
 
+  const endpoint = model.falEndpoint({ uploadCount: job.upload_ids.length });
   let requestId: string;
   try {
     const uploads = await getUserUploads(deps.db, job.user_id, job.upload_ids);
@@ -166,7 +167,7 @@ export async function runGenerate(
       return 503;
     }
     ({ requestId } = await deps.fal.submit(
-      model.falModelId,
+      endpoint,
       model.buildInput({ prompt, options, inputUrls }),
       falWebhookUrl(deps.config, jobId),
     ));
@@ -222,7 +223,7 @@ export async function runGenerate(
     } catch {
       // Best effort: fall through and cancel.
     }
-    await cancelQuietly(deps, jobId, model.falModelId, requestId);
+    await cancelQuietly(deps, jobId, endpoint, requestId);
     deps.logger.error("couldn't save the fal request id", {
       jobId,
       requestId,
@@ -248,7 +249,7 @@ export async function runGenerate(
     });
     return 200;
   }
-  await cancelQuietly(deps, jobId, model.falModelId, requestId);
+  await cancelQuietly(deps, jobId, endpoint, requestId);
   deps.logger.warn("Duplicate fal submit; cancelled our request", {
     jobId,
     requestId,

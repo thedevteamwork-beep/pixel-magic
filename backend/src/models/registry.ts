@@ -1,9 +1,9 @@
-import { z } from "zod";
+import type { FieldSchema, ModelDefinition, ModelKind } from "./types.js";
 import { fluxSchnell } from "./flux-schnell/index.js";
-import { klingI2v } from "./kling-i2v/index.js";
-import type { ModelDefinition, ModelKind } from "./types.js";
+import { kling21 } from "./kling21/index.js";
+import { publicInput } from "./schemaGenerator.js";
 
-const MODELS: ModelDefinition[] = [fluxSchnell, klingI2v];
+const MODELS: ModelDefinition[] = [fluxSchnell, kling21];
 
 export function listModels(): ModelDefinition[] {
   return [...MODELS];
@@ -17,20 +17,21 @@ export type PublicModel = {
   key: string;
   name: string;
   kind: ModelKind;
+  category: readonly string[];
+  description: string;
   creditCost: number;
-  prompt: ModelDefinition["prompt"];
-  uploads: ModelDefinition["uploads"];
-  options: unknown;
+  input: Record<string, FieldSchema>;
 };
 
+/** What `GET /v1/models` shows. Never includes the fal endpoint. */
 export function publicModel(m: ModelDefinition): PublicModel {
   return {
     key: m.key,
     name: m.displayName,
     kind: m.kind,
+    category: m.schema.info.category,
+    description: m.schema.info.description,
     creditCost: m.creditCost(m.options.parse({})),
-    prompt: m.prompt,
-    uploads: m.uploads,
-    options: z.toJSONSchema(m.options),
+    input: publicInput(m.schema),
   };
 }

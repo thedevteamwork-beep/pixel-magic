@@ -142,12 +142,15 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
   await each(4, timedOutRows.filter(isTimedOut), async (job) => {
     timedOutIds.add(job.id);
     const model = getModel(job.model_key);
-    if (model && job.fal_request_id && !isPastCeiling(job)) {
+    const endpoint = model?.falEndpoint({
+      uploadCount: job.upload_ids.length,
+    });
+    if (model && endpoint && job.fal_request_id && !isPastCeiling(job)) {
       // Ask fal first: a finished result (say, one whose copy kept failing
       // during a storage outage) is finalized instead of thrown away.
       let status;
       try {
-        status = await deps.fal.status(model.falModelId, job.fal_request_id);
+        status = await deps.fal.status(endpoint, job.fal_request_id);
       } catch (err) {
         if (err instanceof FalError) {
           logger.warn("Reconcile fal status failed", {
@@ -165,9 +168,9 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         return;
       }
     }
-    if (model && job.fal_request_id) {
+    if (endpoint && job.fal_request_id) {
       try {
-        await deps.fal.cancel(model.falModelId, job.fal_request_id);
+        await deps.fal.cancel(endpoint, job.fal_request_id);
       } catch (err) {
         logger.warn("Reconcile fal cancel failed", {
           jobId: job.id,
@@ -195,9 +198,12 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         return;
       }
       if (!job.fal_request_id) return;
+      const endpoint = model.falEndpoint({
+        uploadCount: job.upload_ids.length,
+      });
       let status;
       try {
-        status = await deps.fal.status(model.falModelId, job.fal_request_id);
+        status = await deps.fal.status(endpoint, job.fal_request_id);
       } catch (err) {
         if (err instanceof FalError) {
           logger.warn("Reconcile fal status failed", {
