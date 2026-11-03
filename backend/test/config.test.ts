@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 
@@ -70,4 +71,49 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...base, FAL_KEY: undefined })).toThrow(
       /FAL_KEY/,
     ));
+  it("treats an empty optional key as unset", () =>
+    expect(
+      loadConfig({ ...base, FAL_WEBHOOK_USER_ID: "" }).FAL_WEBHOOK_USER_ID,
+    ).toBeUndefined());
+  it("treats empty optional cloud and migration keys as unset", () => {
+    const c = loadConfig({
+      ...base,
+      GCP_PROJECT_ID: "",
+      GCP_REGION: "",
+      TASKS_SERVICE_ACCOUNT: "",
+      DATABASE_MIGRATION_URL: "",
+    });
+    expect(c.GCP_PROJECT_ID).toBeUndefined();
+    expect(c.GCP_REGION).toBeUndefined();
+    expect(c.TASKS_SERVICE_ACCOUNT).toBeUndefined();
+    expect(c.DATABASE_MIGRATION_URL).toBe(base.DATABASE_URL);
+  });
+  it("rejects an empty UPLOAD_MIME_TYPES", () =>
+    expect(() => loadConfig({ ...base, UPLOAD_MIME_TYPES: "" })).toThrow(
+      /UPLOAD_MIME_TYPES/,
+    ));
+  it("strips one trailing slash from the public and worker URLs", () =>
+    expect(
+      loadConfig({
+        ...base,
+        API_PUBLIC_URL: "https://a.test/",
+        WORKER_URL: "https://w.test/",
+      }),
+    ).toMatchObject({
+      API_PUBLIC_URL: "https://a.test",
+      WORKER_URL: "https://w.test",
+    }));
+  it("parses the values in .env.example", () => {
+    const env: Record<string, string> = {};
+    const text = readFileSync(
+      new URL("../.env.example", import.meta.url),
+      "utf8",
+    );
+    for (const line of text.split("\n")) {
+      const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+      if (m?.[1] !== undefined) env[m[1]] = m[2] ?? "";
+    }
+    expect(Object.keys(env)).toContain("FAL_KEY");
+    expect(loadConfig(env).MODE).toBe("api");
+  });
 });

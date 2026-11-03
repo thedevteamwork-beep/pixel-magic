@@ -3,6 +3,17 @@ import { z } from "zod";
 const int = (def: number, min: number) =>
   z.coerce.number().int().min(min).default(def);
 
+/** Optional; an empty value (`KEY=` in a .env file) counts as unset. */
+const optionalString = () =>
+  z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional());
+
+/** A base URL; one trailing slash is dropped so paths can be appended. */
+const baseUrl = () =>
+  z
+    .string()
+    .transform((s) => (s.endsWith("/") ? s.slice(0, -1) : s))
+    .pipe(z.string().min(1));
+
 const baseSchema = z.object({
   MODE: z.enum(["api", "worker"]),
   PORT: int(8080, 1),
@@ -11,7 +22,7 @@ const baseSchema = z.object({
     .default("development"),
   LOG_LEVEL: z.string().min(1).default("info"),
   DATABASE_URL: z.string().min(1),
-  DATABASE_MIGRATION_URL: z.string().min(1).optional(),
+  DATABASE_MIGRATION_URL: optionalString(),
   DB_POOL_MAX: int(5, 1),
   SUPABASE_URL: z.string().min(1),
   CORS_ORIGINS: z
@@ -33,21 +44,21 @@ const baseSchema = z.object({
   RENEWAL_GRACE_MINUTES: int(60, 0),
   SUPABASE_SECRET_KEY: z.string().min(1),
   FAL_KEY: z.string().min(1),
-  API_PUBLIC_URL: z.string().min(1),
-  WORKER_URL: z.string().min(1),
+  API_PUBLIC_URL: baseUrl(),
+  WORKER_URL: baseUrl(),
   STORAGE_BUCKET_INPUTS: z.string().min(1).default("inputs"),
   STORAGE_BUCKET_OUTPUTS: z.string().min(1).default("outputs"),
   FAL_JWKS_URL: z
     .string()
     .min(1)
     .default("https://rest.fal.ai/.well-known/jwks.json"),
-  FAL_WEBHOOK_USER_ID: z.string().min(1).optional(),
+  FAL_WEBHOOK_USER_ID: optionalString(),
   TASKS_MODE: z.enum(["http", "cloud"]).default("http"),
   TASKS_QUEUE_GENERATION: z.string().min(1).default("generation"),
   TASKS_QUEUE_FINALIZATION: z.string().min(1).default("finalization"),
-  GCP_PROJECT_ID: z.string().min(1).optional(),
-  GCP_REGION: z.string().min(1).optional(),
-  TASKS_SERVICE_ACCOUNT: z.string().min(1).optional(),
+  GCP_PROJECT_ID: optionalString(),
+  GCP_REGION: optionalString(),
+  TASKS_SERVICE_ACCOUNT: optionalString(),
   MAX_ACTIVE_JOBS_PER_USER: int(4, 1),
   UPLOAD_MAX_BYTES: int(20971520, 1),
   UPLOAD_MIME_TYPES: z
@@ -58,7 +69,8 @@ const baseSchema = z.object({
         .split(",")
         .map((o) => o.trim())
         .filter(Boolean),
-    ),
+    )
+    .refine((types) => types.length > 0, "must list at least one MIME type"),
 });
 
 const schema = baseSchema.superRefine((c, ctx) => {
