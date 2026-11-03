@@ -13,6 +13,8 @@ const BUCKET_MS = 600_000;
 const QUEUED_STALE_MS = 2 * 60_000;
 const SUBMITTED_POLL_MS = 3 * 60_000;
 const DEFAULT_TIMEOUT_MINUTES = 60;
+/** Past timeout + this, a job fails even if fal finished it. */
+const HARD_CEILING_EXTRA_MINUTES = 60;
 
 export type ReconcileCounts = {
   requeuedGenerate: number;
@@ -104,13 +106,39 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
     submittedBefore: new Date(now.getTime() - shortest * 60_000),
     limit: BUCKET_LIMIT,
   });
+  const ageMs = (job: JobRow): number =>
+    now.getTime() - (job.submitted_at ?? job.updated_at).getTime();
   const isTimedOut = (job: JobRow): boolean =>
-    (job.submitted_at ?? job.updated_at).getTime() <
-    now.getTime() - timeoutMinutes(job) * 60_000;
+    ageMs(job) > timeoutMinutes(job) * 60_000;
+  const isPastCeiling = (job: JobRow): boolean =>
+    ageMs(job) > (timeoutMinutes(job) + HARD_CEILING_EXTRA_MINUTES) * 60_000;
   const timedOutIds = new Set<string>();
   await each(4, timedOutRows.filter(isTimedOut), async (job) => {
     timedOutIds.add(job.id);
     const model = getModel(job.model_key);
+    if (model && job.fal_request_id && !isPastCeiling(job)) {
+      // Ask fal first: a finished result (say, one whose copy kept failing
+      // during a storage outage) is finalized instead of thrown away.
+      let status;
+      try {
+        status = await deps.fal.status(model.falModelId, job.fal_request_id);
+      } catch (err) {
+        if (err instanceof FalError) {
+          logger.warn("Reconcile fal status failed", {
+            jobId: job.id,
+            bucket: 4,
+            err,
+          });
+          return;
+        }
+        throw err;
+      }
+      counts.polled += 1;
+      if (status === "COMPLETED") {
+        await requeue(4, job, "finalize");
+        return;
+      }
+    }
     if (model && job.fal_request_id) {
       try {
         await deps.fal.cancel(model.falModelId, job.fal_request_id);

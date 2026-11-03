@@ -185,6 +185,71 @@ describe("runReconcile", () => {
     });
   });
 
+  it("finalizes a timed-out job that fal already completed instead of failing it", async () => {
+    const id = await submittedJob();
+    h.clock.advance(11 * MIN);
+    h.fal.statuses.set((await row(id)).fal_request_id, "COMPLETED");
+    const counts = await runReconcile(h.deps);
+    expect(counts).toMatchObject({ timedOut: 0, requeuedFinalize: 1 });
+    expect(h.queue.tasks).toEqual([
+      expect.objectContaining({
+        kind: "finalize",
+        jobId: id,
+        suffix: reconcileSuffix(1, h.clock.now()),
+      }),
+    ]);
+    expect(h.fal.calls.filter((c) => c.method === "cancel")).toHaveLength(0);
+    expect((await row(id)).status).toBe("submitted");
+    expect(
+      await testDb(T.creditAllocations).where({
+        job_id: id,
+        status: "reserved",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("times out a completed job past the hard ceiling of timeout + 60 minutes", async () => {
+    const id = await submittedJob();
+    h.clock.advance(71 * MIN);
+    h.fal.statuses.set((await row(id)).fal_request_id, "COMPLETED");
+    const counts = await runReconcile(h.deps);
+    expect(counts).toMatchObject({ timedOut: 1, requeuedFinalize: 0 });
+    expect(h.queue.tasks).toHaveLength(0);
+    expect(await row(id)).toMatchObject({
+      status: "failed",
+      error_code: "TIMED_OUT",
+    });
+  });
+
+  it("asks fal before timing out an in-progress job", async () => {
+    const id = await submittedJob();
+    h.fal.calls.length = 0;
+    h.clock.advance(11 * MIN);
+    expect((await runReconcile(h.deps)).timedOut).toBe(1);
+    const req = (await row(id)).fal_request_id;
+    expect(h.fal.calls.map((c) => c.method)).toEqual(["status", "cancel"]);
+    expect(h.fal.calls[0]?.args).toEqual(["fal-ai/flux/schnell", req]);
+    expect((await row(id)).error_code).toBe("TIMED_OUT");
+  });
+
+  it("waits on a fal status error unless the job is past the hard ceiling", async () => {
+    const id = await submittedJob();
+    h.clock.advance(11 * MIN);
+    h.fal.failNext("status", new FalError("down", true, 503));
+    expect((await runReconcile(h.deps)).timedOut).toBe(0);
+    expect((await row(id)).status).toBe("submitted");
+    expect(h.queue.tasks).toHaveLength(0);
+    expect(
+      h.logs.some(
+        (l) => l.level === "warn" && l.jobId === id && l.bucket === 4,
+      ),
+    ).toBe(true);
+    h.clock.advance(60 * MIN);
+    h.fal.failNext("status", new FalError("down", true, 503));
+    expect((await runReconcile(h.deps)).timedOut).toBe(1);
+    expect((await row(id)).error_code).toBe("TIMED_OUT");
+  });
+
   it("does not time out a flux job before its limit but polls it", async () => {
     const id = await submittedJob();
     h.clock.advance(9 * MIN);
