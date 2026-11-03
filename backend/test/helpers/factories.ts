@@ -101,3 +101,25 @@ export async function createUserOnPlan(
   );
   return { userId, sub: (await getActiveSubscription(deps.db, userId))! };
 }
+
+/** A user on Free with a `manual` grant of `credits`, valid around the TestClock time. */
+export async function createFundedUser(
+  deps: Deps,
+  credits = 100,
+): Promise<string> {
+  const t = deps.clock.now();
+  const { userId } = await createUserOnPlan(deps, {
+    planName: deps.config.FREE_PLAN_NAME,
+    periodStart: t,
+    periodEnd: new Date(t.getTime() + 30 * 86_400_000),
+  });
+  await deps.db(T.profiles).where("id", userId).update({ email: "u@test.dev" });
+  await insertGrant(deps.db, {
+    user_id: userId,
+    kind: "manual",
+    total: credits,
+    starts_at: new Date(t.getTime() - 86_400_000),
+    expires_at: new Date(t.getTime() + 30 * 86_400_000),
+  });
+  return userId;
+}

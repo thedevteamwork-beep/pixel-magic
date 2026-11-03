@@ -6,6 +6,7 @@ import { errorHandler, notFound } from "./middlewares/errorHandler.js";
 import { billingRouter } from "./routes/billing.js";
 import { catalogRouter } from "./routes/catalog.js";
 import { healthRouter } from "./routes/health.js";
+import { jobsRouter } from "./routes/jobs.js";
 import { meRouter } from "./routes/me.js";
 import { modelsRouter } from "./routes/models.js";
 import { uploadsRouter } from "./routes/uploads.js";
@@ -22,6 +23,7 @@ export function createApp(deps: Deps): Express {
   app.use(meRouter(deps));
   app.use(billingRouter(deps));
   app.use(uploadsRouter(deps));
+  app.use(jobsRouter(deps));
   app.use(notFound);
   app.use(errorHandler(deps.logger));
   return app;
