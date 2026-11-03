@@ -220,12 +220,12 @@ Added 2026-11-03 at the user's request: "create two folder public and panel or p
   - Paths are relative to the folder's `/v1` prefix. Examples: `public/credits.routes.ts` declares `"/credits/estimate"`, and `panel/jobs.routes.ts` declares `"/jobs"`, `"/jobs/:id"` and `"/jobs/:id/download-url"`.
   - Zod validation stays in the route file, like jiraiya's validators.
   - Logic stays in `src/services/`, which is our equivalent of jiraiya's `handlers/`.
-- **`public/index.ts`** mounts catalog, models and credits under `/v1`, with no auth.
-- **`panel/index.ts`** mounts me, billing, uploads and jobs under `/v1`.
-  - It applies `requireUser(deps)` and `ensureUser(deps)` once per area, at the area's prefix, e.g. `router.use("/jobs", ...guard, jobsRoutes(deps))`. Route files no longer list `...guard`.
+- **`public/index.ts`** builds a Router with catalog, models and credits, with no auth.
+- **`panel/index.ts`** builds a Router with me, billing, uploads and jobs.
+  - It applies `requireUser(deps)` and `ensureUser(deps)` once per area, as path-scoped middleware, e.g. `router.use("/jobs", ...guard)`, then mounts the four routers without a path. Route files no longer list `...guard`.
   - The middleware order stays: auth, then body parser, then validation.
   - The one allowed behaviour change: an unauthenticated request to an unknown path inside a panel area (e.g. `GET /v1/jobs/a/b`) gets 401 instead of 404. A path outside every area (e.g. `GET /v1/nope`) still gets 404.
-- **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts routers in today's order: webhooks, health, public, panel.
+- **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts routers in today's order: webhooks, health, then `public` and `panel` both under `/v1`.
 - **`server.ts`** keeps helmet, cors, `notFound` and `errorHandler`, and mounts `apiRoutes(deps)`.
 
 - [ ] **Step 1: test.** Add `test/api/routes.test.ts` with three checks:
