@@ -6,6 +6,7 @@ import { healthRouter } from "../api/routes/health.js";
 import type { Deps } from "../deps.js";
 import { validate } from "../api/middlewares/validate.js";
 import { runGenerate } from "../services/jobs/generate.js";
+import { runFinalize } from "../services/jobs/finalize.js";
 import { runBillingSweep } from "../services/billing/sweep.js";
 
 export function createWorkerApp(deps: Deps): Express {
@@ -28,6 +29,19 @@ export function createWorkerApp(deps: Deps): Express {
       try {
         const { jobId } = req.body as z.infer<typeof generateBody>;
         res.sendStatus(await runGenerate(deps, jobId));
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+  app.post(
+    "/tasks/finalize",
+    express.json({ limit: "100kb" }),
+    validate({ body: generateBody }),
+    async (req, res, next) => {
+      try {
+        const { jobId } = req.body as z.infer<typeof generateBody>;
+        res.sendStatus(await runFinalize(deps, jobId));
       } catch (err) {
         next(err);
       }
