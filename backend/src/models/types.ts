@@ -84,8 +84,6 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   options: O;
   /** The facts credits are priced on: the options, the unit values and `image`. */
   billingInputs(p: { options: z.output<O>; uploadCount: number }): BillingFacts;
-  /** The cheapest and the dearest request, as full fact sets. */
-  billingRange(): { min: BillingFacts; max: BillingFacts };
   /**
    * The model makes its own fal calls. The endpoint depends only on whether
    * the job has an image, so submit, status, result and cancel always agree.

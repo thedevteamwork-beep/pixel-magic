@@ -8,7 +8,11 @@ import {
   validateCreditMapping,
   type TieredCreditMapping,
 } from "../../src/credits/tieredCredits.js";
+import { kling21 } from "../../src/models/kling21/index.js";
 import { listModels } from "../../src/models/registry.js";
+import { optionsValidator } from "../../src/models/schemaGenerator.js";
+import type { ModelDefinition, ModelSchema } from "../../src/models/types.js";
+import { readmeExampleMapping } from "../helpers/creditMappings.js";
 
 type Operator = Extract<Condition, { operator: string }>["operator"];
 type Entry = TieredCreditMapping[string];
@@ -43,6 +47,7 @@ describe("priceTier", () => {
     expect(five).toEqual({
       tier: "Basic",
       total: 30,
+      baseCredits: 0,
       breakdown: [
         { unit: "duration", quantity: 5, units: 5, rate: 6, credits: 30 },
       ],
@@ -148,6 +153,7 @@ describe("priceTier", () => {
       tiers: [{ ...basic, credits: 2 }],
     };
     expect(priceTier(entry, { duration: 5 }).total).toBe(7);
+    expect(priceTier(entry, { duration: 5 }).baseCredits).toBe(2);
   });
 
   it("does not turn float noise into an extra credit", () => {
@@ -165,11 +171,143 @@ describe("priceTier", () => {
   });
 });
 
+/** kling21 with an extra `style` option: a string with no default, so it can be left out. */
+function klingWithStyle(): ModelDefinition {
+  const schema: ModelSchema = {
+    ...kling21.schema,
+    input: {
+      ...kling21.schema.input,
+      style: {
+        type: "string",
+        description: "A look",
+        enum: ["anime", "photo"],
+      },
+    },
+  };
+  return { ...kling21, schema, options: optionsValidator(schema) };
+}
+
+/** The default mapping with one extra kling21 tier "X" testing `conditions`. */
+function withKlingTier(conditions: unknown): Loose {
+  const mapping = defaults();
+  mapping.kling21.tiers.push({
+    name: "X",
+    conditions,
+    meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
+  });
+  return mapping;
+}
+
 describe("validateCreditMapping", () => {
   it("accepts the default mapping", () => {
     expect(() =>
       validateCreditMapping(DEFAULT_TIERED_CREDIT_MAPPING, listModels()),
     ).not.toThrow();
+  });
+
+  it("accepts the README's example mapping", () => {
+    expect(() =>
+      validateCreditMapping(readmeExampleMapping(), listModels()),
+    ).not.toThrow();
+  });
+
+  it("lets an optional string option with no default carry a string condition", () => {
+    const mapping = {
+      kling21: withCondition({
+        fact: "style",
+        operator: "equal",
+        value: "anime",
+      }),
+    };
+    expect(() =>
+      validateCreditMapping(mapping, [klingWithStyle()]),
+    ).not.toThrow();
+  });
+
+  it("still rejects a mistyped value on that optional string option", () => {
+    const mapping = {
+      kling21: withCondition({ fact: "style", operator: "equal", value: 5 }),
+    };
+    expect(() => validateCreditMapping(mapping, [klingWithStyle()])).toThrow(
+      /kling21.*Special.*style is a string/,
+    );
+  });
+
+  it("types unit facts as numbers and image as a boolean, over same-named inputs", () => {
+    // kling21's `duration` input is a string and `image` an image field.
+    const mapping = withKlingTier({
+      all: [
+        { fact: "duration", operator: "greaterThan", value: 5 },
+        { fact: "image", operator: "equal", value: true },
+        { fact: "aspect_ratio", operator: "in", value: ["1:1"] },
+      ],
+    });
+    expect(() => validateCreditMapping(mapping, listModels())).not.toThrow();
+  });
+
+  it("lists each fact once when a condition tests an unknown fact", () => {
+    const mapping = withKlingTier({
+      fact: "resolution",
+      operator: "equal",
+      value: "hd",
+    });
+    expect(() => validateCreditMapping(mapping, listModels())).toThrow(
+      "resolution is not a fact of this model (duration, aspect_ratio, image)",
+    );
+  });
+
+  it.each<[string, unknown, RegExp]>([
+    [
+      "a misspelled operator key",
+      { fact: "image", operater: "equal", value: true },
+      /kling21\.tiers\.1\.conditions.*Unrecognized key: "operater"/,
+    ],
+    [
+      "a misspelled value key",
+      { fact: "image", operator: "equal", valeu: true },
+      /kling21\.tiers\.1\.conditions.*Unrecognized key: "valeu"/,
+    ],
+    [
+      "a misspelled all key",
+      { alll: [{ fact: "image", operator: "equal", value: true }] },
+      /kling21\.tiers\.1\.conditions.*Unrecognized key: "alll"/,
+    ],
+    [
+      "an unknown operator",
+      { fact: "image", operator: "equals", value: true },
+      /kling21\.tiers\.1\.conditions\.operator.*"equal".*"notIn"/,
+    ],
+    [
+      "a typo deep inside all / any",
+      { all: [{ any: [{ fact: "image", operater: "equal", value: true }] }] },
+      /conditions\.all\.0\.any\.0.*Unrecognized key: "operater"/,
+    ],
+    [
+      "an extra key next to all",
+      { all: [{ fact: "image", operator: "equal", value: true }], fact: "x" },
+      /kling21\.tiers\.1\.conditions.*Unrecognized key: "fact"/,
+    ],
+  ])("names %s inside conditions", (_name, conditions, message) => {
+    const mapping = withKlingTier(conditions);
+    expect(() => validateCreditMapping(mapping, listModels())).toThrow(message);
+  });
+
+  it.each<[string, unknown, RegExp]>([
+    ["all", { all: [] }, /kling21\.tiers\.1\.conditions\.all.*Too small/],
+    ["any", { any: [] }, /kling21\.tiers\.1\.conditions\.any.*Too small/],
+    [
+      "in",
+      { fact: "duration", operator: "in", value: [] },
+      /kling21\.tiers\.1\.conditions\.value.*Too small/,
+    ],
+    [
+      "notIn",
+      { fact: "duration", operator: "notIn", value: [] },
+      /kling21\.tiers\.1\.conditions\.value.*Too small/,
+    ],
+  ])("rejects an empty %s list", (_name, conditions, message) => {
+    const mapping = withKlingTier(conditions);
+    expect(() => validateCreditMapping(mapping, listModels())).toThrow(message);
   });
 
   it.each<[string, (m: Loose) => void, RegExp]>([

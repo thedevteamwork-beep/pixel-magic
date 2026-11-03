@@ -27,20 +27,35 @@ const factCondition = z.strictObject({
     "in",
     "notIn",
   ]),
-  value: z.union([factValue, z.array(factValue)]),
+  // An empty in / notIn list would never / always match.
+  value: z.union([factValue, z.array(factValue).min(1)]),
 });
 
 export type Condition =
   z.infer<typeof factCondition> | { all: Condition[] } | { any: Condition[] };
 
-// A condition is one test, or `all` / `any` of nested conditions.
-const condition: z.ZodType<Condition> = z.lazy(() =>
-  z.union([
-    factCondition,
-    z.strictObject({ all: z.array(condition) }),
-    z.strictObject({ any: z.array(condition) }),
-  ]),
-);
+// A condition is one test, or `all` / `any` of nested conditions. The key
+// that is present picks the shape (see conditionShape), so a typo inside a
+// condition is reported by name, not as a bare "Invalid input".
+const condition: z.ZodType<Condition> = z.unknown().transform((value, ctx) => {
+  const result = conditionShape(value).safeParse(value);
+  if (result.success) return result.data;
+  for (const issue of result.error.issues) ctx.addIssue({ ...issue });
+  return z.NEVER;
+});
+
+// An empty `all` would match every job, an empty `any` none.
+const allCondition = z.strictObject({ all: z.array(condition).min(1) });
+const anyCondition = z.strictObject({ any: z.array(condition).min(1) });
+
+/** `all` → the all shape, `any` → the any shape, anything else → one test. */
+function conditionShape(value: unknown): z.ZodType<Condition> {
+  const has = (key: string) =>
+    typeof value === "object" && value !== null && key in value;
+  if (has("all")) return allCondition;
+  if (has("any")) return anyCondition;
+  return factCondition;
+}
 
 const tier = z.strictObject({
   name: z.string().min(1),
@@ -71,10 +86,26 @@ function factConditions(c: Condition): FactCondition[] {
   return [c];
 }
 
-/** The facts a model can be priced on: its inputs (not the prompt), its units and `image`. */
-function factNames(model: ModelDefinition): string[] {
-  const inputs = Object.keys(model.schema.input).filter((k) => k !== "prompt");
-  return [...inputs, ...model.schema.billing.units, "image"];
+type FactType = "string" | "number" | "boolean";
+
+/**
+ * The facts a model can be priced on, with their types: its options (every
+ * input but the prompt and the image), its units, which are numbers, and
+ * `image`, true when the job has an upload. A unit or `image` replaces an
+ * input of the same name, as billingInputs does: kling21's `duration` option
+ * is a string, but its `duration` fact is a number of seconds.
+ */
+function factTypes(model: ModelDefinition): Record<string, FactType> {
+  const types: Record<string, FactType> = {};
+  for (const [name, field] of Object.entries(model.schema.input)) {
+    if (name === "prompt") continue;
+    if (field.type === "string") types[name] = "string";
+    if (field.type === "integer") types[name] = "number";
+    if (field.type === "boolean") types[name] = "boolean";
+  }
+  for (const unit of model.schema.billing.units) types[unit] = "number";
+  types.image = "boolean";
+  return types;
 }
 
 /**
@@ -90,11 +121,15 @@ export function validateCreditMapping(
   };
 
   // Step 1: only the allowed properties, with the right types. This also
-  // rejects a unit that is not supported, a negative rate or credits, and a
-  // unitSize that is not above zero.
+  // rejects a unit that is not supported, a negative rate or credits, a
+  // unitSize that is not above zero, and an empty all / any / in / notIn
+  // list. A misspelled key also leaves its real key missing; the unknown key
+  // is the cause, so it is reported first.
   const result = tieredCreditMapping.safeParse(mapping);
   if (!result.success) {
-    const issue = result.error.issues[0]!;
+    const issues = result.error.issues;
+    const issue =
+      issues.find((i) => i.code === "unrecognized_keys") ?? issues[0]!;
     return fail(issue.path.join(".") || "(root)", issue.message);
   }
   const parsed = result.data;
@@ -112,8 +147,8 @@ export function validateCreditMapping(
     if (!entry) {
       return fail(model.key, "the model has no mapping entry");
     }
-    const names = factNames(model);
-    const facts = model.billingRange().min;
+    const types = factTypes(model);
+    const names = Object.keys(types);
     const defaults = entry.tiers.filter((t) => t.isDefault);
     // 3. exactly one default tier
     if (defaults.length !== 1) {
@@ -164,7 +199,7 @@ export function validateCreditMapping(
         }
         // 11. a condition value has the type of the fact (unit facts are
         // numbers), and ordering operators need a number fact
-        const expected = typeof facts[c.fact];
+        const expected = types[c.fact]!;
         const values = Array.isArray(c.value) ? c.value : [c.value];
         const ordering =
           c.operator.startsWith("greater") || c.operator.startsWith("less");
@@ -221,8 +256,9 @@ const ROUNDERS = {
 };
 
 /**
- * Picks the tier for these facts and prices it. `total` can be fractional;
- * the caller rounds it up once (see `estimateCredits`).
+ * Picks the tier for these facts and prices it: `total` is `baseCredits`
+ * (the tier's `credits`) plus every breakdown item's credits. `total` can be
+ * fractional; the caller rounds it up once (see `estimateCredits`).
  */
 export function priceTier(
   entry: TieredCreditMapping[string],
@@ -230,6 +266,7 @@ export function priceTier(
 ): {
   tier: string;
   total: number;
+  baseCredits: number;
   breakdown: {
     unit: SupportedUnit;
     quantity: number;
@@ -249,17 +286,20 @@ export function priceTier(
   if (!picked) throw new Error("Credit mapping has no default tier");
 
   // Step 2: base credits plus each meter's rounded units times its rate.
-  let total = picked.credits ?? 0;
+  const baseCredits = picked.credits ?? 0;
+  let total = baseCredits;
   const breakdown = [];
   for (const m of picked.meters ?? []) {
     const quantity = facts[m.metric];
     if (typeof quantity !== "number" || !Number.isFinite(quantity)) {
-      throw new Error(`Billing fact ${m.metric} must be a finite number`);
+      throw new Error(
+        `Tier ${picked.name}: billing fact ${m.metric} must be a finite number`,
+      );
     }
     const units = ROUNDERS[m.round ?? "ceil"](clean(quantity / m.unitSize));
     const credits = clean(units * m.rate);
     total += credits;
     breakdown.push({ unit: m.metric, quantity, units, rate: m.rate, credits });
   }
-  return { tier: picked.name, total: clean(total), breakdown };
+  return { tier: picked.name, total: clean(total), baseCredits, breakdown };
 }

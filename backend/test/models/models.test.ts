@@ -158,23 +158,9 @@ describe("model registry", () => {
     });
   });
 
-  it("billing ranges are full fact sets at the unit's extremes", () => {
-    expect(flux.billingRange()).toEqual({
-      min: {
-        image_size: "landscape_4_3",
-        num_images: 1,
-        images: 1,
-        image: false,
-      },
-      max: {
-        image_size: "landscape_4_3",
-        num_images: 4,
-        images: 4,
-        image: false,
-      },
-    });
-    expect(kling.billingRange().min).toMatchObject({ duration: 5 });
-    expect(kling.billingRange().max).toMatchObject({ duration: 10 });
+  it("has no billingRange: the credit range comes from billingSamples", () => {
+    expect(flux).not.toHaveProperty("billingRange");
+    expect(kling).not.toHaveProperty("billingRange");
   });
 
   it("rejects out-of-range options", () => {

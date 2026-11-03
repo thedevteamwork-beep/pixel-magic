@@ -13,16 +13,14 @@ import {
 } from "./clients/storage.js";
 import { createTaskQueue, type TaskQueue } from "./clients/tasks.js";
 import { DEFAULT_TIERED_CREDIT_MAPPING } from "./credits/defaultTieredCreditMapping.js";
-import {
-  validateCreditMapping,
-  type TieredCreditMapping,
-} from "./credits/tieredCredits.js";
+import type { TieredCreditMapping } from "./credits/tieredCredits.js";
 import type { Config } from "./config.js";
 import { createDb } from "./db/knex.js";
 import type { Clock } from "./lib/time.js";
 import { systemClock } from "./lib/time.js";
 import { createLogger } from "./logger.js";
 import { listModels } from "./models/registry.js";
+import { loadCreditMapping } from "./services/credits/estimate.js";
 
 export type Deps = {
   config: Config;
@@ -39,8 +37,9 @@ export type Deps = {
 };
 
 export function createDeps(config: Config): Deps {
-  // A bad mapping stops the app here, before it serves a request.
-  const creditMapping = validateCreditMapping(
+  // A bad mapping, or one that prices any job out of range, stops the app
+  // here, before it serves a request.
+  const creditMapping = loadCreditMapping(
     config.TIERED_CREDIT_MAPPING ?? DEFAULT_TIERED_CREDIT_MAPPING,
     listModels(),
   );

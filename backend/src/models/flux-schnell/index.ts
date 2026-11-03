@@ -4,7 +4,7 @@ import {
   uploadRule,
 } from "../schemaGenerator.js";
 import type { ModelDefinition } from "../types.js";
-import { billingInputs, billingRange } from "./billing.js";
+import { billingInputs } from "./billing.js";
 import {
   cancelPrediction,
   checkPredictionStatus,
@@ -23,7 +23,6 @@ export const fluxSchnell: ModelDefinition = {
   uploads: uploadRule(schema),
   options: optionsValidator(schema),
   billingInputs,
-  billingRange,
   requestPrediction,
   checkPredictionStatus,
   getPredictionResult,

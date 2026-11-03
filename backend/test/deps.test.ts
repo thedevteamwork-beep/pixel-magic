@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
+import { DEFAULT_TIERED_CREDIT_MAPPING } from "../src/credits/defaultTieredCreditMapping.js";
 import { createDeps } from "../src/deps.js";
 
 const env = {
@@ -32,6 +33,31 @@ describe("createDeps", () => {
       TIERED_CREDIT_MAPPING: JSON.stringify(mapping),
     });
     expect(() => createDeps(config)).toThrow(/TIERED_CREDIT_MAPPING.*klng21/);
+  });
+
+  it("stops at startup on a mapping that prices a job outside 1 to 2147483647", () => {
+    // Valid in shape, but one flux image floors to 0 units: a 0-credit job.
+    const mapping = {
+      ...DEFAULT_TIERED_CREDIT_MAPPING,
+      "flux-schnell": {
+        tiers: [
+          {
+            name: "Basic",
+            isDefault: true,
+            meters: [
+              { metric: "images", unitSize: 10, rate: 1, round: "floor" },
+            ],
+          },
+        ],
+      },
+    };
+    const config = loadConfig({
+      ...env,
+      TIERED_CREDIT_MAPPING: JSON.stringify(mapping),
+    });
+    expect(() => createDeps(config)).toThrow(
+      /^TIERED_CREDIT_MAPPING invalid \(flux-schnell, tier Basic\): .* at 0 credits/,
+    );
   });
 
   it("uses the default mapping when none is set", async () => {

@@ -28,16 +28,19 @@ export function creditsRoutes(deps: Deps): Router {
       const body = req.body as z.infer<typeof estimateBody>;
       const model = getModel(body.model);
       if (!model) throw new AppError(422, "VALIDATION_FAILED", "Unknown model");
-      const { creditsPerJob, tier, breakdown } = estimateCredits(deps, model, {
-        options: body.options,
-        uploadCount: body.uploadCount,
-      });
+      const { creditsPerJob, tier, baseCredits, breakdown } = estimateCredits(
+        deps,
+        model,
+        { options: body.options, uploadCount: body.uploadCount },
+      );
       res.json({
         model: model.key,
         count: body.count,
         tier,
         creditsPerJob,
         totalCredits: creditsPerJob * body.count,
+        // creditsPerJob = baseCredits + the breakdown's credits, rounded up
+        baseCredits,
         breakdown: breakdown.map((b) => ({
           unit: b.unit,
           label: SUPPORTED_UNITS[b.unit].label,
