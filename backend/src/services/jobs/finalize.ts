@@ -6,7 +6,7 @@ import {
   getUserJob,
   transitionJob,
 } from "../../db/repositories/jobs.repo.js";
-import type { JobErrorCode, JobOutput } from "../../db/rows.js";
+import type { JobErrorCode, JobOutput, JobRow } from "../../db/rows.js";
 import type { Deps } from "../../deps.js";
 import { AppError } from "../../lib/errors.js";
 import { getModel } from "../../models/registry.js";
@@ -96,6 +96,17 @@ export async function runFinalize(
     to: "finalizing",
   });
 
+  try {
+    return await finalizeClaimed(deps, job);
+  } catch (err) {
+    // Never strand a job in `finalizing`: release the lease and retry.
+    deps.logger.error("Unexpected finalize error", { jobId, err });
+    return backToSubmitted(deps, jobId, err);
+  }
+}
+
+async function finalizeClaimed(deps: Deps, job: JobRow): Promise<200 | 503> {
+  const jobId = job.id;
   const model = getModel(job.model_key);
   if (!model) {
     return failFinalizing(
@@ -129,6 +140,9 @@ export async function runFinalize(
     if (err instanceof FalError && err.retryable) {
       return backToSubmitted(deps, jobId, err);
     }
+    if (err instanceof FalError) {
+      return failFinalizing(deps, jobId, "GENERATION_FAILED", err.message);
+    }
     throw err;
   }
 
@@ -146,13 +160,16 @@ export async function runFinalize(
       ? failFinalizing(deps, jobId, "CONTENT_BLOCKED", "All outputs blocked")
       : failFinalizing(deps, jobId, "OUTPUT_INVALID", "Result had no outputs");
   }
-  const badUrl = parsed.outputs.find((o) => !o.url.startsWith("https://"));
-  if (badUrl) {
+  const bad = parsed.outputs.find(
+    (o) =>
+      !o.url.startsWith("https://") || !Object.hasOwn(EXTENSIONS, o.mimeType),
+  );
+  if (bad) {
     return failFinalizing(
       deps,
       jobId,
       "OUTPUT_INVALID",
-      "Output URL is not https",
+      "Output URL is not https or its type is unsupported",
     );
   }
 
@@ -205,6 +222,7 @@ export async function getDownloadUrl(
   jobId: string,
   index: number,
 ): Promise<{ url: string; expiresAt: Date }> {
+  const now = deps.clock.now();
   const job = await getUserJob(deps.db, userId, jobId);
   const notFound = () => new AppError(404, "NOT_FOUND", "Output not found");
   if (!job) throw notFound();
@@ -220,8 +238,6 @@ export async function getDownloadUrl(
   );
   return {
     url,
-    expiresAt: new Date(
-      deps.clock.now().getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000,
-    ),
+    expiresAt: new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000),
   };
 }

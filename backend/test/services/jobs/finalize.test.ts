@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
-import { FalError } from "../../../src/clients/fal.js";
+import { ApiError } from "@fal-ai/client";
+import { createFalClient, FalError } from "../../../src/clients/fal.js";
 import { getJob } from "../../../src/db/repositories/jobs.repo.js";
 import { T } from "../../../src/db/tables.js";
 import {
@@ -129,14 +130,80 @@ describe("runFinalize", () => {
   });
 
   it.each([401, 403, 503])(
-    "treats a retryable fal %i on status as 503 back to submitted",
+    "treats what the real client throws for a %i status as 503 back to submitted",
     async (status) => {
       const id = await submittedJob();
-      h.fal.failNext("status", new FalError("auth", true, status));
+      h.deps.fal = createFalClient(h.deps.config, {
+        queue: {
+          status: async () => {
+            throw new ApiError({ message: `http ${status}`, status });
+          },
+        },
+      } as never);
       expect(await runFinalize(h.deps, id)).toBe(503);
-      expect((await getJob(testDb, id))?.status).toBe("submitted");
+      expect(await getJob(testDb, id)).toMatchObject({
+        status: "submitted",
+        lease_expires_at: null,
+      });
+      expect(await allocationStatuses(id)).toEqual(["reserved"]);
     },
   );
+
+  it("fails with GENERATION_FAILED on a non-retryable fal status error", async () => {
+    const id = await submittedJob();
+    h.fal.failNext("status", new FalError("not found", false, 404));
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect(await getJob(testDb, id)).toMatchObject({
+      status: "failed",
+      error_code: "GENERATION_FAILED",
+      lease_expires_at: null,
+    });
+    expect(await allocationStatuses(id)).toEqual(["released"]);
+  });
+
+  it("goes back to submitted with a 503 on an unexpected error", async () => {
+    const id = await submittedJob();
+    // FakeFal.result throws a plain Error when no result is configured.
+    expect(await runFinalize(h.deps, id)).toBe(503);
+    expect(await getJob(testDb, id)).toMatchObject({
+      status: "submitted",
+      lease_expires_at: null,
+    });
+    expect(await allocationStatuses(id)).toEqual(["reserved"]);
+    expect(h.logs.some((l) => l.level === "error" && l.jobId === id)).toBe(
+      true,
+    );
+  });
+
+  it("does not capture credits when the job stopped finalizing meanwhile", async () => {
+    const id = await submittedJob();
+    h.fal.results.set("req_1", fluxResult());
+    h.storage.copyFromUrl = async () => {
+      await testDb(T.jobs).where({ id }).update({ status: "failed" });
+    };
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect((await getJob(testDb, id))?.status).toBe("failed");
+    expect(await allocationStatuses(id)).toEqual(["reserved"]);
+  });
+
+  it("fails with OUTPUT_INVALID for an unsupported mime type without copying", async () => {
+    const id = await submittedJob();
+    h.fal.results.set("req_1", {
+      ok: true,
+      data: {
+        images: [
+          { url: "https://fal.media/files/a.gif", content_type: "image/gif" },
+        ],
+      },
+    });
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect(h.storage.copies).toEqual([]);
+    expect(await getJob(testDb, id)).toMatchObject({
+      status: "failed",
+      error_code: "OUTPUT_INVALID",
+    });
+    expect(await allocationStatuses(id)).toEqual(["released"]);
+  });
 
   it("returns 503 back to submitted on a retryable error from result", async () => {
     const id = await submittedJob();
@@ -177,7 +244,16 @@ describe("runFinalize", () => {
     expect(h.storage.copies.map((c) => c.sourceUrl)).toEqual([
       "https://fal.media/files/a.jpg",
     ]);
-    expect((await getJob(testDb, id))?.status).toBe("completed");
+    expect(await getJob(testDb, id)).toMatchObject({
+      status: "completed",
+      outputs: [
+        {
+          bucket: "outputs",
+          path: `${userId}/${id}/0.jpg`,
+          mimeType: "image/jpeg",
+        },
+      ],
+    });
     expect(await allocationStatuses(id)).toEqual(["captured"]);
   });
 

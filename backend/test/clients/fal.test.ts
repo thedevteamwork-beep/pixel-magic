@@ -142,6 +142,23 @@ describe("createFalClient", () => {
   });
 
   it.each([401, 403])(
+    "throws a retryable error for a %i status (bad FAL_KEY)",
+    async (status) => {
+      const client = createFalClient(
+        config,
+        stub({
+          status: async () => {
+            throw apiError(status);
+          },
+        }),
+      );
+      const err = await client.status("m", "r").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(FalError);
+      expect((err as FalError).retryable).toBe(true);
+    },
+  );
+
+  it.each([401, 403])(
     "throws a retryable error for a %i result (bad FAL_KEY)",
     async (status) => {
       const client = createFalClient(

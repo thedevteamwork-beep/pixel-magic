@@ -116,10 +116,22 @@ export function createFalClient(
       return { requestId };
     },
     async status(modelId, requestId) {
-      const res = await call((abortSignal) =>
-        queue.status(modelId, { requestId, abortSignal }),
-      );
-      return res.status;
+      try {
+        const res = await call((abortSignal) =>
+          queue.status(modelId, { requestId, abortSignal }),
+        );
+        return res.status;
+      } catch (err) {
+        // A bad or rotated FAL_KEY must not fail users' jobs.
+        if (
+          err instanceof FalError &&
+          !err.retryable &&
+          (err.status === 401 || err.status === 403)
+        ) {
+          throw new FalError(err.message, true, err.status);
+        }
+        throw err;
+      }
     },
     async result(modelId, requestId) {
       try {
