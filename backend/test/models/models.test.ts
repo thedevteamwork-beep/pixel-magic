@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getModel, listModels } from "../../src/models/registry.js";
+import { FakeFal } from "../fakes/fal.js";
 import { OutputInvalidError } from "../../src/models/types.js";
 
 function fixture(name: string): unknown {
@@ -26,19 +27,30 @@ describe("model registry", () => {
       expect(() => m.options.parse({})).not.toThrow();
   });
 
-  it("flux buildInput always turns the safety checker on", () =>
-    expect(
-      flux.buildInput({
-        prompt: "a cat",
-        options: flux.options.parse({}),
-        inputUrls: [],
-      }),
-    ).toEqual({
-      prompt: "a cat",
-      image_size: "landscape_4_3",
-      num_images: 1,
-      enable_safety_checker: true,
-    }));
+  it("flux requestPrediction sends prompt, image_size, num_images", async () => {
+    const fal = new FakeFal();
+    await flux.requestPrediction({
+      fal,
+      input: { prompt: "a cat", ...flux.options.parse({}) },
+      webhook: "https://hook/x",
+    });
+    expect(fal.calls).toEqual([
+      {
+        method: "submit",
+        args: [
+          "fal-ai/flux/schnell",
+          {
+            prompt: "a cat",
+            image_size: "landscape_4_3",
+            num_images: 1,
+            // Always on: the safety checker is never user-controllable.
+            enable_safety_checker: true,
+          },
+          "https://hook/x",
+        ],
+      },
+    ]);
+  });
 
   it("flux parseOutput drops NSFW images", () =>
     expect(flux.parseOutput(fixture("flux-schnell"))).toEqual({
@@ -53,24 +65,67 @@ describe("model registry", () => {
     expect(() => kling.parseOutput({ foo: 1 })).toThrow(OutputInvalidError);
   });
 
-  it("kling builds input and parses the video", () => {
-    const options = kling.options.parse({});
-    expect(kling.falEndpoint({ uploadCount: 1 })).toBe(
-      "fal-ai/kling-video/v2.1/master/image-to-video",
-    );
-    expect(
-      kling.buildInput({
+  it("kling21 requestPrediction: an image goes to image-to-video with image_url and no aspect_ratio", async () => {
+    const fal = new FakeFal();
+    await kling.requestPrediction({
+      fal,
+      input: {
         prompt: "pan",
-        options,
-        inputUrls: ["https://x/y.png"],
-      }),
-    ).toEqual({ prompt: "pan", image_url: "https://x/y.png", duration: "5" });
-    expect(kling.falEndpoint({ uploadCount: 0 })).toBe(
+        ...kling.options.parse({}),
+        image: "https://x/y.png",
+      },
+      webhook: "https://hook/x",
+    });
+    expect(fal.calls[0]?.args).toEqual([
+      "fal-ai/kling-video/v2.1/master/image-to-video",
+      { prompt: "pan", duration: "5", image_url: "https://x/y.png" },
+      "https://hook/x",
+    ]);
+  });
+
+  it("kling21 requestPrediction: no image goes to text-to-video with aspect_ratio", async () => {
+    const fal = new FakeFal();
+    await kling.requestPrediction({
+      fal,
+      input: { prompt: "pan", ...kling.options.parse({}) },
+      webhook: "https://hook/x",
+    });
+    expect(fal.calls[0]?.args).toEqual([
       "fal-ai/kling-video/v2.1/master/text-to-video",
-    );
-    expect(kling.buildInput({ prompt: "pan", options, inputUrls: [] })).toEqual(
       { prompt: "pan", duration: "5", aspect_ratio: "16:9" },
-    );
+      "https://hook/x",
+    ]);
+  });
+
+  it.each([[true], [false]])(
+    "kling21 status/result/cancel use the same endpoint as submit (hasImage %s)",
+    async (hasImage) => {
+      const fal = new FakeFal();
+      fal.statuses.set("req_1", "COMPLETED");
+      fal.results.set("req_1", { ok: true, data: {} });
+      const { requestId } = await kling.requestPrediction({
+        fal,
+        input: {
+          prompt: "pan",
+          ...kling.options.parse({}),
+          ...(hasImage ? { image: "https://x/y.png" } : {}),
+        },
+        webhook: "https://hook/x",
+      });
+      await kling.checkPredictionStatus({ fal, requestId, hasImage });
+      await kling.getPredictionResult({ fal, requestId, hasImage });
+      await kling.cancelPrediction({ fal, requestId, hasImage });
+      expect(fal.calls.map((c) => c.method)).toEqual([
+        "submit",
+        "status",
+        "result",
+        "cancel",
+      ]);
+      expect(new Set(fal.calls.map((c) => c.args[0])).size).toBe(1);
+    },
+  );
+
+  it("kling21 parses the video", () => {
     expect(kling.parseOutput(fixture("kling21"))).toEqual({
       outputs: [
         { url: "https://fal.media/files/v.mp4", mimeType: "video/mp4" },

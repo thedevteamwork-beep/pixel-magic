@@ -126,13 +126,17 @@ async function finalizeClaimed(deps: Deps, job: JobRow): Promise<200 | 503> {
     );
   }
 
-  const endpoint = model.falEndpoint({ uploadCount: job.upload_ids.length });
+  const prediction = {
+    fal: deps.fal,
+    requestId,
+    hasImage: job.upload_ids.length > 0,
+  };
   let data: unknown;
   try {
-    const status = await deps.fal.status(endpoint, requestId);
+    const status = await model.checkPredictionStatus(prediction);
     if (status !== "COMPLETED")
       return await backToSubmitted(deps, jobId, status);
-    const result = await deps.fal.result(endpoint, requestId);
+    const result = await model.getPredictionResult(prediction);
     if (!result.ok) {
       return failFinalizing(deps, jobId, "GENERATION_FAILED", result.message);
     }

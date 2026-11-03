@@ -5,7 +5,6 @@ import { createApp } from "../../src/api/server.js";
 import { FalError } from "../../src/clients/fal.js";
 import type { JobRow, JobStatus } from "../../src/db/rows.js";
 import { T } from "../../src/db/tables.js";
-import { getModel } from "../../src/models/registry.js";
 import { makeDeps } from "../helpers/app.js";
 import { resetDb, testDb } from "../helpers/db.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
@@ -133,10 +132,7 @@ describe("fal webhook", () => {
     expect(ctx.fal.calls).toEqual([
       {
         method: "status",
-        args: [
-          getModel("flux-schnell")?.falEndpoint({ uploadCount: 0 }),
-          "req_1",
-        ],
+        args: ["fal-ai/flux/schnell", "req_1"],
       },
     ]);
     expect(ctx.queue.tasks).toMatchObject([
@@ -152,6 +148,21 @@ describe("fal webhook", () => {
       {
         method: "status",
         args: ["fal-ai/kling-video/v2.1/master/text-to-video", "req_1"],
+      },
+    ]);
+  });
+
+  it("verifies an image-to-video job on the image-to-video endpoint", async () => {
+    const job = await jobWith("submitting", null, "kling21");
+    await testDb(T.jobs)
+      .where({ id: job.id })
+      .update({ upload_ids: [randomUUID()] });
+    const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
+    expect(res.status).toBe(200);
+    expect(ctx.fal.calls).toEqual([
+      {
+        method: "status",
+        args: ["fal-ai/kling-video/v2.1/master/image-to-video", "req_1"],
       },
     ]);
   });

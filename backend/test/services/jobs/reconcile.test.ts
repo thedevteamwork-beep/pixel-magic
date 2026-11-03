@@ -254,6 +254,17 @@ describe("runReconcile", () => {
     ]);
   });
 
+  it("polls and cancels an image-to-video job on the image-to-video endpoint", async () => {
+    await submittedJob("kling21");
+    h.fal.calls.length = 0;
+    h.clock.advance(61 * MIN);
+    expect((await runReconcile(h.deps)).timedOut).toBe(1);
+    expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
+      ["status", "fal-ai/kling-video/v2.1/master/image-to-video"],
+      ["cancel", "fal-ai/kling-video/v2.1/master/image-to-video"],
+    ]);
+  });
+
   it("still fails a timed-out job when fal cancel errors", async () => {
     const id = await submittedJob();
     h.clock.advance(11 * MIN);

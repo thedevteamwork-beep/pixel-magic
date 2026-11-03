@@ -142,15 +142,17 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
   await each(4, timedOutRows.filter(isTimedOut), async (job) => {
     timedOutIds.add(job.id);
     const model = getModel(job.model_key);
-    const endpoint = model?.falEndpoint({
-      uploadCount: job.upload_ids.length,
-    });
-    if (model && endpoint && job.fal_request_id && !isPastCeiling(job)) {
+    const hasImage = job.upload_ids.length > 0;
+    if (model && job.fal_request_id && !isPastCeiling(job)) {
       // Ask fal first: a finished result (say, one whose copy kept failing
       // during a storage outage) is finalized instead of thrown away.
       let status;
       try {
-        status = await deps.fal.status(endpoint, job.fal_request_id);
+        status = await model.checkPredictionStatus({
+          fal: deps.fal,
+          requestId: job.fal_request_id,
+          hasImage,
+        });
       } catch (err) {
         if (err instanceof FalError) {
           logger.warn("Reconcile fal status failed", {
@@ -168,9 +170,13 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         return;
       }
     }
-    if (endpoint && job.fal_request_id) {
+    if (model && job.fal_request_id) {
       try {
-        await deps.fal.cancel(endpoint, job.fal_request_id);
+        await model.cancelPrediction({
+          fal: deps.fal,
+          requestId: job.fal_request_id,
+          hasImage,
+        });
       } catch (err) {
         logger.warn("Reconcile fal cancel failed", {
           jobId: job.id,
@@ -198,12 +204,13 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         return;
       }
       if (!job.fal_request_id) return;
-      const endpoint = model.falEndpoint({
-        uploadCount: job.upload_ids.length,
-      });
       let status;
       try {
-        status = await deps.fal.status(endpoint, job.fal_request_id);
+        status = await model.checkPredictionStatus({
+          fal: deps.fal,
+          requestId: job.fal_request_id,
+          hasImage: job.upload_ids.length > 0,
+        });
       } catch (err) {
         if (err instanceof FalError) {
           logger.warn("Reconcile fal status failed", {

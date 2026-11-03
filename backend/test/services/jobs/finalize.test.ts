@@ -326,6 +326,17 @@ describe("runFinalize", () => {
     ]);
   });
 
+  it("finalizes an image-to-video job against the image-to-video endpoint", async () => {
+    const id = await submittedJob("kling21");
+    h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
+      ["submit", "fal-ai/kling-video/v2.1/master/image-to-video"],
+      ["status", "fal-ai/kling-video/v2.1/master/image-to-video"],
+      ["result", "fal-ai/kling-video/v2.1/master/image-to-video"],
+    ]);
+  });
+
   it("fails with MODEL_UNAVAILABLE when the model is gone", async () => {
     const id = await submittedJob();
     await testDb(T.jobs).where({ id }).update({ model_key: "gone-model" });

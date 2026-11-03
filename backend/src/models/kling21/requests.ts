@@ -5,30 +5,50 @@ export const BASE_ENDPOINT = "fal-ai/kling-video/v2.1/master";
 export const IMAGE_TO_VIDEO_ENDPOINT = `${BASE_ENDPOINT}/image-to-video`;
 export const TEXT_TO_VIDEO_ENDPOINT = `${BASE_ENDPOINT}/text-to-video`;
 
-type Kling21Options = { duration: string; aspect_ratio: string };
+const endpointFor = (hasImage: boolean) =>
+  hasImage ? IMAGE_TO_VIDEO_ENDPOINT : TEXT_TO_VIDEO_ENDPOINT;
 
-export const falEndpoint: ModelDefinition["falEndpoint"] = ({ uploadCount }) =>
-  uploadCount > 0 ? IMAGE_TO_VIDEO_ENDPOINT : TEXT_TO_VIDEO_ENDPOINT;
+export const requestPrediction: ModelDefinition["requestPrediction"] = ({
+  fal,
+  input,
+  webhook,
+}) => {
+  // Step 1: an image makes it image-to-video; otherwise text-to-video.
+  const endpoint = endpointFor(Boolean(input.image));
 
-export const buildInput: ModelDefinition["buildInput"] = (p) => {
-  const options = p.options as Kling21Options;
-
-  // Step 1: the fields every request has.
-  const input: Record<string, unknown> = {
-    prompt: p.prompt,
-    duration: options.duration,
+  // Step 2: the fields every request has.
+  const payload: Record<string, unknown> = {
+    prompt: input.prompt,
+    duration: input.duration,
   };
 
-  // Step 2: an image makes it image-to-video (the image sets the shape);
-  // without one, text-to-video needs an aspect ratio.
-  const [imageUrl] = p.inputUrls;
-  if (imageUrl) {
-    input.image_url = imageUrl;
+  // Step 3: only include image_url if image is provided (the image sets the
+  // shape); text-to-video needs an aspect ratio instead.
+  if (input.image) {
+    payload.image_url = input.image;
   } else {
-    input.aspect_ratio = options.aspect_ratio;
+    payload.aspect_ratio = input.aspect_ratio;
   }
-  return input;
+
+  // Step 4: one attempt; the shared client classifies errors.
+  return fal.submit(endpoint, payload, webhook);
 };
+
+export const checkPredictionStatus: ModelDefinition["checkPredictionStatus"] =
+  ({ fal, requestId, hasImage }) =>
+    fal.status(endpointFor(hasImage), requestId);
+
+export const getPredictionResult: ModelDefinition["getPredictionResult"] = ({
+  fal,
+  requestId,
+  hasImage,
+}) => fal.result(endpointFor(hasImage), requestId);
+
+export const cancelPrediction: ModelDefinition["cancelPrediction"] = ({
+  fal,
+  requestId,
+  hasImage,
+}) => fal.cancel(endpointFor(hasImage), requestId);
 
 export const parseOutput: ModelDefinition["parseOutput"] = (data) => {
   const parsed = falResponse.safeParse(data);

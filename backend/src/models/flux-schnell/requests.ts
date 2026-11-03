@@ -3,20 +3,38 @@ import { falResponse } from "./schema.js";
 
 export const ENDPOINT = "fal-ai/flux/schnell";
 
-type FluxOptions = { image_size: string; num_images: number };
+// One endpoint whether or not there is an image.
+const endpointFor = () => ENDPOINT;
 
-export const falEndpoint: ModelDefinition["falEndpoint"] = () => ENDPOINT;
+export const requestPrediction: ModelDefinition["requestPrediction"] = ({
+  fal,
+  input,
+  webhook,
+}) =>
+  fal.submit(
+    endpointFor(),
+    {
+      prompt: input.prompt,
+      image_size: input.image_size,
+      num_images: input.num_images,
+      // Always on: the safety checker is never user-controllable.
+      enable_safety_checker: true,
+    },
+    webhook,
+  );
 
-export const buildInput: ModelDefinition["buildInput"] = (p) => {
-  const options = p.options as FluxOptions;
-  return {
-    prompt: p.prompt,
-    image_size: options.image_size,
-    num_images: options.num_images,
-    // Always on: the safety checker is never user-controllable.
-    enable_safety_checker: true,
-  };
-};
+export const checkPredictionStatus: ModelDefinition["checkPredictionStatus"] =
+  ({ fal, requestId }) => fal.status(endpointFor(), requestId);
+
+export const getPredictionResult: ModelDefinition["getPredictionResult"] = ({
+  fal,
+  requestId,
+}) => fal.result(endpointFor(), requestId);
+
+export const cancelPrediction: ModelDefinition["cancelPrediction"] = ({
+  fal,
+  requestId,
+}) => fal.cancel(endpointFor(), requestId);
 
 export const parseOutput: ModelDefinition["parseOutput"] = (data) => {
   const parsed = falResponse.safeParse(data);

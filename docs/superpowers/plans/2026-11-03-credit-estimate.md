@@ -155,3 +155,83 @@ it("fails on an invalid TIERED_CREDIT_MAPPING", ...);   // Review Focus 5: "not 
 - [ ] **Step 3: Implement.** Document `TIERED_CREDIT_MAPPING`, the supported units and the estimate endpoint in the README, and add a commented `TIERED_CREDIT_MAPPING=` example line to `.env.example`.
 - [ ] **Step 4:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS.
 - [ ] **Step 5: Commit** with `feat(credits): tiered credit mapping, supported units and estimate API`.
+
+---
+
+### Task 3: Each model's `requests.ts` makes its own fal calls (like jiraiya's `requestPrediction`)
+
+Added 2026-11-03 at the user's request. The user chose: `requests.ts` calls the shared `clients/fal.ts` client, which keeps the one-attempt / no-retry / 30 s timeout / error rules in one place.
+
+**Files:**
+- Modify: `src/models/types.ts`, `src/models/kling21/requests.ts`, `src/models/kling21/index.ts`, `src/models/flux-schnell/requests.ts`, `src/models/flux-schnell/index.ts`, `src/services/jobs/generate.ts`, `src/services/jobs/falWebhook.ts`, `src/services/jobs/finalize.ts`, `src/services/jobs/reconcile.ts`
+- Test: `test/models/models.test.ts`, plus whichever job tests assert fal call arguments
+
+**Interfaces:**
+- **`requests.ts` reads like jiraiya's.** It keeps its endpoint constants and a local `endpointFor(hasImage: boolean)`, and exports:
+  - `requestPrediction({ fal, input, webhook }): Promise<{ requestId: string }>`.
+    - `input` is `{ prompt, ...options, image?: <first input URL> }`.
+    - It picks the endpoint from `input.image`, builds the fal payload (the same fields `buildInput` builds today), and returns `fal.submit(endpoint, payload, webhook)`.
+  - `checkPredictionStatus({ fal, requestId, hasImage }): Promise<FalStatus>`, which calls `fal.status(endpointFor(hasImage), requestId)`.
+  - `getPredictionResult({ fal, requestId, hasImage }): Promise<FalResult>` and `cancelPrediction({ fal, requestId, hasImage }): Promise<void>`, built the same way.
+  - `parseOutput` (unchanged).
+- **`ModelDefinition`:**
+  - `falEndpoint` and `buildInput` are replaced by those four functions. `parseOutput` stays.
+  - `PredictionInput = { prompt: string; image?: string } & Record<string, unknown>`.
+- **Callers:**
+  - `generate.ts` submits and cancels through the model.
+  - `falWebhook.ts`, `finalize.ts` and `reconcile.ts` use `model.checkPredictionStatus` / `getPredictionResult` / `cancelPrediction`, with `hasImage: job.upload_ids.length > 0`.
+  - No service calls `deps.fal.*` directly any more.
+- **Unchanged:** `clients/fal.ts`, `FakeFal`, all job state rules, logging and error handling.
+
+- [ ] **Step 1: failing tests**
+
+```ts
+// test/models/models.test.ts (replace the buildInput / falEndpoint tests)
+it("kling21 requestPrediction: an image goes to image-to-video with image_url and no aspect_ratio", ...);
+                                       // FakeFal.calls[0].args → ["fal-ai/kling-video/v2.1/master/image-to-video", { prompt, duration, image_url }, webhook]
+it("kling21 requestPrediction: no image goes to text-to-video with aspect_ratio", ...);
+it("flux requestPrediction sends prompt, image_size, num_images", ...);
+it.each([[true], [false]])("kling21 status/result/cancel use the same endpoint as submit (hasImage %s)", ...);
+// job tests: an image-to-video job's submit, webhook status, finalize result and reconcile cancel all hit one endpoint
+```
+- [ ] **Step 2:** Run `npm test -- test/models`. Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS.
+- [ ] **Step 5: Commit** with `refactor(models): each model's requests.ts makes its own fal calls`.
+
+---
+
+### Task 4: Group the API routes like jiraiya
+
+Added 2026-11-03 at the user's request ("Group like jiraiya"). This is a move-and-rename refactor. Every URL, status code, middleware order and response body stays the same; the one exception is noted under Interfaces.
+
+**Files:**
+- Create: `src/api/routes/index.ts`, `src/api/routes/public/v1/index.ts`, `src/api/routes/user/v1/index.ts`, `src/api/routes/webhook/index.ts`
+- Move and rename (`git mv`, then edit):
+  - `health.ts` → `health.routes.ts`;
+  - `catalog.ts`, `models.ts`, `credits.ts` → `public/v1/*.routes.ts`;
+  - `me.ts`, `billing.ts`, `uploads.ts`, `jobs.ts` → `user/v1/*.routes.ts`;
+  - `webhooks.ts` → split into `webhook/paddle.routes.ts` and `webhook/fal.routes.ts`.
+- Modify: `src/api/server.ts`, any test that imports a route file directly.
+
+**Interfaces:**
+- **Each `*.routes.ts`** exports one `Router` factory that takes `deps`. Its paths are relative to its group's prefix, as in jiraiya, where `credits.routes.js` declares `"/estimate"`:
+  - in `public/v1/credits.routes.ts`, the path is `"/credits/estimate"`;
+  - in `user/v1/jobs.routes.ts`, the paths are `"/jobs"`, `"/jobs/:id"` and `"/jobs/:id/download-url"`.
+- **Validation and services don't move.** Zod checks stay in the route file, like jiraiya's validators. Business logic stays in `src/services/`, our equivalent of jiraiya's `handlers/`.
+- **`public/v1/index.ts`** mounts catalog, models and credits under `/v1`, with no auth.
+- **`user/v1/index.ts`** mounts me, billing, uploads and jobs under `/v1`. It applies `requireUser(deps)` and `ensureUser(deps)` once per area, at the area's prefix (`router.use("/jobs", ...guard, jobsRoutes(deps))`). Route files no longer list `...guard`.
+  - The middleware order is unchanged: auth first, then the body parser, then validation.
+  - The one allowed behaviour change: an unauthenticated request to an unknown path inside a user area (e.g. `GET /v1/jobs/a/b`) now gets 401 instead of 404.
+  - A path outside every area (e.g. `GET /v1/nope`) still gets 404.
+- **`webhook/index.ts`** mounts paddle and fal under `/webhooks`. Each keeps its own raw-body parser and signature check.
+- **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts, in today's order: webhook, health, public, user.
+- **`server.ts`** keeps helmet, cors, `notFound` and `errorHandler`, and mounts `apiRoutes(deps)`.
+
+- [ ] **Step 1: test.** Add `test/api/routes.test.ts`:
+  - every endpoint in the README's API list still answers on its old URL, with a status other than 404;
+  - an unauthenticated `GET /v1/jobs/a/b` gets 401;
+  - `GET /v1/nope` gets 404.
+- [ ] **Step 2: Implement** the moves.
+- [ ] **Step 3:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS, with the existing API tests unchanged apart from import paths.
+- [ ] **Step 4:** Update the README's project layout, then **commit** with `refactor(api): group routes by audience like jiraiya`.

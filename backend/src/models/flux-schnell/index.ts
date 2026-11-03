@@ -5,7 +5,13 @@ import {
 } from "../schemaGenerator.js";
 import type { ModelDefinition } from "../types.js";
 import { billingInputs, billingRange } from "./billing.js";
-import { buildInput, falEndpoint, parseOutput } from "./requests.js";
+import {
+  cancelPrediction,
+  checkPredictionStatus,
+  getPredictionResult,
+  parseOutput,
+  requestPrediction,
+} from "./requests.js";
 import { schema } from "./schema.js";
 
 export const fluxSchnell: ModelDefinition = {
@@ -18,8 +24,10 @@ export const fluxSchnell: ModelDefinition = {
   options: optionsValidator(schema),
   billingInputs,
   billingRange,
-  falEndpoint,
-  buildInput,
+  requestPrediction,
+  checkPredictionStatus,
+  getPredictionResult,
+  cancelPrediction,
   parseOutput,
   timeoutMinutes: 10,
 };

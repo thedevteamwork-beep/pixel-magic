@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { FalClient, FalResult, FalStatus } from "../clients/fal.js";
 import type { SupportedUnit } from "../credits/units.js";
 
 export type ModelKind = "image" | "video";
@@ -63,6 +64,15 @@ export type ModelSchema = {
   billing: { units: SupportedUnit[] };
 };
 
+/** What a model needs to start a prediction: the prompt, the options, an image URL. */
+export type PredictionInput = { prompt: string; image?: string } & Record<
+  string,
+  unknown
+>;
+
+/** Identifies a started prediction. `hasImage` is `job.upload_ids.length > 0`. */
+type PredictionRef = { fal: FalClient; requestId: string; hasImage: boolean };
+
 export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   key: string;
   kind: ModelKind;
@@ -77,15 +87,17 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   /** The cheapest and the dearest request, as full fact sets. */
   billingRange(): { min: BillingFacts; max: BillingFacts };
   /**
-   * The fal endpoint for a job. It depends only on the job's upload count, so
-   * submit, webhook, finalize and reconcile always agree.
+   * The model makes its own fal calls. The endpoint depends only on whether
+   * the job has an image, so submit, status, result and cancel always agree.
    */
-  falEndpoint(p: { uploadCount: number }): string;
-  buildInput(p: {
-    prompt: string;
-    options: z.output<O>;
-    inputUrls: string[];
-  }): Record<string, unknown>;
+  requestPrediction(p: {
+    fal: FalClient;
+    input: PredictionInput;
+    webhook: string;
+  }): Promise<{ requestId: string }>;
+  checkPredictionStatus(p: PredictionRef): Promise<FalStatus>;
+  getPredictionResult(p: PredictionRef): Promise<FalResult>;
+  cancelPrediction(p: PredictionRef): Promise<void>;
   parseOutput(data: unknown): ParsedOutput;
   timeoutMinutes: number;
 };

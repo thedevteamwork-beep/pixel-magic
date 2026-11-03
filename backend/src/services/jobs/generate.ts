@@ -8,6 +8,7 @@ import {
 } from "../../db/repositories/jobs.repo.js";
 import { getUserUploads } from "../../db/repositories/uploads.repo.js";
 import type { JobRow } from "../../db/rows.js";
+import type { ModelDefinition } from "../../models/types.js";
 import { getModel } from "../../models/registry.js";
 import { failJob } from "./jobs.js";
 
@@ -46,11 +47,12 @@ async function failSubmitting(
 async function cancelQuietly(
   deps: Deps,
   jobId: string,
-  modelId: string,
+  model: ModelDefinition,
+  hasImage: boolean,
   requestId: string,
 ): Promise<void> {
   try {
-    await deps.fal.cancel(modelId, requestId);
+    await model.cancelPrediction({ fal: deps.fal, requestId, hasImage });
   } catch (err) {
     deps.logger.warn("Couldn't cancel the fal request", {
       jobId,
@@ -137,7 +139,7 @@ export async function runGenerate(
     return 200;
   }
 
-  const endpoint = model.falEndpoint({ uploadCount: job.upload_ids.length });
+  const hasImage = job.upload_ids.length > 0;
   let requestId: string;
   try {
     const uploads = await getUserUploads(deps.db, job.user_id, job.upload_ids);
@@ -156,7 +158,7 @@ export async function runGenerate(
     }
     const { prompt, options } = job.input as {
       prompt: string;
-      options: never;
+      options: Record<string, unknown>;
     };
     const leaseEnd = job.lease_expires_at?.getTime() ?? 0;
     if (deps.clock.now().getTime() >= leaseEnd - SUBMIT_LEASE_MARGIN_MS) {
@@ -166,11 +168,11 @@ export async function runGenerate(
       });
       return 503;
     }
-    ({ requestId } = await deps.fal.submit(
-      endpoint,
-      model.buildInput({ prompt, options, inputUrls }),
-      falWebhookUrl(deps.config, jobId),
-    ));
+    ({ requestId } = await model.requestPrediction({
+      fal: deps.fal,
+      input: { prompt, ...options, image: inputUrls[0] },
+      webhook: falWebhookUrl(deps.config, jobId),
+    }));
   } catch (err) {
     if (err instanceof FalError && !err.retryable) {
       await failSubmitting(deps, jobId, "SUBMIT_REJECTED", err.message);
@@ -223,7 +225,7 @@ export async function runGenerate(
     } catch {
       // Best effort: fall through and cancel.
     }
-    await cancelQuietly(deps, jobId, endpoint, requestId);
+    await cancelQuietly(deps, jobId, model, hasImage, requestId);
     deps.logger.error("couldn't save the fal request id", {
       jobId,
       requestId,
@@ -249,7 +251,7 @@ export async function runGenerate(
     });
     return 200;
   }
-  await cancelQuietly(deps, jobId, endpoint, requestId);
+  await cancelQuietly(deps, jobId, model, hasImage, requestId);
   deps.logger.warn("Duplicate fal submit; cancelled our request", {
     jobId,
     requestId,
