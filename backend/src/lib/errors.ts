@@ -10,6 +10,10 @@ export type ErrorCode =
   | "NO_SCHEDULED_CHANGE"
   | "INSUFFICIENT_CREDITS"
   | "PAYMENT_PROVIDER_ERROR"
+  | "UPLOAD_NOT_READY"
+  | "IDEMPOTENCY_KEY_REUSED"
+  | "TOO_MANY_ACTIVE_JOBS"
+  | "JOB_NOT_COMPLETED"
   | "INTERNAL";
 
 export class AppError extends Error {

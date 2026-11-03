@@ -142,6 +142,43 @@ export interface PaymentEventRow {
   created_at: Date;
 }
 
+export type JobStatus =
+  "queued" | "submitting" | "submitted" | "finalizing" | "completed" | "failed";
+
+export const ACTIVE_JOB_STATUSES: JobStatus[] = [
+  "queued",
+  "submitting",
+  "submitted",
+  "finalizing",
+];
+
+export type JobErrorCode =
+  | "SUBMIT_REJECTED"
+  | "SUBMIT_FAILED"
+  | "GENERATION_FAILED"
+  | "CONTENT_BLOCKED"
+  | "OUTPUT_INVALID"
+  | "TIMED_OUT"
+  | "MODEL_UNAVAILABLE";
+
+export interface JobOutput {
+  bucket: string;
+  path: string;
+  mimeType: string;
+}
+
+export interface UploadRow {
+  id: string;
+  user_id: string;
+  bucket: string;
+  path: string;
+  mime_type: string;
+  size_bytes: string;
+  status: "pending" | "ready";
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface JobRow {
   id: string;
   user_id: string;
@@ -149,14 +186,14 @@ export interface JobRow {
   input: unknown;
   upload_ids: string[];
   credit_cost: number;
-  status: string;
+  status: JobStatus;
   idempotency_key: string;
   request_hash: string;
   fal_request_id: string | null;
   lease_expires_at: Date | null;
   attempts: number;
-  outputs: { bucket: string; path: string; mimeType: string }[] | null;
-  error_code: string | null;
+  outputs: JobOutput[] | null;
+  error_code: JobErrorCode | null;
   error_message: string | null;
   created_at: Date;
   submitted_at: Date | null;

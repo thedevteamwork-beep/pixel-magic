@@ -18,7 +18,7 @@ Never call `new Date()` or the DB `now()` for business timestamps. Use `deps.clo
 
 ## Errors
 
-Throw `AppError(status, code, message)` from `src/lib/errors.ts`. Codes: `UNAUTHENTICATED`, `VALIDATION_FAILED`, `NOT_FOUND`, `PLAN_NOT_AVAILABLE`, `ADDON_NOT_AVAILABLE`, `ALREADY_ON_PLAN`, `RENEWAL_IN_PROGRESS`, `PAYMENT_PAST_DUE`, `NO_SCHEDULED_CHANGE`, `INSUFFICIENT_CREDITS`, `PAYMENT_PROVIDER_ERROR`, `INTERNAL`. Add new codes to the `ErrorCode` union.
+Throw `AppError(status, code, message)` from `src/lib/errors.ts`. Codes: `UNAUTHENTICATED`, `VALIDATION_FAILED`, `NOT_FOUND`, `PLAN_NOT_AVAILABLE`, `ADDON_NOT_AVAILABLE`, `ALREADY_ON_PLAN`, `RENEWAL_IN_PROGRESS`, `PAYMENT_PAST_DUE`, `NO_SCHEDULED_CHANGE`, `INSUFFICIENT_CREDITS`, `PAYMENT_PROVIDER_ERROR`, `UPLOAD_NOT_READY`, `IDEMPOTENCY_KEY_REUSED`, `TOO_MANY_ACTIVE_JOBS`, `JOB_NOT_COMPLETED`, `INTERNAL`. Add new codes to the `ErrorCode` union.
 
 ## Conventions
 

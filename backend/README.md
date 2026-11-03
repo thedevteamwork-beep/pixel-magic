@@ -51,25 +51,41 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 
 ## Environment
 
-| Key                        | Default        | Purpose                                                 |
-| -------------------------- | -------------- | ------------------------------------------------------- |
-| `MODE`                     | required       | `api` or `worker`                                       |
-| `PORT`                     | 8080           | HTTP port                                               |
-| `NODE_ENV`                 | development    | `development`, `test` or `production`                   |
-| `LOG_LEVEL`                | info           | winston log level                                       |
-| `DATABASE_URL`             | required       | app connection string                                   |
-| `DATABASE_MIGRATION_URL`   | `DATABASE_URL` | connection used by `npm run migrate`                    |
-| `DB_POOL_MAX`              | 5              | max DB pool size                                        |
-| `SUPABASE_URL`             | required       | JWKS is read from `<url>/auth/v1/.well-known/jwks.json` |
-| `CORS_ORIGINS`             | empty          | comma-separated allowed origins                         |
-| `PADDLE_API_KEY`           | required       | Paddle API key                                          |
-| `PADDLE_WEBHOOK_SECRET`    | required       | notification destination secret (`pdl_ntfset_...`)      |
-| `PADDLE_ENV`               | sandbox        | `sandbox` or `production`                               |
-| `FREE_PLAN_NAME`           | free           | name of the Free plan row                               |
-| `CARRYOVER_VALIDITY_DAYS`  | 30             | how long carried-over credits stay valid                |
-| `PLAN_CHANGE_LOCK_MINUTES` | 60             | no plan changes this close to renewal                   |
-| `CHECKOUT_REUSE_MINUTES`   | 30             | a draft checkout younger than this is reused            |
-| `RENEWAL_GRACE_MINUTES`    | 60             | grace after a period ends before its credits stop       |
+| Key                        | Default         | Purpose                                                 |
+| -------------------------- | --------------- | ------------------------------------------------------- |
+| `MODE`                     | required        | `api` or `worker`                                       |
+| `PORT`                     | 8080            | HTTP port                                               |
+| `NODE_ENV`                 | development     | `development`, `test` or `production`                   |
+| `LOG_LEVEL`                | info            | winston log level                                       |
+| `DATABASE_URL`             | required        | app connection string                                   |
+| `DATABASE_MIGRATION_URL`   | `DATABASE_URL`  | connection used by `npm run migrate`                    |
+| `DB_POOL_MAX`              | 5               | max DB pool size                                        |
+| `SUPABASE_URL`             | required        | JWKS is read from `<url>/auth/v1/.well-known/jwks.json` |
+| `CORS_ORIGINS`             | empty           | comma-separated allowed origins                         |
+| `PADDLE_API_KEY`           | required        | Paddle API key                                          |
+| `PADDLE_WEBHOOK_SECRET`    | required        | notification destination secret (`pdl_ntfset_...`)      |
+| `PADDLE_ENV`               | sandbox         | `sandbox` or `production`                               |
+| `FREE_PLAN_NAME`           | free            | name of the Free plan row                               |
+| `CARRYOVER_VALIDITY_DAYS`  | 30              | how long carried-over credits stay valid                |
+| `PLAN_CHANGE_LOCK_MINUTES` | 60              | no plan changes this close to renewal                   |
+| `CHECKOUT_REUSE_MINUTES`   | 30              | a draft checkout younger than this is reused            |
+| `RENEWAL_GRACE_MINUTES`    | 60              | grace after a period ends before its credits stop       |
+| `SUPABASE_SECRET_KEY`      | required        | service key for Storage (server only)                   |
+| `FAL_KEY`                  | required        | fal.ai API key                                          |
+| `API_PUBLIC_URL`           | required        | public URL of the API (fal webhook target)              |
+| `WORKER_URL`               | required        | URL the task queue calls for worker routes              |
+| `STORAGE_BUCKET_INPUTS`    | inputs          | Storage bucket for uploads                              |
+| `STORAGE_BUCKET_OUTPUTS`   | outputs         | Storage bucket for generated files                      |
+| `FAL_JWKS_URL`             | fal public JWKS | verifies fal webhook signatures                         |
+| `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks)                 |
+| `TASKS_QUEUE_GENERATION`   | generation      | generation queue name                                   |
+| `TASKS_QUEUE_FINALIZATION` | finalization    | finalization queue name                                 |
+| `GCP_PROJECT_ID`           | unset           | required when `TASKS_MODE=cloud`                        |
+| `GCP_REGION`               | unset           | required when `TASKS_MODE=cloud`                        |
+| `TASKS_SERVICE_ACCOUNT`    | unset           | required when `TASKS_MODE=cloud`                        |
+| `MAX_ACTIVE_JOBS_PER_USER` | 4               | concurrent unfinished jobs per user                     |
+| `UPLOAD_MAX_BYTES`         | 20971520        | max upload size in bytes                                |
+| `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types               |
 
 ## Paddle sandbox setup
 

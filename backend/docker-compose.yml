@@ -29,6 +29,10 @@ services:
       SUPABASE_URL: https://example.supabase.co
       PADDLE_API_KEY: dummy-paddle-api-key
       PADDLE_WEBHOOK_SECRET: dummy-paddle-webhook-secret
+      SUPABASE_SECRET_KEY: dummy-supabase-secret-key
+      FAL_KEY: dummy-fal-key
+      API_PUBLIC_URL: http://localhost:8080
+      WORKER_URL: http://worker:8081
 
   worker:
     build: .

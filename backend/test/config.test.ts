@@ -7,6 +7,10 @@ const base = {
   SUPABASE_URL: "https://x.supabase.co",
   PADDLE_API_KEY: "k",
   PADDLE_WEBHOOK_SECRET: "s",
+  SUPABASE_SECRET_KEY: "s",
+  FAL_KEY: "f",
+  API_PUBLIC_URL: "https://api.test",
+  WORKER_URL: "https://worker.test",
 };
 
 describe("loadConfig", () => {
@@ -37,5 +41,33 @@ describe("loadConfig", () => {
   it("rejects CARRYOVER_VALIDITY_DAYS=0", () =>
     expect(() => loadConfig({ ...base, CARRYOVER_VALIDITY_DAYS: "0" })).toThrow(
       /CARRYOVER_VALIDITY_DAYS/,
+    ));
+  it("applies generation defaults", () =>
+    expect(loadConfig(base)).toMatchObject({
+      STORAGE_BUCKET_INPUTS: "inputs",
+      STORAGE_BUCKET_OUTPUTS: "outputs",
+      TASKS_MODE: "http",
+      MAX_ACTIVE_JOBS_PER_USER: 4,
+      UPLOAD_MAX_BYTES: 20971520,
+      UPLOAD_MIME_TYPES: ["image/png", "image/jpeg", "image/webp"],
+      FAL_JWKS_URL: "https://rest.fal.ai/.well-known/jwks.json",
+    }));
+  it("requires GCP settings in cloud mode", () =>
+    expect(() => loadConfig({ ...base, TASKS_MODE: "cloud" })).toThrow(
+      /GCP_PROJECT_ID[\s\S]*GCP_REGION[\s\S]*TASKS_SERVICE_ACCOUNT/,
+    ));
+  it("accepts cloud mode with GCP settings", () =>
+    expect(
+      loadConfig({
+        ...base,
+        TASKS_MODE: "cloud",
+        GCP_PROJECT_ID: "p",
+        GCP_REGION: "r",
+        TASKS_SERVICE_ACCOUNT: "sa@p.iam",
+      }).TASKS_MODE,
+    ).toBe("cloud"));
+  it("requires FAL_KEY", () =>
+    expect(() => loadConfig({ ...base, FAL_KEY: undefined })).toThrow(
+      /FAL_KEY/,
     ));
 });

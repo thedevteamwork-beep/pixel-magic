@@ -152,4 +152,19 @@ describe("lockCatalogRow", () => {
       await testDb(T.subscriptions).where({ plan_id: planId }),
     ).toHaveLength(1);
   });
+
+  it("rejects an unknown job status", async () => {
+    const u = await profile();
+    await expect(
+      testDb(T.jobs).insert({
+        user_id: u,
+        model_key: "m",
+        input: {},
+        credit_cost: 1,
+        status: "running",
+        idempotency_key: "k",
+        request_hash: "h",
+      }),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
 });
