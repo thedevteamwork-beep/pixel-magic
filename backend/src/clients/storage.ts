@@ -53,7 +53,10 @@ async function wrap<T>(what: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function createSupabaseStorage(config: Config): StorageClient {
+export function createSupabaseStorage(
+  config: Config,
+  fetchFn: typeof fetch = fetch,
+): StorageClient {
   const supabase = createClient(
     config.SUPABASE_URL,
     config.SUPABASE_SECRET_KEY,
@@ -94,9 +97,16 @@ export function createSupabaseStorage(config: Config): StorageClient {
 
     copyFromUrl: (bucket, path, sourceUrl, mimeType) =>
       wrap("copyFromUrl", async () => {
-        const res = await fetch(sourceUrl, {
+        const res = await fetchFn(sourceUrl, {
           signal: AbortSignal.timeout(STORAGE_COPY_TIMEOUT_MS),
         });
+        // Redirects are followed, but the bytes must still come over https.
+        if (!res.url.startsWith("https://")) {
+          await res.body?.cancel();
+          throw new StorageError(
+            "source fetch redirected to a non-https URL; not copied",
+          );
+        }
         if (!res.ok || !res.body) {
           throw new StorageError(`source fetch returned HTTP ${res.status}`);
         }

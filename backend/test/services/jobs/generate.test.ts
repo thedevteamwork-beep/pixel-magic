@@ -7,6 +7,7 @@ import { T } from "../../../src/db/tables.js";
 import { createUpload } from "../../../src/services/uploads.js";
 import {
   falWebhookUrl,
+  GENERATE_LEASE_MS,
   runGenerate,
 } from "../../../src/services/jobs/generate.js";
 import { createJob } from "../../../src/services/jobs/jobs.js";
@@ -130,6 +131,65 @@ describe("runGenerate", () => {
       attempts: 2,
     });
   });
+
+  it("fails with SUBMIT_FAILED without submitting when the claim passes the attempts cap", async () => {
+    const id = await fluxJob();
+    await testDb(T.jobs)
+      .where({ id })
+      .update({
+        status: "submitting",
+        attempts: 5,
+        lease_expires_at: new Date(h.clock.now().getTime() - 1000),
+      });
+    expect(await runGenerate(h.deps, id)).toBe(200);
+    expect(h.fal.calls).toHaveLength(0);
+    expect(await getJob(testDb, id)).toMatchObject({
+      status: "failed",
+      error_code: "SUBMIT_FAILED",
+      attempts: 6,
+    });
+    expect(await reserved(id)).toBe(0);
+  });
+
+  it.each([
+    ["within 10 s of", GENERATE_LEASE_MS - 5_000],
+    ["past", GENERATE_LEASE_MS + 1_000],
+  ])(
+    "returns 503 without submitting when the clock is %s the lease end",
+    async (_label, elapsed) => {
+      const up = await createUpload(h.deps, userId, {
+        filename: "a.png",
+        mimeType: "image/png",
+        sizeBytes: 100,
+      });
+      h.storage.put("inputs", up.path, {
+        sizeBytes: 100,
+        mimeType: "image/png",
+      });
+      const { job } = await createJob(
+        h.deps,
+        userId,
+        {
+          model: "kling-i2v",
+          prompt: "move",
+          uploadIds: [up.uploadId],
+          options: {},
+        },
+        "k-kling",
+      );
+      const sign = h.storage.createSignedUrl.bind(h.storage);
+      h.storage.createSignedUrl = async (...a) => {
+        h.clock.advance(elapsed); // a slow step between claim and submit
+        return sign(...a);
+      };
+      expect(await runGenerate(h.deps, job.jobId)).toBe(503);
+      expect(h.fal.calls).toHaveLength(0);
+      expect(await getJob(testDb, job.jobId)).toMatchObject({
+        status: "submitting",
+        attempts: 1,
+      });
+    },
+  );
 
   it("returns 503 and requeues on a retryable fal error", async () => {
     const id = await fluxJob();

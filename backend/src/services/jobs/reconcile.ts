@@ -56,6 +56,34 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
     }
   };
 
+  const ageMs = (job: JobRow): number =>
+    now.getTime() - (job.submitted_at ?? job.updated_at).getTime();
+  const isTimedOut = (job: JobRow): boolean =>
+    ageMs(job) > timeoutMinutes(job) * 60_000;
+  const isPastCeiling = (job: JobRow): boolean =>
+    ageMs(job) > (timeoutMinutes(job) + HARD_CEILING_EXTRA_MINUTES) * 60_000;
+
+  const timeOut = async (
+    bucket: number,
+    job: JobRow,
+    from: "submitted" | "finalizing",
+  ): Promise<void> => {
+    const applied = await deps.db.transaction((trx) =>
+      failJob(
+        trx,
+        deps,
+        job.id,
+        [from],
+        "TIMED_OUT",
+        `still ${from} ${Math.floor(ageMs(job) / 60_000)} minutes after submission (timeout ${timeoutMinutes(job)})`,
+      ),
+    );
+    if (applied) {
+      counts.timedOut += 1;
+      logger.info("Reconcile timed out job", { jobId: job.id, bucket });
+    }
+  };
+
   const requeue = async (
     bucket: number,
     job: JobRow,
@@ -94,7 +122,11 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
       leaseExpiredBefore: now,
       limit: BUCKET_LIMIT,
     }),
-    (job) => requeue(3, job, "finalize"),
+    // A finalize that keeps dying must not hold the credits forever.
+    (job) =>
+      isPastCeiling(job)
+        ? timeOut(3, job, "finalizing")
+        : requeue(3, job, "finalize"),
   );
 
   const shortest = Math.min(
@@ -106,12 +138,6 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
     submittedBefore: new Date(now.getTime() - shortest * 60_000),
     limit: BUCKET_LIMIT,
   });
-  const ageMs = (job: JobRow): number =>
-    now.getTime() - (job.submitted_at ?? job.updated_at).getTime();
-  const isTimedOut = (job: JobRow): boolean =>
-    ageMs(job) > timeoutMinutes(job) * 60_000;
-  const isPastCeiling = (job: JobRow): boolean =>
-    ageMs(job) > (timeoutMinutes(job) + HARD_CEILING_EXTRA_MINUTES) * 60_000;
   const timedOutIds = new Set<string>();
   await each(4, timedOutRows.filter(isTimedOut), async (job) => {
     timedOutIds.add(job.id);
@@ -150,20 +176,7 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         });
       }
     }
-    const applied = await deps.db.transaction((trx) =>
-      failJob(
-        trx,
-        deps,
-        job.id,
-        ["submitted"],
-        "TIMED_OUT",
-        `timed out after ${timeoutMinutes(job)} minutes`,
-      ),
-    );
-    if (applied) {
-      counts.timedOut += 1;
-      logger.info("Reconcile timed out job", { jobId: job.id, bucket: 4 });
-    }
+    await timeOut(4, job, "submitted");
   });
 
   const pollRows = await listJobsForReconcile(deps.db, {
@@ -176,7 +189,12 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
     pollRows.filter((job) => !timedOutIds.has(job.id) && !isTimedOut(job)),
     async (job) => {
       const model = getModel(job.model_key);
-      if (!model || !job.fal_request_id) return;
+      if (!model) {
+        // finalize fails it with MODEL_UNAVAILABLE and releases the credits.
+        await requeue(5, job, "finalize");
+        return;
+      }
+      if (!job.fal_request_id) return;
       let status;
       try {
         status = await deps.fal.status(model.falModelId, job.fal_request_id);

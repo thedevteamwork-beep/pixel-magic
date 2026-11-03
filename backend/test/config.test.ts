@@ -116,4 +116,19 @@ describe("loadConfig", () => {
     expect(Object.keys(env)).toContain("FAL_KEY");
     expect(loadConfig(env).MODE).toBe("api");
   });
+  it("requires cloud tasks on Cloud Run", () =>
+    expect(() => loadConfig({ ...base, K_SERVICE: "pixel-magic-api" })).toThrow(
+      /TASKS_MODE: must be cloud on Cloud Run/,
+    ));
+  it("accepts cloud tasks on Cloud Run", () =>
+    expect(
+      loadConfig({
+        ...base,
+        K_SERVICE: "pixel-magic-api",
+        TASKS_MODE: "cloud",
+        GCP_PROJECT_ID: "p",
+        GCP_REGION: "r",
+        TASKS_SERVICE_ACCOUNT: "sa@p.iam",
+      }).TASKS_MODE,
+    ).toBe("cloud"));
 });

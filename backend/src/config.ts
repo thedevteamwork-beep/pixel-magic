@@ -71,10 +71,22 @@ const baseSchema = z.object({
         .filter(Boolean),
     )
     .refine((types) => types.length > 0, "must list at least one MIME type"),
+  /** Set by Cloud Run on every service. */
+  K_SERVICE: optionalString(),
 });
 
 const schema = baseSchema.superRefine((c, ctx) => {
-  if (c.TASKS_MODE !== "cloud") return;
+  if (c.TASKS_MODE !== "cloud") {
+    // The http queue is local only: unauthenticated fire-and-forget POSTs.
+    if (c.K_SERVICE) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TASKS_MODE"],
+        message: "must be cloud on Cloud Run (K_SERVICE is set)",
+      });
+    }
+    return;
+  }
   for (const key of [
     "GCP_PROJECT_ID",
     "GCP_REGION",

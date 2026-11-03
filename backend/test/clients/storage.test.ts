@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { StorageError } from "../../src/clients/storage.js";
+import {
+  createSupabaseStorage,
+  StorageError,
+} from "../../src/clients/storage.js";
 import { FakeStorage } from "../fakes/storage.js";
+import { makeDeps } from "../helpers/app.js";
 
 describe("FakeStorage contract", () => {
   let fake: FakeStorage;
@@ -52,4 +56,36 @@ describe("FakeStorage contract", () => {
     expect(await fake.createSignedUrl("outputs", "p", 3600)).toBe(
       "https://storage.test/outputs/p?mode=read&expires=3600",
     ));
+});
+
+describe("createSupabaseStorage copyFromUrl", () => {
+  // Supabase points at a closed local port: nothing here leaves the machine.
+  const config = {
+    ...makeDeps().deps.config,
+    SUPABASE_URL: "http://127.0.0.1:9",
+  };
+
+  it("rejects a source that redirected to a non-https URL", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      calls.push(url);
+      const res = new Response("bytes");
+      Object.defineProperty(res, "url", { value: "http://cdn.test/a.png" });
+      return res;
+    }) as unknown as typeof fetch;
+    const storage = createSupabaseStorage(config, fetchFn);
+    const err = await storage
+      .copyFromUrl(
+        "outputs",
+        "u/j/0.png",
+        "https://fal.media/a.png",
+        "image/png",
+      )
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(StorageError);
+    expect((err as StorageError).message).toMatch(
+      /redirected to a non-https URL/,
+    );
+    expect(calls).toEqual(["https://fal.media/a.png"]);
+  });
 });

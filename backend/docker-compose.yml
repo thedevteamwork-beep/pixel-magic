@@ -33,6 +33,7 @@ services:
       FAL_KEY: dummy-fal-key
       API_PUBLIC_URL: http://localhost:8080
       WORKER_URL: http://worker:8081
+      TASKS_MODE: http
 
   worker:
     build: .

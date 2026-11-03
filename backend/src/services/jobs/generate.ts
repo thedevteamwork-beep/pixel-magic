@@ -15,6 +15,8 @@ export const GENERATE_LEASE_MS = 120_000;
 export const MAX_SUBMIT_ATTEMPTS = 5;
 export const SAVE_REQUEST_ID_ATTEMPTS = 3;
 export const SAVE_REQUEST_ID_DELAY_MS = 200;
+/** Don't submit with less lease than this left; another worker may take over. */
+export const SUBMIT_LEASE_MARGIN_MS = 10_000;
 const INPUT_URL_TTL_SECONDS = 86_400;
 
 /** The webhook carries our job id so an unsaved request can still be linked. */
@@ -113,6 +115,17 @@ export async function runGenerate(
     attempts: job.attempts,
   });
 
+  // A worker that keeps dying after the claim never reaches the cap below.
+  if (job.attempts > MAX_SUBMIT_ATTEMPTS) {
+    await failSubmitting(
+      deps,
+      jobId,
+      "SUBMIT_FAILED",
+      `Claimed ${job.attempts} times without a submit outcome`,
+    );
+    return 200;
+  }
+
   const model = getModel(job.model_key);
   if (!model) {
     await failSubmitting(
@@ -144,6 +157,14 @@ export async function runGenerate(
       prompt: string;
       options: never;
     };
+    const leaseEnd = job.lease_expires_at?.getTime() ?? 0;
+    if (deps.clock.now().getTime() >= leaseEnd - SUBMIT_LEASE_MARGIN_MS) {
+      deps.logger.warn("Lease nearly expired; not submitting", {
+        jobId,
+        leaseExpiresAt: job.lease_expires_at,
+      });
+      return 503;
+    }
     ({ requestId } = await deps.fal.submit(
       model.falModelId,
       model.buildInput({ prompt, options, inputUrls }),

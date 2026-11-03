@@ -78,6 +78,33 @@ describe("createFalClient", () => {
     },
   );
 
+  it("puts up to 500 characters of a failed submit's body, without URLs, in the message", async () => {
+    const body = `{"detail":"bad prompt, see https://fal.ai/docs/x?a=1 and http://h.test/y"}${"z".repeat(600)}`;
+    const { fetchFn } = recordingFetch(
+      () => new Response(body, { status: 422 }),
+    );
+    const client = createFalClient(config, stub({}), fetchFn);
+    const err = (await client
+      .submit("m", {}, "u")
+      .catch((e: unknown) => e)) as FalError;
+    expect(err.message).toMatch(/^fal submit failed: HTTP 422: /);
+    expect(err.message).toContain('{"detail":"bad prompt, see <url> and <url>');
+    expect(err.message).not.toMatch(/https?:\/\//);
+    const detail = err.message.replace(/^fal submit failed: HTTP 422: /, "");
+    expect(detail).toBe(body.slice(0, 500).replace(/https?:\/\/\S+/g, "<url>"));
+  });
+
+  it("keeps the plain message when a failed submit has no body", async () => {
+    const { fetchFn } = recordingFetch(
+      () => new Response(null, { status: 400 }),
+    );
+    const client = createFalClient(config, stub({}), fetchFn);
+    const err = (await client
+      .submit("m", {}, "u")
+      .catch((e: unknown) => e)) as FalError;
+    expect(err.message).toBe("fal submit failed: HTTP 400");
+  });
+
   it("maps a submit network error to retryable", async () => {
     const fetchFn = (async () => {
       throw new TypeError("fetch failed");

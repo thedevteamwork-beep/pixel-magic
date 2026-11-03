@@ -48,6 +48,16 @@ function toFalError(err: unknown): FalError {
 }
 
 const FAL_QUEUE_URL = "https://queue.fal.run";
+const ERROR_BODY_MAX_CHARS = 500;
+
+/** Log-only detail from an error response: truncated, URLs removed. */
+async function errorBodyDetail(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  return text
+    .slice(0, ERROR_BODY_MAX_CHARS)
+    .replace(/https?:\/\/\S+/g, "<url>")
+    .trim();
+}
 
 export function createFalClient(
   config: Config,
@@ -97,8 +107,9 @@ export function createFalClient(
       }
       if (!res.ok) {
         const s = res.status;
+        const detail = await errorBodyDetail(res);
         throw new FalError(
-          `fal submit failed: HTTP ${s}`,
+          `fal submit failed: HTTP ${s}${detail ? `: ${detail}` : ""}`,
           // A bad or rotated FAL_KEY (401/403) must not fail users' jobs.
           s === 401 || s === 403 || s === 429 || s >= 500,
           s,

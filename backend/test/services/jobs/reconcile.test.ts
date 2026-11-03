@@ -2,6 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FalError } from "../../../src/clients/fal.js";
 import { T } from "../../../src/db/tables.js";
+import { runFinalize } from "../../../src/services/jobs/finalize.js";
 import { runGenerate } from "../../../src/services/jobs/generate.js";
 import { createJob } from "../../../src/services/jobs/jobs.js";
 import {
@@ -123,6 +124,68 @@ describe("runReconcile", () => {
       ["generate", a],
       ["finalize", b],
     ]);
+  });
+
+  it("fails an expired finalizing job past timeout + 60 minutes instead of re-queuing it", async () => {
+    const flux = await submittedJob();
+    const fluxUnder = await submittedJob();
+    const gone = await submittedJob();
+    const goneUnder = await submittedJob();
+    const now = h.clock.now();
+    const ago = (m: number) => new Date(now.getTime() - m * MIN);
+    const finalizing = (submittedMinutesAgo: number, extra = {}) => ({
+      status: "finalizing",
+      lease_expires_at: ago(1),
+      submitted_at: ago(submittedMinutesAgo),
+      ...extra,
+    });
+    // flux-schnell times out after 10 minutes; an unknown model after 60
+    await testDb(T.jobs).where({ id: flux }).update(finalizing(71));
+    await testDb(T.jobs).where({ id: fluxUnder }).update(finalizing(69));
+    await testDb(T.jobs)
+      .where({ id: gone })
+      .update(finalizing(121, { model_key: "removed-model" }));
+    await testDb(T.jobs)
+      .where({ id: goneUnder })
+      .update(finalizing(119, { model_key: "removed-model" }));
+    const counts = await runReconcile(h.deps);
+    expect(counts).toMatchObject({ timedOut: 2, requeuedFinalize: 2 });
+    expect(h.queue.tasks.map((t) => [t.kind, t.jobId]).sort()).toEqual(
+      [
+        ["finalize", fluxUnder],
+        ["finalize", goneUnder],
+      ].sort(),
+    );
+    for (const id of [flux, gone]) {
+      expect(await row(id)).toMatchObject({
+        status: "failed",
+        error_code: "TIMED_OUT",
+      });
+      expect(
+        await testDb(T.creditAllocations).where({
+          job_id: id,
+          status: "released",
+        }),
+      ).toHaveLength(1);
+    }
+  });
+
+  it("queues finalize for a submitted job whose model is gone", async () => {
+    const id = await submittedJob();
+    await testDb(T.jobs).where({ id }).update({ model_key: "removed-model" });
+    h.fal.calls.length = 0;
+    h.clock.advance(4 * MIN);
+    const counts = await runReconcile(h.deps);
+    expect(counts.requeuedFinalize).toBe(1);
+    expect(h.queue.tasks).toEqual([
+      expect.objectContaining({ kind: "finalize", jobId: id }),
+    ]);
+    expect(h.fal.calls).toHaveLength(0);
+    expect(await runFinalize(h.deps, id)).toBe(200);
+    expect(await row(id)).toMatchObject({
+      status: "failed",
+      error_code: "MODEL_UNAVAILABLE",
+    });
   });
 
   it("polls fal for submitted jobs older than 3 minutes and queues finalize when completed", async () => {
