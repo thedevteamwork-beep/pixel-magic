@@ -1,20 +1,14 @@
 import { FalError } from "../../clients/fal.js";
 import { StorageError } from "../../clients/storage.js";
 import { captureCredits } from "../../db/repositories/credits.repo.js";
-import {
-  claimJob,
-  getUserJob,
-  transitionJob,
-} from "../../db/repositories/jobs.repo.js";
+import { claimJob, transitionJob } from "../../db/repositories/jobs.repo.js";
 import type { JobErrorCode, JobOutput, JobRow } from "../../db/rows.js";
 import type { Deps } from "../../deps.js";
-import { AppError } from "../../lib/errors.js";
 import { getModel } from "../../models/registry.js";
 import { OutputInvalidError, type ParsedOutput } from "../../models/types.js";
 import { failJob } from "./jobs.js";
 
 export const FINALIZE_LEASE_MS = 900_000;
-const DOWNLOAD_URL_TTL_SECONDS = 3600;
 
 const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
@@ -219,30 +213,4 @@ async function finalizeClaimed(deps: Deps, job: JobRow): Promise<200 | 503> {
     deps.logger.info("Job changed meanwhile; not completed", { jobId });
   }
   return 200;
-}
-
-export async function getDownloadUrl(
-  deps: Deps,
-  userId: string,
-  jobId: string,
-  index: number,
-): Promise<{ url: string; expiresAt: Date }> {
-  const now = deps.clock.now();
-  const job = await getUserJob(deps.db, userId, jobId);
-  const notFound = () => new AppError(404, "NOT_FOUND", "Output not found");
-  if (!job) throw notFound();
-  if (job.status !== "completed") {
-    throw new AppError(409, "JOB_NOT_COMPLETED", "Job is not completed");
-  }
-  const output = job.outputs?.[index];
-  if (!output) throw notFound();
-  const url = await deps.storage.createSignedUrl(
-    output.bucket,
-    output.path,
-    DOWNLOAD_URL_TTL_SECONDS,
-  );
-  return {
-    url,
-    expiresAt: new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000),
-  };
 }

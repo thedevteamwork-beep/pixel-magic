@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { Deps } from "../../../deps.js";
 import { getUserJob } from "../../../db/repositories/jobs.repo.js";
 import { AppError } from "../../../lib/errors.js";
-import { getDownloadUrl } from "../../../services/jobs/finalize.js";
 import { createJob, jobView } from "../../../services/jobs/jobs.js";
 import { validate } from "../../middlewares/validate.js";
 
@@ -18,9 +17,6 @@ const createBody = z
 
 const idempotencyKey = z.string().min(1).max(200);
 const jobId = z.string().uuid();
-const downloadQuery = z.object({
-  index: z.coerce.number().int().min(0).default(0),
-});
 
 export function jobsRoutes(deps: Deps): Router {
   const router = Router();
@@ -48,18 +44,7 @@ export function jobsRoutes(deps: Deps): Router {
       ? await getUserJob(deps.db, req.user!.id, id.data)
       : null;
     if (!job) throw new AppError(404, "NOT_FOUND", "Job not found");
-    res.json(jobView(job));
+    res.json(await jobView(deps, job));
   });
-
-  router.get(
-    "/jobs/:id/download-url",
-    validate({ query: downloadQuery }),
-    async (req, res) => {
-      const id = jobId.safeParse(req.params.id);
-      if (!id.success) throw new AppError(404, "NOT_FOUND", "Job not found");
-      const { index } = res.locals.query as z.infer<typeof downloadQuery>;
-      res.json(await getDownloadUrl(deps, req.user!.id, id.data, index));
-    },
-  );
   return router;
 }

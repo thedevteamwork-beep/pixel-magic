@@ -25,11 +25,33 @@ export type JobView = {
   creditCost: number;
   createdAt: Date;
   completedAt: Date | null;
-  outputs: { index: number; mimeType: string }[];
+  /** Signed URLs, only once the job is `completed`; empty before. */
+  outputs: { index: number; mimeType: string; url: string; expiresAt: Date }[];
   error?: { code: JobErrorCode; message: string };
 };
 
-export function jobView(job: JobRow): JobView {
+export const DOWNLOAD_URL_TTL_SECONDS = 3600;
+
+/** The job as the client sees it. A completed job gets fresh signed output URLs. */
+export async function jobView(deps: Deps, job: JobRow): Promise<JobView> {
+  const expiresAt = new Date(
+    deps.clock.now().getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000,
+  );
+  const outputs =
+    job.status === "completed"
+      ? await Promise.all(
+          (job.outputs ?? []).map(async (o, index) => ({
+            index,
+            mimeType: o.mimeType,
+            url: await deps.storage.createSignedUrl(
+              o.bucket,
+              o.path,
+              DOWNLOAD_URL_TTL_SECONDS,
+            ),
+            expiresAt,
+          })),
+        )
+      : [];
   return {
     jobId: job.id,
     status: job.status,
@@ -37,10 +59,7 @@ export function jobView(job: JobRow): JobView {
     creditCost: job.credit_cost,
     createdAt: job.created_at,
     completedAt: job.completed_at,
-    outputs: (job.outputs ?? []).map((o, index) => ({
-      index,
-      mimeType: o.mimeType,
-    })),
+    outputs,
     ...(job.error_code
       ? { error: { code: job.error_code, message: job.error_message ?? "" } }
       : {}),
@@ -129,7 +148,7 @@ export async function createJob(
     return { job: row, created: true };
   });
 
-  if (!created) return { status: 200, job: jobView(job) };
+  if (!created) return { status: 200, job: await jobView(deps, job) };
   try {
     await deps.queue.enqueue("generate", job.id, "0");
   } catch (err) {
@@ -139,7 +158,7 @@ export async function createJob(
       err,
     });
   }
-  return { status: 202, job: jobView(job) };
+  return { status: 202, job: await jobView(deps, job) };
 }
 
 /** User-facing text stored as `error_message`, fixed per error code. */

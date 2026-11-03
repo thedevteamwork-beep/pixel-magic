@@ -237,3 +237,34 @@ Added 2026-11-03 at the user's request: "create two folder public and panel or p
 - [ ] **Step 2: Implement** the moves.
 - [ ] **Step 3:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS. Existing API tests stay unchanged apart from import paths.
 - [ ] **Step 4:** Update the README's project layout, adding a line on what `public` and `panel` mean. **Commit** with `refactor(api): group routes into public and panel like jiraiya`.
+
+---
+
+### Task 5: Output URLs in `GET /v1/jobs/:id` (no separate download call)
+
+Added 2026-11-03 at the user's request: "instead of calling new API for outputUrl can we get in same job id?". This matches Pixelbin, where the prediction response carries `output`. The frontend polls one API and gets the result from that same call.
+
+**Files:**
+- Modify: `src/services/jobs/jobs.ts` (`jobView`), `src/services/jobs/finalize.ts` (remove `getDownloadUrl`), `src/api/routes/panel/jobs.routes.ts`, `src/lib/errors.ts` (drop `JOB_NOT_COMPLETED` if nothing else uses it), `README.md`, and the design spec's API list.
+- Test: `test/api/jobs.download.test.ts` (rewrite as `jobs.outputs.test.ts`), `test/api/routes.test.ts` (endpoint list), and the job create and get tests.
+
+**Interfaces:**
+- **`JobView.outputs`** items become `{ index: number; mimeType: string; url: string; expiresAt: Date }` when `status` is `completed`.
+  - Each `url` is a fresh signed Storage URL, valid for 1 hour (`DOWNLOAD_URL_TTL_SECONDS`, which moves to `jobs.ts`).
+  - All outputs are signed in parallel.
+  - For every other status, `outputs` stays `[]`.
+- **The view becomes async:** `jobView(deps, job): Promise<JobView>`.
+  - `GET /v1/jobs/:id` uses it.
+  - So does `POST /v1/jobs`, which means replaying a completed job's idempotency key also returns its URLs.
+- **`GET /v1/jobs/:id/download-url` is removed.** It is redundant once the job response carries the URLs. Calling it after removal gets the catch-all 404.
+- **A Storage signing failure** surfaces as the same error the old download endpoint gave. The client's poll retries it.
+
+- [ ] **Step 1: failing tests.**
+  - A completed job's `GET /v1/jobs/:id` has one `url` and one `expiresAt` per output: kling21 has 1 output, a flux `num_images: 3` job has 3. Each URL comes from `FakeStorage`.
+  - A `queued` / `submitted` / `failed` job has `outputs: []`.
+  - Another user's job is still 404.
+  - `GET /v1/jobs/:id/download-url` is now 404.
+  - Replaying `POST /v1/jobs` for a completed job returns the URLs.
+- [ ] **Step 2: Implement.**
+- [ ] **Step 3:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS.
+- [ ] **Step 4:** Update the README API list and the job response example. **Commit** with `feat(jobs): output URLs in the job response; drop download-url`.

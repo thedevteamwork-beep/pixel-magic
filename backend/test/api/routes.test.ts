@@ -33,7 +33,6 @@ const PANEL: [Method, string][] = [
   ["post", "/v1/uploads"],
   ["post", "/v1/jobs"],
   ["get", `/v1/jobs/${id}`],
-  ["get", `/v1/jobs/${id}/download-url`],
 ];
 
 // The catch-all from notFound. A handler's own 404 ("Job not found") means

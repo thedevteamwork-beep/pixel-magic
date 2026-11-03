@@ -248,8 +248,7 @@ Every state change is a compare-and-set: `UPDATE jobs SET … WHERE id = ? AND s
       - Set the job `finalizing → completed`, with `outputs` and `completed_at`.
       - Capture the job's credit allocations (plans design §5.3).
 6. **Results**
-   - `GET /v1/jobs/:id` returns the job's status.
-   - `GET /v1/jobs/:id/download-url?index=0` returns a Supabase signed URL valid for 1 h.
+   - `GET /v1/jobs/:id` returns the job's status and, once it is `completed`, a fresh Supabase signed URL (valid 1 h) for each output. There is no separate download call.
 
 **Fail and release** is a single transaction. It moves the job to `failed` with `error_code` and `error_message`, and releases the job's credit allocations. The compare-and-set on allocation status makes a second release a no-op (plans design §5.3).
 
@@ -315,8 +314,7 @@ This section covers only verifying and recording webhooks. Checkout, routing, re
 |---|---|---|---|---|
 | POST | `/v1/uploads` `{filename, mimeType, sizeBytes}` | user | `201 {uploadId, path, signedUrl, token, expiresAt}` | 422 |
 | POST | `/v1/jobs` `{model, prompt, uploadIds?, options?}` + `Idempotency-Key` | user | `202 {jobId, status, creditCost}`, or `200` on an idempotent replay | 402, 409, 422, 429 |
-| GET | `/v1/jobs/:id` | user (owner) | `200 {jobId, status, model, creditCost, createdAt, completedAt, outputs:[{index, mimeType}], error?}` | 404 |
-| GET | `/v1/jobs/:id/download-url?index=` | user (owner) | `200 {url, expiresAt}` | 404, 409 not completed |
+| GET | `/v1/jobs/:id` | user (owner) | `200 {jobId, status, model, creditCost, createdAt, completedAt, outputs:[{index, mimeType, url, expiresAt}], error?}` (`outputs` is empty until `completed`) | 404 |
 | GET | `/v1/me` | user | `200 {userId, email, credits:{available, reserved, grants}, subscription}` (plans design §7) | 401 |
 | | `/v1/plans`, `/v1/addons`, `/v1/billing/*`, `/tasks/billing-sweep` | | Defined in plans design §7 | |
 | GET | `/v1/models` | public | `200 [{key, name, kind, category, description, credits:{min, max}, input}]` with `Cache-Control: public, max-age=300` | — |

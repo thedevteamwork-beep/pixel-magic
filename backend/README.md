@@ -57,8 +57,7 @@ Route files only parse and validate; the logic is in `src/services/`.
 | api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)           |
 | api    | `POST /v1/credits/estimate`                        | price a job before creating it (public, see Credit pricing) |
 | api    | `POST /v1/jobs`                                    | create a job; `Idempotency-Key` header required (auth)      |
-| api    | `GET /v1/jobs/:id`                                 | job status (auth)                                           |
-| api    | `GET /v1/jobs/:id/download-url?index=`             | signed download URL of a completed output (auth)            |
+| api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)       |
 | api    | `POST /webhooks/paddle`                            | signed Paddle events                                        |
 | api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)    |
 | worker | `GET /_healthz`, `GET /_readyz`                    |                                                             |
@@ -201,7 +200,7 @@ client                API                         Cloud Tasks        worker     
   |                    |                               |               | outputs bucket, capture |
   |                    |                               |               | credits -> completed    |
   | GET /v1/jobs/:id   |                               |               |                         |
-  | GET /v1/jobs/:id/download-url -> signed URL        |               |                         |
+  | (completed: outputs[].url, signed, 1 h)            |               |                         |
 ```
 
 Job states: `queued` -> `submitting` -> `submitted` -> `finalizing` -> `completed`. Any state except `completed` can go to `failed`. `completed` and `failed` are final. Creating a job reserves its credits; `completed` captures them, `failed` releases them. A job in an active state (`queued`, `submitting`, `submitted`, `finalizing`) counts toward `MAX_ACTIVE_JOBS_PER_USER`.
@@ -258,7 +257,7 @@ The worker service request timeout is 15 minutes (finalize copies files). Task n
 
 ## Milestone 2 acceptance check
 
-Backend spec section 12. In a dev GCP/Supabase project, run one real image job and one real video job end to end (upload if the model needs one, `POST /v1/jobs`, wait for `completed`, `GET /v1/jobs/:id/download-url`, open the URL). Afterwards available credits have dropped by the cost and nothing is left reserved (check `GET /v1/me` and the job's rows in `app.credit_*`).
+Backend spec section 12. In a dev GCP/Supabase project, run one real image job and one real video job end to end (upload if the model needs one, `POST /v1/jobs`, wait for `completed`, read `outputs[0].url` from the job, open the URL). Afterwards available credits have dropped by the cost and nothing is left reserved (check `GET /v1/me` and the job's rows in `app.credit_*`).
 
 Also confirm against the real services, because these could not be tested locally:
 

@@ -13,7 +13,6 @@ export type ErrorCode =
   | "UPLOAD_NOT_READY"
   | "IDEMPOTENCY_KEY_REUSED"
   | "TOO_MANY_ACTIVE_JOBS"
-  | "JOB_NOT_COMPLETED"
   | "INTERNAL";
 
 export class AppError extends Error {
