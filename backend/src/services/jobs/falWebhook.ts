@@ -39,6 +39,7 @@ async function linkViaJobId(
   requestId: string,
 ): Promise<LinkResult> {
   const job = await getJob(deps.db, jobId);
+  if (job?.fal_request_id === requestId) return { job };
   if (!job || job.status !== "submitting" || job.fal_request_id !== null) {
     return orphan(deps, jobId, requestId);
   }
@@ -47,7 +48,10 @@ async function linkViaJobId(
   try {
     await deps.fal.status(model.falModelId, requestId);
   } catch (err) {
-    if (err instanceof FalError && !err.retryable) {
+    // 401/403 mean our own key is bad: never link, let fal retry.
+    const authFailure =
+      err instanceof FalError && (err.status === 401 || err.status === 403);
+    if (err instanceof FalError && !err.retryable && !authFailure) {
       return orphan(deps, jobId, requestId);
     }
     deps.logger.warn("Couldn't verify the fal request; asking fal to retry", {
@@ -72,8 +76,8 @@ async function linkViaJobId(
     return { job: linked };
   }
   // Lost the race: a concurrent delivery or the worker may have linked it.
-  const now = await getJobByFalRequestId(deps.db, requestId);
-  return now ? { job: now } : orphan(deps, jobId, requestId);
+  const current = await getJobByFalRequestId(deps.db, requestId);
+  return current ? { job: current } : orphan(deps, jobId, requestId);
 }
 
 export async function handleFalWebhook(
@@ -82,16 +86,33 @@ export async function handleFalWebhook(
   headers: FalWebhookHeaders,
   jobIdParam: string | undefined,
 ): Promise<200 | 401 | 503> {
-  const verified = await verifyFalWebhook({
-    headers,
-    rawBody,
-    now: deps.clock.now(),
-    keys: deps.falKeys,
-    expectedUserId: deps.config.FAL_WEBHOOK_USER_ID,
-  }).catch((err: unknown) => {
-    deps.logger.error("fal webhook verification errored", { err });
-    return false;
-  });
+  let keyLoadError: unknown;
+  let verified = false;
+  try {
+    verified = await verifyFalWebhook({
+      headers,
+      rawBody,
+      now: deps.clock.now(),
+      keys: async () => {
+        try {
+          return await deps.falKeys();
+        } catch (err) {
+          keyLoadError = err;
+          throw err;
+        }
+      },
+      expectedUserId: deps.config.FAL_WEBHOOK_USER_ID,
+    });
+  } catch (err) {
+    if (keyLoadError === undefined) throw err;
+  }
+  if (keyLoadError !== undefined) {
+    // Not a bad signature: ask fal to retry once the keys load again.
+    deps.logger.error("Couldn't load fal webhook signing keys", {
+      err: keyLoadError,
+    });
+    return 503;
+  }
   if (!verified) return 401;
 
   let json: unknown;
@@ -109,6 +130,16 @@ export async function handleFalWebhook(
     return 200;
   }
   const body = parsed.data;
+  if (body.request_id !== headers.requestId) {
+    deps.logger.error(
+      "fal webhook body request id differs from signed header",
+      {
+        headerRequestId: headers.requestId,
+        bodyRequestId: body.request_id,
+      },
+    );
+    return 401;
+  }
 
   await recordProviderEvent(deps.db, {
     provider: "fal",

@@ -21,11 +21,16 @@ export function testJwksDocument(): { keys: unknown[] } {
 
 export function signFalWebhook(
   body: object,
-  opts: { requestId?: string; timestamp?: number; key?: "test" | "other" } = {},
+  opts: {
+    requestId?: string;
+    userId?: string;
+    timestamp?: number;
+    key?: "test" | "other";
+  } = {},
 ): { raw: Buffer; headers: Record<string, string> } {
   const raw = Buffer.from(JSON.stringify(body));
   const requestId = opts.requestId ?? "req_1";
-  const userId = "fal-user";
+  const userId = opts.userId ?? "fal-user";
   const timestamp = String(opts.timestamp ?? DEFAULT_TIMESTAMP);
   const privateKey: KeyObject = (opts.key === "other" ? otherPair : testPair)
     .privateKey;

@@ -5,6 +5,7 @@ import { createApp } from "../../src/api/server.js";
 import { FalError } from "../../src/clients/fal.js";
 import type { JobRow, JobStatus } from "../../src/db/rows.js";
 import { T } from "../../src/db/tables.js";
+import { getModel } from "../../src/models/registry.js";
 import { makeDeps } from "../helpers/app.js";
 import { resetDb, testDb } from "../helpers/db.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
@@ -128,7 +129,12 @@ describe("fal webhook", () => {
     const row = await testDb(T.jobs).where({ id: job.id }).first();
     expect(row.status).toBe("submitted");
     expect(row.fal_request_id).toBe("req_1");
-    expect(ctx.fal.calls.map((c) => c.method)).toEqual(["status"]);
+    expect(ctx.fal.calls).toEqual([
+      {
+        method: "status",
+        args: [getModel("flux-schnell")?.falModelId, "req_1"],
+      },
+    ]);
     expect(ctx.queue.tasks).toMatchObject([
       { kind: "finalize", jobId: job.id, suffix: "0" },
     ]);
@@ -169,5 +175,71 @@ describe("fal webhook", () => {
     expect(res.status).toBe(503);
     const row = await testDb(T.jobs).where({ id: job.id }).first();
     expect(row.fal_request_id).toBeNull();
+  });
+
+  it("answers 503 and records nothing when the signing keys can't be loaded", async () => {
+    await jobWith("submitted", "req_1");
+    const failing = makeDeps({
+      falKeys: async () => {
+        throw new Error("jwks down");
+      },
+    });
+    const res = await request(createApp(failing.deps))
+      .post("/webhooks/fal")
+      .set(signFalWebhook(OK_BODY).headers)
+      .set("content-type", "application/json")
+      .send(signFalWebhook(OK_BODY).raw.toString("utf8"));
+    expect(res.status).toBe(503);
+    expect(await events()).toHaveLength(0);
+    expect(failing.logs.some((l) => l.severity === "ERROR")).toBe(true);
+  });
+
+  it("carries on when the job was linked to the same request meanwhile", async () => {
+    const job = await jobWith("submitted", "req_1");
+    // Simulates the lookup-by-request-id miss: go straight through ?jobId.
+    const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
+    expect(res.status).toBe(200);
+    expect(ctx.queue.tasks).toHaveLength(1);
+    expect(orphanLogged()).toBe(false);
+  });
+
+  it("rejects a body whose request id differs from the signed header", async () => {
+    await jobWith("submitted", "req_1");
+    const res = await post(signFalWebhook(OK_BODY, { requestId: "req_other" }));
+    expect(res.status).toBe(401);
+    expect(await events()).toHaveLength(0);
+    expect(ctx.logs.some((l) => l.severity === "ERROR")).toBe(true);
+    expect(ctx.queue.tasks).toHaveLength(0);
+  });
+
+  it.each([401, 403])(
+    "answers 503 and never links when fal status says %i",
+    async (status) => {
+      const job = await jobWith("submitting", null);
+      ctx.fal.failNext("status", new FalError("bad key", false, status));
+      const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
+      expect(res.status).toBe(503);
+      const row = await testDb(T.jobs).where({ id: job.id }).first();
+      expect(row.fal_request_id).toBeNull();
+      expect(ctx.queue.tasks).toHaveLength(0);
+    },
+  );
+
+  it("queues finalize once when a 503'd webhook is redelivered after the link", async () => {
+    const signed = signFalWebhook(OK_BODY);
+    expect((await post(signed)).status).toBe(503);
+    const job = await jobWith("submitted", "req_1");
+    expect((await post(signed)).status).toBe(200);
+    expect(ctx.queue.tasks).toMatchObject([
+      { kind: "finalize", jobId: job.id },
+    ]);
+    expect(await events()).toHaveLength(1);
+  });
+
+  it("rejects a signed webhook from another fal user", async () => {
+    await jobWith("submitted", "req_1");
+    const res = await post(signFalWebhook(OK_BODY, { userId: "someone-else" }));
+    expect(res.status).toBe(401);
+    expect(await events()).toHaveLength(0);
   });
 });
