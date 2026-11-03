@@ -9,12 +9,14 @@ import { requireUser } from "../middlewares/auth.js";
 import { ensureUser } from "../middlewares/ensureUser.js";
 import { validate } from "../middlewares/validate.js";
 
-const createBody = z.object({
-  model: z.string().min(1),
-  prompt: z.string().default(""),
-  uploadIds: z.array(z.string().uuid()).max(10).default([]),
-  options: z.record(z.string(), z.unknown()).default({}),
-});
+const createBody = z
+  .object({
+    model: z.string().min(1),
+    prompt: z.string().default(""),
+    uploadIds: z.array(z.string().uuid()).max(10).default([]),
+    options: z.record(z.string(), z.unknown()).default({}),
+  })
+  .strict();
 
 const idempotencyKey = z.string().min(1).max(200);
 const jobId = z.string().uuid();

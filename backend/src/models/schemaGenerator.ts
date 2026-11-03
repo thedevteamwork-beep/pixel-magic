@@ -15,7 +15,9 @@ function fieldValidator(field: Exclude<FieldSchema, { type: "image" }>) {
       const base = field.enum
         ? z.enum(field.enum as [string, ...string[]])
         : z.string().max(field.maxLength ?? Number.MAX_SAFE_INTEGER);
-      return field.default === undefined ? base : base.default(field.default);
+      return field.default === undefined
+        ? base.optional()
+        : base.default(field.default);
     }
     case "integer":
       return z
@@ -36,7 +38,7 @@ export function optionsValidator(schema: ModelSchema): z.ZodObject {
     if (name === "prompt" || field.type === "image") continue;
     shape[name] = fieldValidator(field);
   }
-  return z.object(shape);
+  return z.object(shape).strict();
 }
 
 export function promptRule(schema: ModelSchema): {

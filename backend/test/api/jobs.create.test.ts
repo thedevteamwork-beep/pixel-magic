@@ -41,6 +41,20 @@ describe("POST /v1/jobs", () => {
     return Number(r?.n);
   }
 
+  it("rejects an unknown option with 422 naming it", async () => {
+    const res = await post({ ...flux, options: { durations: "5" } });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe("VALIDATION_FAILED");
+    expect(JSON.stringify(res.body)).toContain("durations");
+    expect(await jobCount()).toBe(0);
+  });
+
+  it("rejects an unknown top-level body key with 422", async () => {
+    const res = await post({ ...flux, extra: 1 });
+    expect(res.status).toBe(422);
+    expect(await jobCount()).toBe(0);
+  });
+
   it("creates a queued job, reserves its cost and queues generate", async () => {
     const res = await post(flux);
     expect(res.status).toBe(202);

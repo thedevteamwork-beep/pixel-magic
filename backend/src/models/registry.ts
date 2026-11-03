@@ -1,9 +1,13 @@
 import type { FieldSchema, ModelDefinition, ModelKind } from "./types.js";
 import { fluxSchnell } from "./flux-schnell/index.js";
 import { kling21 } from "./kling21/index.js";
+import { validateModelSchema } from "./metaSchema.js";
 import { publicInput } from "./schemaGenerator.js";
 
 const MODELS: ModelDefinition[] = [fluxSchnell, kling21];
+
+// A typo in a model schema stops the app here, naming the model.
+for (const m of MODELS) validateModelSchema(m.key, m.schema);
 
 export function listModels(): ModelDefinition[] {
   return [...MODELS];
