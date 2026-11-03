@@ -757,3 +757,79 @@ AGENTS.md gains the job state machine rules and the "one id everywhere" rule.
 - [ ] **Step 1:** Write the docs.
 - [ ] **Step 2:** Run `cd backend && npm ci && npm run lint && npm run typecheck && npm test && npm run build && docker build -t pixel-magic-backend .`. Expected: all pass.
 - [ ] **Step 3: Commit** with `docs(generation): runbook for the generation flow`.
+
+---
+
+### Task 13: Pixelbin-style model files, and Kling 2.1 Master as `kling21` (added 2026-11-03 at the user's request)
+
+The user asked for the model files to read like Pixelbin's `jiraiya/app/transformationSchemas/kling21Master_generate.schema.js` and `predictionBackends/plugins/kling21Master/generate/requests.js`. They also chose Kling 2.1 Master (image-to-video and text-to-video, as in Pixelbin) under the key `kling21`, and the same style for `flux-schnell`.
+
+**Files:**
+- Create: `src/models/schemaGenerator.ts`, `src/models/kling21/{schema,requests,index}.ts`, `test/models/schemaGenerator.test.ts`, `test/fixtures/fal/kling21.json`
+- Delete: `src/models/kling-i2v/`, `test/fixtures/fal/kling-i2v.json`
+- Rewrite: `src/models/flux-schnell/{schema,requests,index}.ts`, `src/models/types.ts`, `src/models/registry.ts`
+- Modify: every `falModelId` call site (`services/jobs/generate.ts`, `finalize.ts`, `reconcile.ts`, `falWebhook.ts`), `services/jobs/jobs.ts` (per-model upload types), and every test that uses `"kling-i2v"`
+
+**Interfaces:**
+- **The declarative model schema** (`types.ts`), a plain readable object like Pixelbin's:
+
+  ```ts
+  type FieldSchema =
+    | { type: "string"; description: string; enum?: readonly string[]; default?: string; required?: boolean; maxLength?: number }
+    | { type: "integer"; description: string; minimum: number; maximum: number; default: number }
+    | { type: "boolean"; description: string; default: boolean }
+    | { type: "image"; description: string; required: boolean; maxItems: number; supportedContentTypes: readonly string[] };
+  type ModelSchema = {
+    info: { name: string; displayName: string; kind: "image" | "video"; category: readonly string[]; description: string };
+    input: Record<string, FieldSchema>;          // must contain `prompt` (type "string"); at most one "image" field
+    output: { description: string; mimeTypes: readonly string[] };
+  };
+  ```
+
+  `schema.ts` in each model folder exports `schema: ModelSchema` and `falResponse` (the Zod schema for fal's result, which can be ordinary Zod).
+- **`schemaGenerator.ts`** (our version of Pixelbin's `SchemaGenerator`):
+  - `optionsValidator(schema): z.ZodObject` covers every field except `prompt` and the image field. A string enum becomes `z.enum`, an integer becomes `z.number().int().min().max()`, a boolean becomes `z.boolean()`, and each gets its `default`.
+  - `promptRule(schema): { required; maxLength }`.
+  - `uploadRule(schema): { min; max; supportedContentTypes }`. `min` is 1 if the image field is required and 0 otherwise; `max` is `maxItems`. With no image field, the result is 0/0/[].
+  - `publicInput(schema)` returns the `input` map for `GET /v1/models` (descriptions, enums, defaults, types).
+- **`ModelDefinition`** keeps `key`, `kind`, `displayName`, `prompt`, `uploads` (now with `supportedContentTypes`), `options`, `creditCost`, `buildInput`, `parseOutput` and `timeoutMinutes`, all derived from `schema` through the generator. Two fields change:
+  - `falModelId` is replaced by `falEndpoint(p: { uploadCount: number }): string`, which depends only on the job's upload count, so it gives the same answer at submit, webhook-link, finalize and reconcile time.
+  - `schema: ModelSchema` is added, for `GET /v1/models`.
+- **`kling21`**:
+  - `schema.info`: name `kling21`, displayName `Kling 2.1 Master`, kind `video`, category `["image-to-video","text-to-video"]`, and Pixelbin's description.
+  - `schema.input`:
+    - `prompt`: string, required, max 2500, "Text description of what you want to generate".
+    - `image`: image, optional, maxItems 1, supportedContentTypes `image/jpeg, image/jpg, image/png, image/webp, image/gif, image/bmp`.
+    - `duration`: string enum `5`, `10`, default `5`.
+    - `aspect_ratio`: string enum `9:16`, `16:9`, `1:1`, default `16:9`, used for text-to-video only.
+  - `requests.ts`, written step by step like Pixelbin's `requests.js`:
+    - `BASE_ENDPOINT = "fal-ai/kling-video/v2.1/master"`, `IMAGE_TO_VIDEO_ENDPOINT = `${BASE_ENDPOINT}/image-to-video``, `TEXT_TO_VIDEO_ENDPOINT = `${BASE_ENDPOINT}/text-to-video``.
+    - `falEndpoint({ uploadCount })` returns image-to-video when `uploadCount > 0`, else text-to-video.
+    - `buildInput` → `{ prompt, duration }`, plus `image_url` when an image was given, otherwise `aspect_ratio`.
+    - `parseOutput` → `[{ url: video.url, mimeType: video.content_type ?? "video/mp4" }]`.
+  - `creditCost`: `"5"` → 30, `"10"` → 60, marked `// TODO(pricing)` (Master costs more than Standard).
+  - `timeoutMinutes`: 60.
+- **`flux-schnell`**:
+  - The same values as before (Task 5), now expressed as `schema`: `prompt` required ≤ 2000; `image_size` enum with the default `landscape_4_3`; `num_images` integer 1–4, default 1.
+  - `info.category`: `["text-to-image"]`.
+  - `requests.ts`: `ENDPOINT = "fal-ai/flux/schnell"`, plus the same `buildInput` (safety checker always on) and `parseOutput`.
+- **`GET /v1/models`** returns `[{ key, name, kind, category, description, creditCost, input: publicInput(schema) }]`, and still never `falEndpoint`.
+- **`createJob`** additionally rejects an upload whose real MIME type isn't in the model's `uploads.supportedContentTypes`: `422 UPLOAD_NOT_READY` with reason `"mime_type"`.
+
+**Tests:**
+- `schemaGenerator`: the validator applies defaults and rejects values outside an enum or a range; `promptRule` and `uploadRule` for both models; `publicInput` keeps descriptions.
+- `kling21`:
+  - with one upload → the image-to-video endpoint and input `{ prompt, image_url, duration }`;
+  - with no upload → the text-to-video endpoint and input `{ prompt, duration, aspect_ratio: "16:9" }`;
+  - credit costs 30 and 60;
+  - output fixture parses.
+- `flux-schnell`: the existing behaviour tests still pass.
+- A text-to-video `kling21` job:
+  - submits to the text-to-video endpoint;
+  - finalize and the reconciler call `status`, `result` and `cancel` on that same endpoint;
+  - the webhook's link check calls `status` on it too.
+- `createJob`: a `.gif` upload against a model that doesn't accept it → 422 `mime_type`.
+- `GET /v1/models` shows `category`, `description` and `input.prompt.description`.
+- Every existing test that used `kling-i2v` now uses `kling21`, with its upload, and still passes.
+
+**Commit:** `refactor(models): Pixelbin-style model schemas; Kling 2.1 Master as kling21`
