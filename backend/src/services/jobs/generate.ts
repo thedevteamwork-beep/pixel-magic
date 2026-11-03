@@ -1,6 +1,5 @@
 import type { Config } from "../../config.js";
 import { FalError } from "../../clients/fal.js";
-import { StorageError } from "../../clients/storage.js";
 import type { Deps } from "../../deps.js";
 import {
   claimJob,
