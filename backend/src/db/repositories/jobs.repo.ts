@@ -147,3 +147,22 @@ export async function claimJob(
     .returning("*");
   return rows[0] ?? null;
 }
+
+/** Oldest first; each bound is exclusive and only applied when given. */
+export async function listJobsForReconcile(
+  db: Db,
+  p: {
+    status: JobStatus;
+    updatedBefore?: Date;
+    leaseExpiredBefore?: Date;
+    submittedBefore?: Date;
+    limit: number;
+  },
+): Promise<JobRow[]> {
+  const q = db(T.jobs).where("status", p.status);
+  if (p.updatedBefore) q.where("updated_at", "<", p.updatedBefore);
+  if (p.leaseExpiredBefore)
+    q.where("lease_expires_at", "<", p.leaseExpiredBefore);
+  if (p.submittedBefore) q.where("submitted_at", "<", p.submittedBefore);
+  return q.orderBy("updated_at", "asc").orderBy("id", "asc").limit(p.limit);
+}

@@ -7,6 +7,7 @@ import type { Deps } from "../deps.js";
 import { validate } from "../api/middlewares/validate.js";
 import { runGenerate } from "../services/jobs/generate.js";
 import { runFinalize } from "../services/jobs/finalize.js";
+import { runReconcile } from "../services/jobs/reconcile.js";
 import { runBillingSweep } from "../services/billing/sweep.js";
 
 export function createWorkerApp(deps: Deps): Express {
@@ -16,6 +17,13 @@ export function createWorkerApp(deps: Deps): Express {
   app.post("/tasks/billing-sweep", async (_req, res, next) => {
     try {
       res.status(200).json(await runBillingSweep(deps));
+    } catch (err) {
+      next(err);
+    }
+  });
+  app.post("/tasks/reconcile", async (_req, res, next) => {
+    try {
+      res.status(200).json(await runReconcile(deps));
     } catch (err) {
       next(err);
     }
