@@ -201,37 +201,37 @@ it.each([[true], [false]])("kling21 status/result/cancel use the same endpoint a
 
 ---
 
-### Task 4: Group the API routes like jiraiya
+### Task 4: Group the API routes into `public` and `panel` folders (like jiraiya)
 
-Added 2026-11-03 at the user's request ("Group like jiraiya"). This is a move-and-rename refactor. Every URL, status code, middleware order and response body stays the same; the one exception is noted under Interfaces.
+Added 2026-11-03 at the user's request: "create two folder public and panel or platform move routes accordingly".
+- **Folder choice.** We use `panel`, not `platform`. In Pixelbin, `panel` is for the logged-in dashboard user and `platform` is for developers calling with API tokens. Every Pixel Magic user comes in through the app with a Supabase login.
+- **What changes.** Files move and get renamed. Every URL, status code, middleware order and response body stays the same; the one exception is noted under Interfaces.
 
 **Files:**
-- Create: `src/api/routes/index.ts`, `src/api/routes/public/v1/index.ts`, `src/api/routes/user/v1/index.ts`, `src/api/routes/webhook/index.ts`
-- Move and rename (`git mv`, then edit):
-  - `health.ts` → `health.routes.ts`;
-  - `catalog.ts`, `models.ts`, `credits.ts` → `public/v1/*.routes.ts`;
-  - `me.ts`, `billing.ts`, `uploads.ts`, `jobs.ts` → `user/v1/*.routes.ts`;
-  - `webhooks.ts` → split into `webhook/paddle.routes.ts` and `webhook/fal.routes.ts`.
-- Modify: `src/api/server.ts`, any test that imports a route file directly.
+- **Create:** `src/api/routes/index.ts`, `src/api/routes/public/index.ts`, `src/api/routes/panel/index.ts`.
+- **Move and rename** (`git mv`, then edit):
+  - `catalog.ts`, `models.ts`, `credits.ts` → `public/catalog.routes.ts`, `public/models.routes.ts`, `public/credits.routes.ts`.
+  - `me.ts`, `billing.ts`, `uploads.ts`, `jobs.ts` → `panel/me.routes.ts`, `panel/billing.routes.ts`, `panel/uploads.routes.ts`, `panel/jobs.routes.ts`.
+  - `health.ts` → `health.routes.ts`, and `webhooks.ts` → `webhooks.routes.ts`. Both stay at the top level of `routes/`: they aren't user APIs, so they belong in neither folder.
+- **Modify:** `src/api/server.ts`, plus any test that imports a route file directly.
 
 **Interfaces:**
-- **Each `*.routes.ts`** exports one `Router` factory that takes `deps`. Its paths are relative to its group's prefix, as in jiraiya, where `credits.routes.js` declares `"/estimate"`:
-  - in `public/v1/credits.routes.ts`, the path is `"/credits/estimate"`;
-  - in `user/v1/jobs.routes.ts`, the paths are `"/jobs"`, `"/jobs/:id"` and `"/jobs/:id/download-url"`.
-- **Validation and services don't move.** Zod checks stay in the route file, like jiraiya's validators. Business logic stays in `src/services/`, our equivalent of jiraiya's `handlers/`.
-- **`public/v1/index.ts`** mounts catalog, models and credits under `/v1`, with no auth.
-- **`user/v1/index.ts`** mounts me, billing, uploads and jobs under `/v1`. It applies `requireUser(deps)` and `ensureUser(deps)` once per area, at the area's prefix (`router.use("/jobs", ...guard, jobsRoutes(deps))`). Route files no longer list `...guard`.
-  - The middleware order is unchanged: auth first, then the body parser, then validation.
-  - The one allowed behaviour change: an unauthenticated request to an unknown path inside a user area (e.g. `GET /v1/jobs/a/b`) now gets 401 instead of 404.
-  - A path outside every area (e.g. `GET /v1/nope`) still gets 404.
-- **`webhook/index.ts`** mounts paddle and fal under `/webhooks`. Each keeps its own raw-body parser and signature check.
-- **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts, in today's order: webhook, health, public, user.
+- **Each `*.routes.ts`** exports one `Router` factory that takes `deps`.
+  - Paths are relative to the folder's `/v1` prefix. Examples: `public/credits.routes.ts` declares `"/credits/estimate"`, and `panel/jobs.routes.ts` declares `"/jobs"`, `"/jobs/:id"` and `"/jobs/:id/download-url"`.
+  - Zod validation stays in the route file, like jiraiya's validators.
+  - Logic stays in `src/services/`, which is our equivalent of jiraiya's `handlers/`.
+- **`public/index.ts`** mounts catalog, models and credits under `/v1`, with no auth.
+- **`panel/index.ts`** mounts me, billing, uploads and jobs under `/v1`.
+  - It applies `requireUser(deps)` and `ensureUser(deps)` once per area, at the area's prefix, e.g. `router.use("/jobs", ...guard, jobsRoutes(deps))`. Route files no longer list `...guard`.
+  - The middleware order stays: auth, then body parser, then validation.
+  - The one allowed behaviour change: an unauthenticated request to an unknown path inside a panel area (e.g. `GET /v1/jobs/a/b`) gets 401 instead of 404. A path outside every area (e.g. `GET /v1/nope`) still gets 404.
+- **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts routers in today's order: webhooks, health, public, panel.
 - **`server.ts`** keeps helmet, cors, `notFound` and `errorHandler`, and mounts `apiRoutes(deps)`.
 
-- [ ] **Step 1: test.** Add `test/api/routes.test.ts`:
+- [ ] **Step 1: test.** Add `test/api/routes.test.ts` with three checks:
   - every endpoint in the README's API list still answers on its old URL, with a status other than 404;
   - an unauthenticated `GET /v1/jobs/a/b` gets 401;
   - `GET /v1/nope` gets 404.
 - [ ] **Step 2: Implement** the moves.
-- [ ] **Step 3:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS, with the existing API tests unchanged apart from import paths.
-- [ ] **Step 4:** Update the README's project layout, then **commit** with `refactor(api): group routes by audience like jiraiya`.
+- [ ] **Step 3:** Run `npm test && npm run lint && npm run typecheck`. Expected: PASS. Existing API tests stay unchanged apart from import paths.
+- [ ] **Step 4:** Update the README's project layout, adding a line on what `public` and `panel` mean. **Commit** with `refactor(api): group routes into public and panel like jiraiya`.

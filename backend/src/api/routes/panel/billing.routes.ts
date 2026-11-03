@@ -1,32 +1,28 @@
 import express, { Router } from "express";
 import { z } from "zod";
-import type { Deps } from "../../deps.js";
-import { listPaidInvoices } from "../../db/repositories/invoices.repo.js";
-import { getActiveSubscription } from "../../db/repositories/subscriptions.repo.js";
-import { buyAddon } from "../../services/billing/checkout.js";
+import type { Deps } from "../../../deps.js";
+import { listPaidInvoices } from "../../../db/repositories/invoices.repo.js";
+import { getActiveSubscription } from "../../../db/repositories/subscriptions.repo.js";
+import { buyAddon } from "../../../services/billing/checkout.js";
 import {
   previewPlanChange,
   requestPlanChange,
   revertScheduledChange,
-} from "../../services/billing/planChange.js";
-import { subscriptionView } from "../subscriptionView.js";
-import { requireUser } from "../middlewares/auth.js";
-import { ensureUser } from "../middlewares/ensureUser.js";
-import { validate } from "../middlewares/validate.js";
+} from "../../../services/billing/planChange.js";
+import { subscriptionView } from "../../subscriptionView.js";
+import { validate } from "../../middlewares/validate.js";
 
 const addonBody = z.object({ addon: z.string().min(1) });
 
 const planBody = z.object({ plan: z.string().min(1) });
 const planQuery = z.object({ plan: z.string().min(1) });
 
-export function billingRouter(deps: Deps): Router {
+export function billingRoutes(deps: Deps): Router {
   const router = Router();
   const json = express.json({ limit: "100kb" });
-  const guard = [requireUser(deps), ensureUser(deps)];
 
   router.post(
-    "/v1/billing/addons",
-    ...guard,
+    "/billing/addons",
     json,
     validate({ body: addonBody }),
     async (req, res) => {
@@ -35,8 +31,7 @@ export function billingRouter(deps: Deps): Router {
   );
 
   router.get(
-    "/v1/billing/subscription/preview",
-    ...guard,
+    "/billing/subscription/preview",
     validate({ query: planQuery }),
     async (req, res) => {
       const { plan } = res.locals.query as z.infer<typeof planQuery>;
@@ -45,8 +40,7 @@ export function billingRouter(deps: Deps): Router {
   );
 
   router.post(
-    "/v1/billing/subscription",
-    ...guard,
+    "/billing/subscription",
     json,
     validate({ body: planBody }),
     async (req, res) => {
@@ -54,17 +48,13 @@ export function billingRouter(deps: Deps): Router {
     },
   );
 
-  router.delete(
-    "/v1/billing/subscription/scheduled-change",
-    ...guard,
-    async (req, res) => {
-      await revertScheduledChange(deps, req.user!.id);
-      const sub = (await getActiveSubscription(deps.db, req.user!.id))!;
-      res.json({ subscription: await subscriptionView(deps, sub) });
-    },
-  );
+  router.delete("/billing/subscription/scheduled-change", async (req, res) => {
+    await revertScheduledChange(deps, req.user!.id);
+    const sub = (await getActiveSubscription(deps.db, req.user!.id))!;
+    res.json({ subscription: await subscriptionView(deps, sub) });
+  });
 
-  router.get("/v1/billing/invoices", ...guard, async (req, res) => {
+  router.get("/billing/invoices", async (req, res) => {
     const rows = await listPaidInvoices(deps.db, req.user!.id);
     res.json(
       rows.map((r) => ({

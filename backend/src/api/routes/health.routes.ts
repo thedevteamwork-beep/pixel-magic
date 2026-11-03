@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Deps } from "../../deps.js";
 
-export function healthRouter(deps: Deps): Router {
+export function healthRoutes(deps: Deps): Router {
   const router = Router();
   router.get("/_healthz", (_req, res) => {
     res.json({ status: "ok" });

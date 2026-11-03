@@ -1,11 +1,11 @@
 import express, { Router } from "express";
 import { z } from "zod";
-import { SUPPORTED_UNITS } from "../../credits/units.js";
-import type { Deps } from "../../deps.js";
-import { AppError } from "../../lib/errors.js";
-import { getModel } from "../../models/registry.js";
-import { estimateCredits } from "../../services/credits/estimate.js";
-import { validate } from "../middlewares/validate.js";
+import { SUPPORTED_UNITS } from "../../../credits/units.js";
+import type { Deps } from "../../../deps.js";
+import { AppError } from "../../../lib/errors.js";
+import { getModel } from "../../../models/registry.js";
+import { estimateCredits } from "../../../services/credits/estimate.js";
+import { validate } from "../../middlewares/validate.js";
 
 const estimateBody = z
   .object({
@@ -16,12 +16,12 @@ const estimateBody = z
   })
   .strict();
 
-export function creditsRouter(deps: Deps): Router {
+export function creditsRoutes(deps: Deps): Router {
   const router = Router();
 
   // Public: the price list is not secret and needs no account.
   router.post(
-    "/v1/credits/estimate",
+    "/credits/estimate",
     express.json({ limit: "100kb" }),
     validate({ body: estimateBody }),
     (req, res) => {

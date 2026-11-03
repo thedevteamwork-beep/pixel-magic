@@ -1,10 +1,8 @@
 import express, { Router } from "express";
 import { z } from "zod";
-import type { Deps } from "../../deps.js";
-import { createUpload } from "../../services/uploads.js";
-import { requireUser } from "../middlewares/auth.js";
-import { ensureUser } from "../middlewares/ensureUser.js";
-import { validate } from "../middlewares/validate.js";
+import type { Deps } from "../../../deps.js";
+import { createUpload } from "../../../services/uploads.js";
+import { validate } from "../../middlewares/validate.js";
 
 const uploadBody = z.object({
   filename: z.string().min(1).max(255),
@@ -12,14 +10,12 @@ const uploadBody = z.object({
   sizeBytes: z.number().int(),
 });
 
-export function uploadsRouter(deps: Deps): Router {
+export function uploadsRoutes(deps: Deps): Router {
   const router = Router();
   const json = express.json({ limit: "100kb" });
-  const guard = [requireUser(deps), ensureUser(deps)];
 
   router.post(
-    "/v1/uploads",
-    ...guard,
+    "/uploads",
     json,
     validate({ body: uploadBody }),
     async (req, res) => {

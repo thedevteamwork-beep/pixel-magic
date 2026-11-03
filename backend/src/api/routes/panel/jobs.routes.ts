@@ -1,13 +1,11 @@
 import express, { Router } from "express";
 import { z } from "zod";
-import type { Deps } from "../../deps.js";
-import { getUserJob } from "../../db/repositories/jobs.repo.js";
-import { AppError } from "../../lib/errors.js";
-import { getDownloadUrl } from "../../services/jobs/finalize.js";
-import { createJob, jobView } from "../../services/jobs/jobs.js";
-import { requireUser } from "../middlewares/auth.js";
-import { ensureUser } from "../middlewares/ensureUser.js";
-import { validate } from "../middlewares/validate.js";
+import type { Deps } from "../../../deps.js";
+import { getUserJob } from "../../../db/repositories/jobs.repo.js";
+import { AppError } from "../../../lib/errors.js";
+import { getDownloadUrl } from "../../../services/jobs/finalize.js";
+import { createJob, jobView } from "../../../services/jobs/jobs.js";
+import { validate } from "../../middlewares/validate.js";
 
 const createBody = z
   .object({
@@ -24,14 +22,12 @@ const downloadQuery = z.object({
   index: z.coerce.number().int().min(0).default(0),
 });
 
-export function jobsRouter(deps: Deps): Router {
+export function jobsRoutes(deps: Deps): Router {
   const router = Router();
   const json = express.json({ limit: "100kb" });
-  const guard = [requireUser(deps), ensureUser(deps)];
 
   router.post(
-    "/v1/jobs",
-    ...guard,
+    "/jobs",
     json,
     validate({ body: createBody }),
     async (req, res) => {
@@ -46,7 +42,7 @@ export function jobsRouter(deps: Deps): Router {
     },
   );
 
-  router.get("/v1/jobs/:id", ...guard, async (req, res) => {
+  router.get("/jobs/:id", async (req, res) => {
     const id = jobId.safeParse(req.params.id);
     const job = id.success
       ? await getUserJob(deps.db, req.user!.id, id.data)
@@ -56,8 +52,7 @@ export function jobsRouter(deps: Deps): Router {
   });
 
   router.get(
-    "/v1/jobs/:id/download-url",
-    ...guard,
+    "/jobs/:id/download-url",
     validate({ query: downloadQuery }),
     async (req, res) => {
       const id = jobId.safeParse(req.params.id);

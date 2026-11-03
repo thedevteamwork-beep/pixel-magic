@@ -3,7 +3,7 @@ import type { Deps } from "../../deps.js";
 import { handleFalWebhook } from "../../services/jobs/falWebhook.js";
 import { handlePaddleWebhook } from "../../services/billing/paddleWebhook.js";
 
-export function webhooksRouter(deps: Deps): Router {
+export function webhooksRoutes(deps: Deps): Router {
   const router = Router();
   router.post(
     "/webhooks/paddle",

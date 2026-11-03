@@ -1,15 +1,15 @@
 import { Router } from "express";
-import type { Deps } from "../../deps.js";
+import type { Deps } from "../../../deps.js";
 import {
   listPublicAddons,
   listPublicPlans,
-} from "../../db/repositories/catalog.repo.js";
+} from "../../../db/repositories/catalog.repo.js";
 
 const CACHE_CONTROL = "public, max-age=300";
 
-export function catalogRouter(deps: Deps): Router {
+export function catalogRoutes(deps: Deps): Router {
   const router = Router();
-  router.get("/v1/plans", async (_req, res) => {
+  router.get("/plans", async (_req, res) => {
     const plans = await listPublicPlans(deps.db);
     res.set("Cache-Control", CACHE_CONTROL).json(
       plans.map((p) => ({
@@ -25,7 +25,7 @@ export function catalogRouter(deps: Deps): Router {
       })),
     );
   });
-  router.get("/v1/addons", async (_req, res) => {
+  router.get("/addons", async (_req, res) => {
     const addons = await listPublicAddons(deps.db);
     res.set("Cache-Control", CACHE_CONTROL).json(
       addons.map((a) => ({

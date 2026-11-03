@@ -31,6 +31,16 @@ npm run lint && npm run typecheck
 
 Tests never touch the network (fal, Storage and the queue are faked). They use `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:54329/pixel_magic_test`). Each run drops and recreates that database and migrates it from scratch, so its name must end in `_test`. They never call Paddle; it is faked.
 
+## Project layout
+
+API routes live in `src/api/routes/`, one `*.routes.ts` file per area:
+
+- `public/`: APIs anyone can call, no login (plans, add-ons, models, credit estimate).
+- `panel/`: APIs for the logged-in app user (me, billing, uploads, jobs). `panel/index.ts` applies the login guard once per area.
+- `health.routes.ts` and `webhooks.routes.ts` stay at the top: they are not user APIs.
+
+Route files only parse and validate; the logic is in `src/services/`.
+
 ## Endpoints
 
 | Where  | Endpoint                                           | Notes                                                       |
