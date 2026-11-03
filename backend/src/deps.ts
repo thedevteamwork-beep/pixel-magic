@@ -1,6 +1,11 @@
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 import type { Knex } from "knex";
 import type winston from "winston";
+import { createFalClient, type FalClient } from "./clients/fal.js";
+import {
+  createFalKeySource,
+  type FalPublicKeys,
+} from "./clients/falWebhook.js";
 import { createPaddleClient, type PaddleClient } from "./clients/paddle.js";
 import {
   createSupabaseStorage,
@@ -18,6 +23,8 @@ export type Deps = {
   logger: winston.Logger;
   paddle: PaddleClient;
   storage: StorageClient;
+  fal: FalClient;
+  falKeys: FalPublicKeys;
   clock: Clock;
   jwks: JWTVerifyGetKey;
 };
@@ -29,6 +36,8 @@ export function createDeps(config: Config): Deps {
     logger: createLogger(config.LOG_LEVEL),
     paddle: createPaddleClient(config),
     storage: createSupabaseStorage(config),
+    fal: createFalClient(config),
+    falKeys: createFalKeySource(config.FAL_JWKS_URL, systemClock),
     clock: systemClock,
     jwks: createRemoteJWKSet(
       new URL(`${config.SUPABASE_URL}/auth/v1/.well-known/jwks.json`),

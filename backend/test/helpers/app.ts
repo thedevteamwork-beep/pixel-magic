@@ -3,9 +3,11 @@ import type { Config } from "../../src/config.js";
 import type { Deps } from "../../src/deps.js";
 import { createLogger } from "../../src/logger.js";
 import { FakePaddle } from "../fakes/paddle.js";
+import { FakeFal } from "../fakes/fal.js";
 import { FakeStorage } from "../fakes/storage.js";
 import { testJwks } from "./auth.js";
 import { TEST_DATABASE_URL, testDb } from "./db.js";
+import { testFalKeys } from "./falWebhook.js";
 
 export class TestClock {
   private current = new Date("2026-03-10T12:00:00Z");
@@ -34,12 +36,14 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
   deps: Deps;
   paddle: FakePaddle;
   storage: FakeStorage;
+  fal: FakeFal;
   clock: TestClock;
   logs: Array<Record<string, unknown>>;
 } {
   const logs: Array<Record<string, unknown>> = [];
   const paddle = new FakePaddle();
   const storage = new FakeStorage();
+  const fal = new FakeFal();
   const clock = new TestClock();
   const config: Config = {
     MODE: "api",
@@ -79,9 +83,18 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     logger: createLogger("debug", [new MemoryTransport(logs)]),
     paddle,
     storage,
+    fal,
+    falKeys: testFalKeys,
     clock,
     jwks: testJwks,
     ...overrides,
   };
-  return { deps, paddle, storage: deps.storage as FakeStorage, clock, logs };
+  return {
+    deps,
+    paddle,
+    storage: deps.storage as FakeStorage,
+    fal: deps.fal as FakeFal,
+    clock,
+    logs,
+  };
 }

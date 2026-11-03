@@ -21,6 +21,7 @@
     "db:up": "docker compose up -d db"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.10.1",
     "@paddle/paddle-node-sdk": "^3.10.0",
     "@supabase/supabase-js": "^2.118.0",
     "cors": "^2.8.6",
