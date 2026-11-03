@@ -2,6 +2,10 @@ import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 import type { Knex } from "knex";
 import type winston from "winston";
 import { createPaddleClient, type PaddleClient } from "./clients/paddle.js";
+import {
+  createSupabaseStorage,
+  type StorageClient,
+} from "./clients/storage.js";
 import type { Config } from "./config.js";
 import { createDb } from "./db/knex.js";
 import type { Clock } from "./lib/time.js";
@@ -13,6 +17,7 @@ export type Deps = {
   db: Knex;
   logger: winston.Logger;
   paddle: PaddleClient;
+  storage: StorageClient;
   clock: Clock;
   jwks: JWTVerifyGetKey;
 };
@@ -23,6 +28,7 @@ export function createDeps(config: Config): Deps {
     db: createDb(config.DATABASE_URL, config.DB_POOL_MAX),
     logger: createLogger(config.LOG_LEVEL),
     paddle: createPaddleClient(config),
+    storage: createSupabaseStorage(config),
     clock: systemClock,
     jwks: createRemoteJWKSet(
       new URL(`${config.SUPABASE_URL}/auth/v1/.well-known/jwks.json`),

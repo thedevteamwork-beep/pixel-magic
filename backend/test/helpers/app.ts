@@ -3,6 +3,7 @@ import type { Config } from "../../src/config.js";
 import type { Deps } from "../../src/deps.js";
 import { createLogger } from "../../src/logger.js";
 import { FakePaddle } from "../fakes/paddle.js";
+import { FakeStorage } from "../fakes/storage.js";
 import { testJwks } from "./auth.js";
 import { TEST_DATABASE_URL, testDb } from "./db.js";
 
@@ -32,11 +33,13 @@ class MemoryTransport extends Transport {
 export function makeDeps(overrides: Partial<Deps> = {}): {
   deps: Deps;
   paddle: FakePaddle;
+  storage: FakeStorage;
   clock: TestClock;
   logs: Array<Record<string, unknown>>;
 } {
   const logs: Array<Record<string, unknown>> = [];
   const paddle = new FakePaddle();
+  const storage = new FakeStorage();
   const clock = new TestClock();
   const config: Config = {
     MODE: "api",
@@ -75,9 +78,10 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     db: testDb,
     logger: createLogger("debug", [new MemoryTransport(logs)]),
     paddle,
+    storage,
     clock,
     jwks: testJwks,
     ...overrides,
   };
-  return { deps, paddle, clock, logs };
+  return { deps, paddle, storage: deps.storage as FakeStorage, clock, logs };
 }
