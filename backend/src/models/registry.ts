@@ -23,19 +23,22 @@ export type PublicModel = {
   kind: ModelKind;
   category: readonly string[];
   description: string;
-  creditCost: number;
+  credits: { min: number; max: number };
   input: Record<string, FieldSchema>;
 };
 
 /** What `GET /v1/models` shows. Never includes the fal endpoint. */
-export function publicModel(m: ModelDefinition): PublicModel {
+export function publicModel(
+  m: ModelDefinition,
+  credits: { min: number; max: number },
+): PublicModel {
   return {
     key: m.key,
     name: m.displayName,
     kind: m.kind,
     category: m.schema.info.category,
     description: m.schema.info.description,
-    creditCost: m.creditCost(m.options.parse({})),
+    credits,
     input: publicInput(m.schema),
   };
 }

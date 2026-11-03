@@ -79,10 +79,47 @@ describe("model registry", () => {
     });
   });
 
-  it("credit costs", () => {
-    expect(flux.creditCost({ image_size: "square", num_images: 3 })).toBe(3);
-    expect(kling.creditCost({ duration: "5", aspect_ratio: "16:9" })).toBe(30);
-    expect(kling.creditCost({ duration: "10", aspect_ratio: "16:9" })).toBe(60);
+  it("billing facts: options plus the unit value plus image", () => {
+    expect(
+      flux.billingInputs({
+        options: flux.options.parse({ num_images: 3 }),
+        uploadCount: 0,
+      }),
+    ).toEqual({
+      image_size: "landscape_4_3",
+      num_images: 3,
+      images: 3,
+      image: false,
+    });
+    expect(
+      kling.billingInputs({
+        options: kling.options.parse({ duration: "10" }),
+        uploadCount: 1,
+      }),
+    ).toEqual({
+      duration: 10,
+      aspect_ratio: "16:9",
+      image: true,
+    });
+  });
+
+  it("billing ranges are full fact sets at the unit's extremes", () => {
+    expect(flux.billingRange()).toEqual({
+      min: {
+        image_size: "landscape_4_3",
+        num_images: 1,
+        images: 1,
+        image: false,
+      },
+      max: {
+        image_size: "landscape_4_3",
+        num_images: 4,
+        images: 4,
+        image: false,
+      },
+    });
+    expect(kling.billingRange().min).toMatchObject({ duration: 5 });
+    expect(kling.billingRange().max).toMatchObject({ duration: 10 });
   });
 
   it("rejects out-of-range options", () => {

@@ -39,6 +39,7 @@ export const schema: ModelSchema = {
     },
   },
   output: { description: "The generated images", mimeTypes: ["image/jpeg"] },
+  billing: { units: ["images"] },
 };
 
 // What fal returns. Extra fields (timings, seed, prompt) are tolerated and

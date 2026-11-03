@@ -12,8 +12,11 @@ describe("models route", () => {
       "flux-schnell",
       "kling21",
     ]);
-    expect(res.body.map((m: { creditCost: number }) => m.creditCost)).toEqual([
-      1, 30,
+    expect(
+      res.body.map((m: { credits: { min: number; max: number } }) => m.credits),
+    ).toEqual([
+      { min: 1, max: 4 },
+      { min: 30, max: 60 },
     ]);
     expect(res.body[0]).toMatchObject({
       name: expect.any(String),

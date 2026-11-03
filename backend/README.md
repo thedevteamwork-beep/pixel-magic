@@ -44,7 +44,8 @@ Tests never touch the network (fal, Storage and the queue are faked). They use `
 | api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                      |
 | api    | `GET /v1/billing/invoices`                         | paid invoices                                               |
 | api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth) |
-| api    | `GET /v1/models`                                   | model catalog (public)                                      |
+| api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)           |
+| api    | `POST /v1/credits/estimate`                        | price a job before creating it (public, see Credit pricing) |
 | api    | `POST /v1/jobs`                                    | create a job; `Idempotency-Key` header required (auth)      |
 | api    | `GET /v1/jobs/:id`                                 | job status (auth)                                           |
 | api    | `GET /v1/jobs/:id/download-url?index=`             | signed download URL of a completed output (auth)            |
@@ -95,8 +96,78 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 | `MAX_ACTIVE_JOBS_PER_USER` | 4               | concurrent unfinished jobs per user                           |
 | `UPLOAD_MAX_BYTES`         | 20971520        | max upload size in bytes                                      |
 | `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types (not empty)         |
+| `TIERED_CREDIT_MAPPING`    | built-in        | JSON credit prices per model, replaces the default (below)    |
 
 An optional key set to an empty value (`KEY=`) counts as unset. One trailing slash on `API_PUBLIC_URL` and `WORKER_URL` is dropped. On Cloud Run (where `K_SERVICE` is set) the app refuses to start with `TASKS_MODE=http`: the local queue's fire-and-forget POSTs have no retries or auth.
+
+## Credit pricing
+
+Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry per model key. When it is set it replaces the built-in default completely (defaults live in `src/credits/defaultTieredCreditMapping.ts`, marked `TODO(pricing)`). The app checks it at startup and refuses to start if a model has no entry, an entry names an unknown model, a tier setup is wrong, or any property is unknown. A bad value (invalid JSON, a negative rate) fails config loading with a message naming `TIERED_CREDIT_MAPPING`.
+
+```json
+{
+  "kling21": {
+    "tiers": [
+      {
+        "name": "Basic",
+        "isDefault": true,
+        "meters": [
+          { "metric": "duration", "unitSize": 1, "rate": 6, "round": "ceil" }
+        ]
+      },
+      {
+        "name": "Image to video",
+        "priority": 1,
+        "conditions": {
+          "all": [{ "fact": "image", "operator": "equal", "value": true }]
+        },
+        "credits": 5,
+        "meters": [{ "metric": "duration", "unitSize": 1, "rate": 7 }]
+      }
+    ]
+  },
+  "flux-schnell": {
+    "tiers": [
+      {
+        "name": "Basic",
+        "isDefault": true,
+        "meters": [{ "metric": "images", "unitSize": 1, "rate": 1 }]
+      }
+    ]
+  }
+}
+```
+
+- Each model has exactly one `isDefault` tier (no `conditions`). Other tiers need `conditions` and are checked in ascending `priority` (missing = 1, ties keep file order); the first match wins, else the default tier is used.
+- Conditions test a `fact` with `equal`, `notEqual`, `greaterThan`, `greaterThanInclusive`, `lessThan`, `lessThanInclusive`, `in` or `notIn` (the last two take a list), and can be nested in `{ "all": [...] }` / `{ "any": [...] }`. A model's facts are its inputs (not `prompt`), its billing units, and `image` (true when the job has an upload).
+- A tier costs `credits` (default 0) plus, for each meter, `round(value / unitSize) x rate`. `round` is `ceil` (default), `floor`, `round` or `precise`.
+- Supported units (`src/credits/units.ts`): `duration` (seconds) and `images` (count). A meter's `metric` must be a unit the model declares in `billing.units`. Adding a unit means editing that file.
+- Credits are whole numbers: the tier total can be fractional and is rounded up once, at the end. A job reserves exactly what the estimate returns.
+
+### POST /v1/credits/estimate
+
+Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "uploadCount": 0, "count": 1 }`. Only `model` is required; `options` defaults to `{}`, `uploadCount` (0 to 10, within the model's upload limits) to 0 and `count` (1 to 20) to 1. An unknown model, an unknown option, a bad value or a bad upload count returns `422 VALIDATION_FAILED`.
+
+```json
+{
+  "model": "kling21",
+  "count": 1,
+  "tier": "Basic",
+  "creditsPerJob": 60,
+  "totalCredits": 60,
+  "breakdown": [
+    {
+      "unit": "duration",
+      "label": "seconds",
+      "quantity": 10,
+      "rate": 6,
+      "credits": 60
+    }
+  ]
+}
+```
+
+`GET /v1/models` shows `credits: { "min": 30, "max": 60 }` for each model (the cheapest and the dearest job) instead of a single cost.
 
 ## Generation flow
 
@@ -154,7 +225,7 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 
 - `FAL_KEY`: fal dashboard API key.
 - Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (while the key is unset, the API logs it at info as `falUserId`), or look in the fal dashboard.
-- The two models (`flux-schnell`, `kling-i2v`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
+- The two models (`flux-schnell`, `kling21`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
 
 ## Local end-to-end run
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { tieredCreditMapping } from "./credits/tieredCredits.js";
 
 const int = (def: number, min: number) =>
   z.coerce.number().int().min(min).default(def);
@@ -6,6 +7,24 @@ const int = (def: number, min: number) =>
 /** Optional; an empty value (`KEY=` in a .env file) counts as unset. */
 const optionalString = () =>
   z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional());
+
+/**
+ * Optional JSON for the tiered credit mapping; an empty value counts as unset.
+ * Bad JSON or a bad shape fails loadConfig instead of using the default.
+ */
+const jsonMapping = () =>
+  z
+    .preprocess((v) => (v === "" ? undefined : v), z.string().optional())
+    .transform((text, ctx) => {
+      if (text === undefined) return undefined;
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        ctx.addIssue({ code: "custom", message: "must be valid JSON" });
+        return z.NEVER;
+      }
+    })
+    .pipe(tieredCreditMapping.optional());
 
 /** A base URL; one trailing slash is dropped so paths can be appended. */
 const baseUrl = () =>
@@ -71,6 +90,7 @@ const baseSchema = z.object({
         .filter(Boolean),
     )
     .refine((types) => types.length > 0, "must list at least one MIME type"),
+  TIERED_CREDIT_MAPPING: jsonMapping(),
   /** Set by Cloud Run on every service. */
   K_SERVICE: optionalString(),
 });
@@ -113,7 +133,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       ...new Set(result.error.issues.map((i) => String(i.path[0]))),
     ];
     const lines = result.error.issues.map(
-      (i) => `${String(i.path[0])}: ${i.message}`,
+      (i) => `${i.path.join(".")}: ${i.message}`,
     );
     throw new Error(
       `Invalid configuration for ${keys.join(", ")}:\n${lines.join("\n")}`,

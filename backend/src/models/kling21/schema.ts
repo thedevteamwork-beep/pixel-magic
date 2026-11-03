@@ -47,6 +47,7 @@ export const schema: ModelSchema = {
     },
   },
   output: { description: "The generated video", mimeTypes: ["video/mp4"] },
+  billing: { units: ["duration"] },
 };
 
 // What fal returns. Extra fields are tolerated and ignored.

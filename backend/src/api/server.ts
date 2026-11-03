@@ -5,6 +5,7 @@ import type { Deps } from "../deps.js";
 import { errorHandler, notFound } from "./middlewares/errorHandler.js";
 import { billingRouter } from "./routes/billing.js";
 import { catalogRouter } from "./routes/catalog.js";
+import { creditsRouter } from "./routes/credits.js";
 import { healthRouter } from "./routes/health.js";
 import { jobsRouter } from "./routes/jobs.js";
 import { meRouter } from "./routes/me.js";
@@ -19,7 +20,8 @@ export function createApp(deps: Deps): Express {
   app.use(webhooksRouter(deps));
   app.use(healthRouter(deps));
   app.use(catalogRouter(deps));
-  app.use(modelsRouter());
+  app.use(modelsRouter(deps));
+  app.use(creditsRouter(deps));
   app.use(meRouter(deps));
   app.use(billingRouter(deps));
   app.use(uploadsRouter(deps));

@@ -131,4 +131,46 @@ describe("loadConfig", () => {
         TASKS_SERVICE_ACCOUNT: "sa@p.iam",
       }).TASKS_MODE,
     ).toBe("cloud"));
+  it("leaves TIERED_CREDIT_MAPPING unset when absent or empty", () => {
+    expect(loadConfig(base).TIERED_CREDIT_MAPPING).toBeUndefined();
+    expect(
+      loadConfig({ ...base, TIERED_CREDIT_MAPPING: "" }).TIERED_CREDIT_MAPPING,
+    ).toBeUndefined();
+  });
+  it("parses a TIERED_CREDIT_MAPPING", () => {
+    const mapping = {
+      kling21: {
+        tiers: [
+          {
+            name: "Basic",
+            isDefault: true,
+            meters: [{ metric: "duration", unitSize: 1, rate: 6 }],
+          },
+        ],
+      },
+    };
+    expect(
+      loadConfig({ ...base, TIERED_CREDIT_MAPPING: JSON.stringify(mapping) })
+        .TIERED_CREDIT_MAPPING,
+    ).toEqual(mapping);
+  });
+  it("fails on an invalid TIERED_CREDIT_MAPPING", () => {
+    const bad = (rate: number, extra = {}) =>
+      JSON.stringify({
+        kling21: {
+          tiers: [
+            {
+              name: "Basic",
+              isDefault: true,
+              meters: [{ metric: "duration", unitSize: 1, rate, ...extra }],
+            },
+          ],
+        },
+      });
+    for (const value of ["not json", bad(-1), bad(1, { rat: 2 })]) {
+      expect(() =>
+        loadConfig({ ...base, TIERED_CREDIT_MAPPING: value }),
+      ).toThrow(/TIERED_CREDIT_MAPPING/);
+    }
+  });
 });

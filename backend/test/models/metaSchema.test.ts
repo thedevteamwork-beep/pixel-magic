@@ -17,12 +17,24 @@ describe("validateModelSchema", () => {
     expect(() => validateModelSchema("flux-schnell", flux)).not.toThrow();
   });
 
-  it("accepts an optional strict billing block", () => {
+  it("requires a strict billing block of supported units", () => {
     const s = clone();
-    s.billing = { units: ["video_seconds"] };
-    expect(() => validateModelSchema("kling21", s)).not.toThrow();
-    s.billing = { units: [], extra: 1 };
+    delete s.billing;
     expect(() => validateModelSchema("kling21", s)).toThrow(/billing/);
+    s.billing = { units: ["video_seconds"] };
+    expect(() => validateModelSchema("kling21", s)).toThrow(/billing\.units/);
+    s.billing = { units: ["duration"], extra: 1 };
+    expect(() => validateModelSchema("kling21", s)).toThrow(/billing.*extra/);
+  });
+
+  it("rejects empty or duplicate billing units", () => {
+    const s = clone();
+    s.billing = { units: [] };
+    expect(() => validateModelSchema("kling21", s)).toThrow(/billing\.units/);
+    s.billing = { units: ["duration", "duration"] };
+    expect(() => validateModelSchema("kling21", s)).toThrow(
+      /billing\.units.*duplicate/,
+    );
   });
 
   it.each([

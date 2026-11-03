@@ -1,6 +1,10 @@
 import type { z } from "zod";
+import type { SupportedUnit } from "../credits/units.js";
 
 export type ModelKind = "image" | "video";
+
+/** What a credit mapping can test and meter: option values, unit values, `image`. */
+export type BillingFacts = Record<string, string | number | boolean>;
 
 export type ParsedOutput = {
   outputs: { url: string; mimeType: string }[];
@@ -56,7 +60,7 @@ export type ModelSchema = {
   };
   input: Record<string, FieldSchema>;
   output: { description: string; mimeTypes: readonly string[] };
-  billing?: { units: string[] };
+  billing: { units: SupportedUnit[] };
 };
 
 export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
@@ -68,7 +72,10 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   uploads: { min: number; max: number; supportedContentTypes: string[] };
   /** Every field has a default, so `options.parse({})` works. */
   options: O;
-  creditCost(o: z.output<O>): number;
+  /** The facts credits are priced on: the options, the unit values and `image`. */
+  billingInputs(p: { options: z.output<O>; uploadCount: number }): BillingFacts;
+  /** The cheapest and the dearest request, as full fact sets. */
+  billingRange(): { min: BillingFacts; max: BillingFacts };
   /**
    * The fal endpoint for a job. It depends only on the job's upload count, so
    * submit, webhook, finalize and reconcile always agree.

@@ -4,6 +4,7 @@ import {
   uploadRule,
 } from "../schemaGenerator.js";
 import type { ModelDefinition } from "../types.js";
+import { billingInputs, billingRange } from "./billing.js";
 import { buildInput, falEndpoint, parseOutput } from "./requests.js";
 import { schema } from "./schema.js";
 
@@ -15,9 +16,8 @@ export const fluxSchnell: ModelDefinition = {
   prompt: promptRule(schema),
   uploads: uploadRule(schema),
   options: optionsValidator(schema),
-  // TODO(pricing): placeholder credit cost. fal price (unverified, see fal
-  // model page): about $0.003 per megapixel.
-  creditCost: (o) => (o.num_images as number) * 1,
+  billingInputs,
+  billingRange,
   falEndpoint,
   buildInput,
   parseOutput,

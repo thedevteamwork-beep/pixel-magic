@@ -1,7 +1,10 @@
 import Transport from "winston-transport";
 import type { Config } from "../../src/config.js";
 import type { Deps } from "../../src/deps.js";
+import { DEFAULT_TIERED_CREDIT_MAPPING } from "../../src/credits/defaultTieredCreditMapping.js";
+import { validateCreditMapping } from "../../src/credits/tieredCredits.js";
 import { createLogger } from "../../src/logger.js";
+import { listModels } from "../../src/models/registry.js";
 import { FakePaddle } from "../fakes/paddle.js";
 import { FakeFal } from "../fakes/fal.js";
 import { FakeQueue } from "../fakes/tasks.js";
@@ -92,6 +95,10 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     falKeys: testFalKeys,
     clock,
     jwks: testJwks,
+    creditMapping: validateCreditMapping(
+      DEFAULT_TIERED_CREDIT_MAPPING,
+      listModels(),
+    ),
     ...overrides,
   };
   return {

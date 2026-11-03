@@ -15,6 +15,7 @@ import type { JobErrorCode, JobRow, JobStatus } from "../../db/rows.js";
 import { AppError } from "../../lib/errors.js";
 import { canonicalJson, sha256Hex } from "../../lib/hash.js";
 import { getModel } from "../../models/registry.js";
+import { assertUploadCount, estimateCredits } from "../credits/estimate.js";
 import { resolveUploads } from "../uploads.js";
 
 export type JobView = {
@@ -67,16 +68,7 @@ export async function createJob(
   if (prompt.length > model.prompt.maxLength) {
     throw new AppError(422, "VALIDATION_FAILED", "Prompt is too long");
   }
-  if (
-    uploadIds.length < model.uploads.min ||
-    uploadIds.length > model.uploads.max
-  ) {
-    throw new AppError(
-      422,
-      "VALIDATION_FAILED",
-      `This model takes ${model.uploads.min} to ${model.uploads.max} uploads`,
-    );
-  }
+  assertUploadCount(model, uploadIds.length);
 
   const uploads = await resolveUploads(deps, userId, uploadIds);
   for (const upload of uploads) {
@@ -91,7 +83,11 @@ export async function createJob(
   const requestHash = sha256Hex(
     canonicalJson({ model: model.key, prompt, uploadIds, options }),
   );
-  const creditCost = model.creditCost(options);
+  // The same function as POST /v1/credits/estimate, so the two always agree.
+  const { creditsPerJob: creditCost } = estimateCredits(deps, model, {
+    options: body.options,
+    uploadCount: uploadIds.length,
+  });
 
   const { job, created } = await deps.db.transaction(async (trx) => {
     await lockProfile(trx, userId);

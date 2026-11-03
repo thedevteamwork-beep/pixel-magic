@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { UNIT_NAMES } from "../credits/units.js";
 import type { ModelSchema } from "./types.js";
 
 // The allowed properties of a model schema, in the same order as types.ts.
@@ -61,14 +62,14 @@ const output = z.strictObject({
 });
 
 const billing = z.strictObject({
-  units: z.array(z.string()),
+  units: z.array(z.enum(UNIT_NAMES)).min(1),
 });
 
 const modelSchema = z.strictObject({
   info,
   input: z.record(fieldKey, field),
   output,
-  billing: billing.optional(),
+  billing,
 });
 
 /** Checks a model's schema. Throws a message naming the model and the path. */
@@ -95,14 +96,18 @@ export function validateModelSchema(key: string, schema: unknown): ModelSchema {
   if (images.length > 1) {
     fail("input", "at most one image field is allowed");
   }
+  // 3. billing units are not repeated
+  if (new Set(parsed.billing.units).size !== parsed.billing.units.length) {
+    fail("billing.units", "must not contain duplicate units");
+  }
   for (const [name, f] of Object.entries(parsed.input)) {
-    // 3. an enum's default must be one of the enum values
+    // 4. an enum's default must be one of the enum values
     if (f.type === "string" && f.enum && f.default !== undefined) {
       if (!f.enum.includes(f.default)) {
         fail(`input.${name}.default`, "must be one of the enum values");
       }
     }
-    // 4. minimum <= default <= maximum
+    // 5. minimum <= default <= maximum
     if (
       f.type === "integer" &&
       !(f.minimum <= f.default && f.default <= f.maximum)
