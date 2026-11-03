@@ -1,5 +1,4 @@
 import type { z } from "zod";
-import type { ModelSchema } from "./metaSchema.js";
 
 export type ModelKind = "image" | "video";
 
@@ -15,9 +14,50 @@ export class OutputInvalidError extends Error {
   }
 }
 
-// Derived from the strict meta-schema so there is one source of truth.
-export type { ModelSchema } from "./metaSchema.js";
-export type FieldSchema = ModelSchema["input"][string];
+/** One input a model accepts, described the way the public API shows it. */
+export type FieldSchema =
+  | {
+      type: "string";
+      description: string;
+      enum?: readonly string[];
+      default?: string;
+      required?: boolean;
+      maxLength?: number;
+    }
+  | {
+      type: "integer";
+      description: string;
+      minimum: number;
+      maximum: number;
+      default: number;
+    }
+  | { type: "boolean"; description: string; default: boolean }
+  | {
+      type: "image";
+      description: string;
+      required: boolean;
+      maxItems: number;
+      supportedContentTypes: readonly string[];
+    };
+
+/**
+ * Everything a model declares about itself. `input` must contain `prompt`
+ * (type "string") and at most one "image" field. `metaSchema.ts` checks this.
+ */
+export type ModelSchema = {
+  info: {
+    name: string;
+    displayName: string;
+    kind: ModelKind;
+    category: readonly string[];
+    description: string;
+    bannerImage?: string;
+    logo?: string;
+  };
+  input: Record<string, FieldSchema>;
+  output: { description: string; mimeTypes: readonly string[] };
+  billing?: { units: string[] };
+};
 
 export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   key: string;

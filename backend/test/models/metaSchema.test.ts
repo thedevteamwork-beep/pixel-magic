@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { optionsValidator } from "../../src/models/schemaGenerator.js";
+import type { ModelSchema } from "../../src/models/types.js";
 import { validateModelSchema } from "../../src/models/metaSchema.js";
 import { schema as flux } from "../../src/models/flux-schnell/schema.js";
 import { schema as kling } from "../../src/models/kling21/schema.js";
@@ -24,27 +26,26 @@ describe("validateModelSchema", () => {
   });
 
   it.each([
-    ["info.bannerImg", (s: Rec) => (s.info.bannerImg = "x")],
-    ["input.duration.defualt", (s: Rec) => (s.input.duration.defualt = "5")],
-    ["output.extra", (s: Rec) => (s.output.extra = 1)],
-    ["extra", (s: Rec) => (s.extra = 1)],
+    ["info", "bannerImg", (s: Rec) => (s.info.bannerImg = "x")],
+    ["input.duration", "defualt", (s: Rec) => (s.input.duration.defualt = "5")],
+    ["output", "extra", (s: Rec) => (s.output.extra = 1)],
+    ["", "extra", (s: Rec) => (s.extra = 1)],
   ])(
-    "rejects an unknown property at %s with its path in the message",
-    (path, mutate) => {
+    "rejects an unknown property under %j (%s) naming path and key",
+    (path, key, mutate) => {
       const s = clone();
       mutate(s);
-      expect(() => validateModelSchema("kling21", s)).toThrow(
-        new RegExp(
-          `^Model kling21 schema invalid: ${path.replaceAll(".", "\\.")}`,
-        ),
+      const msg = new RegExp(
+        `^Model kling21 schema invalid: ${path.replaceAll(".", "\\.")}.*${key}`,
       );
+      expect(() => validateModelSchema("kling21", s)).toThrow(msg);
     },
   );
 
   it("rejects a bad field key", () => {
     const s = clone();
     s.input["bad-key"] = { type: "boolean", description: "x", default: true };
-    expect(() => validateModelSchema("kling21", s)).toThrow(/input/);
+    expect(() => validateModelSchema("kling21", s)).toThrow(/input.*bad-key/);
   });
 
   it("rejects a default outside the enum", () => {
@@ -64,12 +65,23 @@ describe("validateModelSchema", () => {
   it("rejects two image fields", () => {
     const s = clone();
     s.input.image2 = structuredClone(s.input.image);
-    expect(() => validateModelSchema("kling21", s)).toThrow(/image/);
+    expect(() => validateModelSchema("kling21", s)).toThrow(
+      /at most one image/,
+    );
   });
 
   it("rejects a missing prompt", () => {
     const s = clone();
     delete s.input.prompt;
     expect(() => validateModelSchema("kling21", s)).toThrow(/prompt/);
+  });
+});
+
+describe("optionsValidator", () => {
+  it("lets an optional string without a default be left out", () => {
+    const s = structuredClone(kling) as Rec;
+    s.input.style = { type: "string", description: "Style" };
+    const parsed = optionsValidator(s as ModelSchema).parse({});
+    expect(parsed).not.toHaveProperty("style");
   });
 });
