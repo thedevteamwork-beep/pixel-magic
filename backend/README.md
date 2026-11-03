@@ -149,14 +149,15 @@ Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry p
 ```
 
 - Each model has exactly one `isDefault` tier (no `conditions`). Other tiers need `conditions` and are checked in ascending `priority` (missing = 1, ties keep file order); the first match wins, else the default tier is used.
-- Conditions test a `fact` with `equal`, `notEqual`, `greaterThan`, `greaterThanInclusive`, `lessThan`, `lessThanInclusive`, `in` or `notIn` (the last two take a list), and can be nested in `{ "all": [...] }` / `{ "any": [...] }`. A model's facts are its inputs (not `prompt`), its billing units, and `image` (true when the job has an upload). Unit facts (`duration`, `images`) are numbers, so write `{ "fact": "duration", "operator": "equal", "value": 10 }`, not `"10"`; a condition value must have the type of its fact, and `greaterThan` and the other ordering operators need a number fact. Every tier must cost something (base `credits` above 0 or a meter with a rate above 0); a job priced at 0 or above 2147483647 credits fails with a server error.
+- Conditions test a `fact` with `equal`, `notEqual`, `greaterThan`, `greaterThanInclusive`, `lessThan`, `lessThanInclusive`, `in` or `notIn` (the last two take a list), and can be nested in `{ "all": [...] }` / `{ "any": [...] }`. `all`, `any` and an `in` / `notIn` list must not be empty. A model's facts are its options (its inputs except `prompt` and the image), its billing units, and `image` (true when the job has an upload). A fact's type comes from the model schema: a string option is a string, an integer option a number, a boolean option a boolean; unit facts (`duration`, `images`) are numbers even when an option has the same name, so write `{ "fact": "duration", "operator": "equal", "value": 10 }`, not `"10"`. A condition value must have the type of its fact, and `greaterThan` and the other ordering operators need a number fact.
+- Every tier must cost something (base `credits` above 0 or a meter with a rate above 0). At startup the app also prices every job each model can take (every option combination at every upload count; a free-text option, a string with no `enum`, counts only at its default, or left out when it has none) and refuses to start if any is priced at 0 or above 2147483647 credits, naming the model and the tier. A model with more than 10,000 such combinations is a startup error.
 - A tier costs `credits` (default 0) plus, for each meter, `round(value / unitSize) x rate`. `round` is `ceil` (default), `floor`, `round` or `precise`.
 - Supported units (`src/credits/units.ts`): `duration` (seconds) and `images` (count). A meter's `metric` must be a unit the model declares in `billing.units`. Adding a unit means editing that file.
 - Credits are whole numbers: the tier total can be fractional and is rounded up once, at the end. A job reserves exactly what the estimate returns.
 
 ### POST /v1/credits/estimate
 
-Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "uploadCount": 0, "count": 1 }`. Only `model` is required; `options` defaults to `{}`, `uploadCount` (0 to 10, within the model's upload limits) to 0 and `count` (1 to 20) to 1. An unknown model, an unknown option, a bad value or a bad upload count returns `422 VALIDATION_FAILED`.
+Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "uploadCount": 0, "count": 1 }`. Only `model` is required; `options` defaults to `{}`, `uploadCount` (0 to 10, within the model's upload limits) to 0 and `count` (1 to 20) to 1. An unknown model, an unknown option, a bad value or a bad upload count returns `422 VALIDATION_FAILED`. The `image` fact is `uploadCount > 0`, so with the example mapping above `uploadCount: 1` picks the "Image to video" tier.
 
 ```json
 {
@@ -165,6 +166,7 @@ Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "
   "tier": "Basic",
   "creditsPerJob": 60,
   "totalCredits": 60,
+  "baseCredits": 0,
   "breakdown": [
     {
       "unit": "duration",
@@ -177,7 +179,9 @@ Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "
 }
 ```
 
-`GET /v1/models` shows `credits: { "min": 30, "max": 60 }` for each model (the cheapest and the dearest job) instead of a single cost.
+`baseCredits` is the chosen tier's `credits` (0 when it has none), and each `breakdown` item is one meter. `creditsPerJob` is `baseCredits` plus every breakdown item's `credits`, rounded up once, and `totalCredits` is `creditsPerJob × count`.
+
+`GET /v1/models` shows `credits: { "min": 30, "max": 60 }` for each model instead of a single cost: the cheapest and the dearest job over every option combination and upload count. With the example mapping above, kling21 shows `{ "min": 30, "max": 75 }`, because a 10 s video from an image costs 5 + 10 × 7.
 
 ## Generation flow
 

@@ -218,8 +218,8 @@ Every state change is a compare-and-set: `UPDATE jobs SET … WHERE id = ? AND s
    5. Respond `202 {jobId, status, creditCost}`.
 3. **`/tasks/generate`** (worker)
    1. Claim the job: `queued → submitting`, or take back a `submitting` job whose lease has expired. Increment `attempts`.
-   2. Create signed download URLs for the inputs, valid for 24 h so they outlast fal's queue. Build the fal input with the model's `buildInput`.
-   3. Call `fal.queue.submit(falModelId, { input, webhookUrl: API_PUBLIC_URL + "/webhooks/fal" })`.
+   2. Create signed download URLs for the inputs, valid for 24 h so they outlast fal's queue.
+   3. Call the model's `requestPrediction({ fal, input, webhook })` with `webhook = API_PUBLIC_URL + "/webhooks/fal?jobId=<id>"`. It picks the fal endpoint, builds the fal payload and submits it.
    4. Mark the job `submitting → submitted` and save `fal_request_id` and `submitted_at`.
    5. **When fal fails:**
 
@@ -319,7 +319,8 @@ This section covers only verifying and recording webhooks. Checkout, routing, re
 | GET | `/v1/jobs/:id/download-url?index=` | user (owner) | `200 {url, expiresAt}` | 404, 409 not completed |
 | GET | `/v1/me` | user | `200 {userId, email, credits:{available, reserved, grants}, subscription}` (plans design §7) | 401 |
 | | `/v1/plans`, `/v1/addons`, `/v1/billing/*`, `/tasks/billing-sweep` | | Defined in plans design §7 | |
-| GET | `/v1/models` | public | `200 [{key, name, kind, creditCost, options}]` with `Cache-Control: public, max-age=300` | — |
+| GET | `/v1/models` | public | `200 [{key, name, kind, category, description, credits:{min, max}, input}]` with `Cache-Control: public, max-age=300` | — |
+| POST | `/v1/credits/estimate` `{model, options?, uploadCount?, count?}` | public | `200 {model, count, tier, creditsPerJob, totalCredits, baseCredits, breakdown:[{unit, label, quantity, rate, credits}]}` | 422 |
 | POST | `/webhooks/fal` | fal signature | `200` | 401, 503 |
 | POST | `/webhooks/paddle` | Paddle signature | `200` | 401 |
 | POST | `/tasks/generate`, `/tasks/finalize` `{jobId}` | Cloud Run IAM | `200` | 503 to retry |
@@ -337,20 +338,18 @@ This section covers only verifying and recording webhooks. Checkout, routing, re
 
 ## 9. Model registry
 
-`src/models/registry.ts` maps a model `key` to a definition:
+`src/models/registry.ts` maps a model `key` to a definition. Each model is a folder `src/models/<key>/`:
 
-- `falModelId`
-- `kind` (`image|video`)
-- `displayName`
-- `options`: a Zod schema
-- `creditCost(options)`
-- `buildInput(prompt, options, inputUrls)`
-- `parseOutput(falResult) → [{url, mimeType}]`
-- `timeoutMinutes`
+- `schema.ts`: `info` (name, kind, category, description), the `input` fields (`prompt`, at most one image, the options), `output` and `billing.units`. `metaSchema.ts` checks it strictly when the registry loads, so a typo stops the app. The strict options validator is generated from it.
+- `requests.ts`: the model's own fal calls, `requestPrediction`, `checkPredictionStatus`, `getPredictionResult` and `cancelPrediction`, through the shared fal client, plus `parseOutput(falResult) → {outputs:[{url, mimeType}], blockedCount}`. The endpoint depends only on whether the job has an image, so the four calls always agree.
+- `billing.ts`: `billingInputs({options, uploadCount})`, the facts a job is priced on: the options, the unit values (such as `duration` in seconds) and `image`.
+- `index.ts`: the definition, with `timeoutMinutes`.
 
-**Safety.** `buildInput` always turns on fal's safety checker, where the model has one. `parseOutput` reports a blocked output separately from a normal one, for example when `has_nsfw_concepts` is true, so `finalize` can apply the blocked-output rule (§4.3 call 17).
+**Pricing.** `TIERED_CREDIT_MAPPING` (a default lives in `src/credits/defaultTieredCreditMapping.ts`) gives each model tiers, picked by conditions on the facts and priced as base credits plus metered units. `estimateCredits` prices a job for both `POST /v1/credits/estimate` and `POST /v1/jobs`, so the estimate is what is reserved. `GET /v1/models` shows `credits: {min, max}`, the cheapest and the dearest job over every option combination and upload count. The mapping is checked at startup, and every such job is priced then, so a mapping that prices a job outside 1 to 2147483647 credits stops the app. The backend README ("Credit pricing") has the details.
 
-`GET /v1/models` returns only the public fields. Adding a model means adding one file and one registry entry. Each model file records fal's price for that model in a comment, so the credit cost can be checked against it.
+**Safety.** `requestPrediction` always turns on fal's safety checker, where the model has one. `parseOutput` reports a blocked output separately from a normal one, for example when `has_nsfw_concepts` is true, so `finalize` can apply the blocked-output rule (§4.3 call 17).
+
+`GET /v1/models` returns only the public fields. Adding a model means adding one folder, one registry entry and one credit-mapping entry. The default mapping records fal's price for each model in a comment, so the credits can be checked against it.
 
 **The v1 models and their credit costs are placeholders** until the user chooses them (§11).
 

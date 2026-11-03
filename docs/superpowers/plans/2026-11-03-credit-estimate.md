@@ -228,8 +228,10 @@ Added 2026-11-03 at the user's request: "create two folder public and panel or p
 - **`routes/index.ts`** exports `apiRoutes(deps)`. It mounts routers in today's order: webhooks, health, then `public` and `panel` both under `/v1`.
 - **`server.ts`** keeps helmet, cors, `notFound` and `errorHandler`, and mounts `apiRoutes(deps)`.
 
-- [ ] **Step 1: test.** Add `test/api/routes.test.ts` with three checks:
-  - every endpoint in the README's API list still answers on its old URL, with a status other than 404;
+- [ ] **Step 1: test.** Add `test/api/routes.test.ts`, which knows about auth. It splits the README's API list into public and panel endpoints, and treats only the `notFound` catch-all (`404 "Not found"`) as "not served"; a handler's own 404, such as "Job not found", means the route is served. It checks that:
+  - every public endpoint is served without a login;
+  - every panel endpoint is served for a logged-in user (not 401, not the catch-all). Without a login the guard would answer 401 before any route is reached, which would hide a dropped route;
+  - every panel endpoint answers 401 without a login;
   - an unauthenticated `GET /v1/jobs/a/b` gets 401;
   - `GET /v1/nope` gets 404.
 - [ ] **Step 2: Implement** the moves.
