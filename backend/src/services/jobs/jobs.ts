@@ -138,7 +138,22 @@ export async function createJob(
   return { status: 202, job: jobView(job) };
 }
 
-/** Fails a job and releases its credits, once. Returns whether it applied. */
+/** User-facing text stored as `error_message`, fixed per error code. */
+export const JOB_ERROR_MESSAGES: Record<JobErrorCode, string> = {
+  SUBMIT_REJECTED: "The model rejected this request.",
+  SUBMIT_FAILED:
+    "The model service was unavailable. Your credits were returned.",
+  GENERATION_FAILED: "The model couldn't generate this request.",
+  CONTENT_BLOCKED: "The result was blocked by the safety filter.",
+  OUTPUT_INVALID: "The model returned an unusable result.",
+  TIMED_OUT: "The generation took too long and was cancelled.",
+  MODEL_UNAVAILABLE: "This model is no longer available.",
+};
+
+/**
+ * Fails a job and releases its credits, once. Returns whether it applied.
+ * `message` is log-only detail; the stored message is fixed per code.
+ */
 export async function failJob(
   trx: Knex.Transaction,
   deps: Deps,
@@ -155,7 +170,7 @@ export async function failJob(
     {
       status: "failed",
       error_code: code,
-      error_message: message.slice(0, 500),
+      error_message: JOB_ERROR_MESSAGES[code],
       completed_at: now,
       lease_expires_at: null,
     },
@@ -163,6 +178,12 @@ export async function failJob(
   );
   if (!failed) return false;
   await releaseCredits(trx, jobId);
-  deps.logger.warn("Job failed", { jobId, code });
+  deps.logger.warn("Job failed", {
+    jobId,
+    code,
+    from,
+    to: "failed",
+    detail: message,
+  });
   return true;
 }

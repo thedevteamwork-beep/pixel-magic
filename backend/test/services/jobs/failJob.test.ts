@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { T } from "../../../src/db/tables.js";
-import { createJob, failJob } from "../../../src/services/jobs/jobs.js";
+import {
+  createJob,
+  failJob,
+  JOB_ERROR_MESSAGES,
+} from "../../../src/services/jobs/jobs.js";
 import { makeDeps } from "../../helpers/app.js";
 import { seedTestCatalog } from "../../helpers/catalog.js";
 import { resetDb, testDb } from "../../helpers/db.js";
@@ -51,7 +55,7 @@ describe("failJob", () => {
       error_code: "SUBMIT_FAILED",
       lease_expires_at: null,
     });
-    expect(row.error_message).toHaveLength(500);
+    expect(row.error_message).toBe(JOB_ERROR_MESSAGES.SUBMIT_FAILED);
     expect(row.completed_at).toEqual(deps.clock.now());
     const releases = await testDb(T.creditLedger).where({
       job_id: job.jobId,
@@ -63,6 +67,9 @@ describe("failJob", () => {
         level: "warn",
         jobId: job.jobId,
         code: "SUBMIT_FAILED",
+        from: ["queued"],
+        to: "failed",
+        message: "Job failed",
       }),
     );
   });
