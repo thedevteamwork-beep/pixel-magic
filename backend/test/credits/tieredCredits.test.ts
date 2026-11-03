@@ -201,7 +201,7 @@ describe("validateCreditMapping", () => {
         m.kling21.tiers.push({
           name: "X",
           conditions: { fact: "resolution", operator: "equal", value: "hd" },
-          meters: [],
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
       /kling21.*resolution/,
     ],
@@ -211,7 +211,7 @@ describe("validateCreditMapping", () => {
         m.kling21.tiers.push({
           name: "X",
           conditions: { fact: "prompt", operator: "equal", value: "a" },
-          meters: [],
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
       /kling21.*prompt/,
     ],
@@ -225,7 +225,11 @@ describe("validateCreditMapping", () => {
     ["extra property", (m) => (m.kling21.tiers[0].meters[0].rat = 1), /rat/],
     [
       "a non-default tier without conditions",
-      (m) => m.kling21.tiers.push({ name: "X", meters: [] }),
+      (m) =>
+        m.kling21.tiers.push({
+          name: "X",
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
+        }),
       /kling21.*X.*conditions/,
     ],
     [
@@ -244,7 +248,7 @@ describe("validateCreditMapping", () => {
         m.kling21.tiers.push({
           name: "Basic",
           conditions: { fact: "image", operator: "equal", value: true },
-          meters: [],
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
       /kling21.*Basic.*twice|kling21.*duplicate/i,
     ],
@@ -254,9 +258,53 @@ describe("validateCreditMapping", () => {
         m.kling21.tiers.push({
           name: "X",
           conditions: { fact: "image", operator: "in", value: true },
-          meters: [],
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
       /kling21.*in/,
+    ],
+    [
+      "a tier that prices a job at 0",
+      (m) => (m.kling21.tiers[0].meters[0].rate = 0),
+      /kling21.*Basic.*0 credits/,
+    ],
+    [
+      "a tier with no meters and no credits",
+      (m) => delete m.kling21.tiers[0].meters,
+      /kling21.*Basic.*0 credits/,
+    ],
+    [
+      "a string value on a number fact",
+      (m) =>
+        m.kling21.tiers.push({
+          name: "X",
+          conditions: { fact: "duration", operator: "equal", value: "10" },
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
+        }),
+      /kling21.*X.*duration.*number/,
+    ],
+    [
+      "a mistyped element in an in list",
+      (m) =>
+        m.kling21.tiers.push({
+          name: "X",
+          conditions: { fact: "duration", operator: "in", value: [5, "10"] },
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
+        }),
+      /kling21.*X.*duration.*number/,
+    ],
+    [
+      "an ordering operator on a string fact",
+      (m) =>
+        m.kling21.tiers.push({
+          name: "X",
+          conditions: {
+            fact: "aspect_ratio",
+            operator: "greaterThan",
+            value: "1:1",
+          },
+          meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
+        }),
+      /kling21.*X.*greaterThan.*number fact.*aspect_ratio/,
     ],
   ])("rejects a mapping with %s", (_name, mutate, message) => {
     const mapping = defaults();

@@ -5,6 +5,7 @@ import { DEFAULT_TIERED_CREDIT_MAPPING } from "../../src/credits/defaultTieredCr
 import type { TieredCreditMapping } from "../../src/credits/tieredCredits.js";
 import { makeDeps } from "../helpers/app.js";
 import { authHeader } from "../helpers/auth.js";
+import { T } from "../../src/db/tables.js";
 import { resetDb, testDb } from "../helpers/db.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
 import { createFundedUser } from "../helpers/factories.js";
@@ -118,6 +119,47 @@ describe("POST /v1/credits/estimate", () => {
     expect(job.status).toBe(202);
     expect(job.body.creditCost).toBe(estimate.body.creditsPerJob);
     expect(job.body.creditCost).toBe(13);
+  });
+
+  describe.each([
+    ["a floor tier that prices 1 image at 0", { unitSize: 10, round: "floor" }],
+    ["a huge rate", { unitSize: 1, rate: 1e12 }],
+  ] as const)("with %s", (_name, meter) => {
+    it("fails the estimate and job creation the same way, reserving nothing", async () => {
+      const creditMapping: TieredCreditMapping = {
+        ...DEFAULT_TIERED_CREDIT_MAPPING,
+        "flux-schnell": {
+          tiers: [
+            {
+              name: "Basic",
+              isDefault: true,
+              meters: [{ metric: "images", rate: 1, ...meter }],
+            },
+          ],
+        },
+      };
+      await resetDb();
+      await seedTestCatalog(testDb);
+      const { deps } = makeDeps({ creditMapping });
+      const userId = await createFundedUser(deps, 100);
+      const api = createApp(deps);
+      const body = { model: "flux-schnell" };
+      const estimate = await request(api)
+        .post("/v1/credits/estimate")
+        .send(body);
+      const job = await request(api)
+        .post("/v1/jobs")
+        .set(await authHeader(userId))
+        .set("Idempotency-Key", "bad-price")
+        .send({ ...body, prompt: "a cat" });
+      expect(estimate.status).toBe(500);
+      expect(job.status).toBe(500);
+      expect(job.body.code).toBe(estimate.body.code);
+      expect(await testDb(T.jobs).count({ n: "*" }).first()).toMatchObject({
+        n: "0",
+      });
+      expect(await testDb(T.creditAllocations)).toHaveLength(0);
+    });
   });
 
   it.each([

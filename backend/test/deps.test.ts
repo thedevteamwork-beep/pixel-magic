@@ -18,7 +18,13 @@ describe("createDeps", () => {
   it("stops at startup on a mapping typo, naming the key", () => {
     const mapping = {
       klng21: {
-        tiers: [{ name: "Basic", isDefault: true }],
+        tiers: [
+          {
+            name: "Basic",
+            isDefault: true,
+            meters: [{ metric: "duration", unitSize: 1, rate: 6 }],
+          },
+        ],
       },
     };
     const config = loadConfig({

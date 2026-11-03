@@ -113,6 +113,7 @@ export function validateCreditMapping(
       return fail(model.key, "the model has no mapping entry");
     }
     const names = factNames(model);
+    const facts = model.billingRange().min;
     const defaults = entry.tiers.filter((t) => t.isDefault);
     // 3. exactly one default tier
     if (defaults.length !== 1) {
@@ -135,26 +136,48 @@ export function validateCreditMapping(
       if (!t.isDefault && !t.conditions) {
         fail(where, "a tier that is not the default needs conditions");
       }
-      // 7. a meter may only use a unit the model declares
+      // 7. a tier must cost something: base credits or a meter with a rate
+      const priced =
+        (t.credits ?? 0) > 0 || (t.meters ?? []).some((m) => m.rate > 0);
+      if (!priced) fail(where, "the tier prices a job at 0 credits");
+      // 8. a meter may only use a unit the model declares
       for (const m of t.meters ?? []) {
         if (!model.schema.billing.units.includes(m.metric)) {
           fail(where, `the model does not declare the unit ${m.metric}`);
         }
       }
       for (const c of t.conditions ? factConditions(t.conditions) : []) {
-        // 8. a condition may only test one of the model's facts
+        // 9. a condition may only test one of the model's facts
         if (!names.includes(c.fact)) {
           fail(
             where,
             `${c.fact} is not a fact of this model (${names.join(", ")})`,
           );
         }
-        // 9. in / notIn take a list; every other operator takes one value
+        // 10. in / notIn take a list; every other operator takes one value
         const isList = c.operator === "in" || c.operator === "notIn";
         if (isList !== Array.isArray(c.value)) {
           fail(
             where,
             `${c.operator} ${isList ? "needs a list" : "needs a single value"}`,
+          );
+        }
+        // 11. a condition value has the type of the fact (unit facts are
+        // numbers), and ordering operators need a number fact
+        const expected = typeof facts[c.fact];
+        const values = Array.isArray(c.value) ? c.value : [c.value];
+        const ordering =
+          c.operator.startsWith("greater") || c.operator.startsWith("less");
+        if (values.some((v) => typeof v !== expected)) {
+          fail(
+            where,
+            `${c.fact} is a ${expected}, so ${c.operator} needs ${expected} values`,
+          );
+        }
+        if (ordering && expected !== "number") {
+          fail(
+            where,
+            `${c.operator} needs a number fact, but ${c.fact} is a ${expected}`,
           );
         }
       }
