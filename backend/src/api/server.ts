@@ -7,6 +7,7 @@ import { billingRouter } from "./routes/billing.js";
 import { catalogRouter } from "./routes/catalog.js";
 import { healthRouter } from "./routes/health.js";
 import { meRouter } from "./routes/me.js";
+import { modelsRouter } from "./routes/models.js";
 import { webhooksRouter } from "./routes/webhooks.js";
 
 export function createApp(deps: Deps): Express {
@@ -16,6 +17,7 @@ export function createApp(deps: Deps): Express {
   app.use(webhooksRouter(deps));
   app.use(healthRouter(deps));
   app.use(catalogRouter(deps));
+  app.use(modelsRouter());
   app.use(meRouter(deps));
   app.use(billingRouter(deps));
   app.use(notFound);
