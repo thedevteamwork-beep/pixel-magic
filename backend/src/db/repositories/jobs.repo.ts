@@ -163,6 +163,23 @@ export async function listJobsForReconcile(
   if (p.updatedBefore) q.where("updated_at", "<", p.updatedBefore);
   if (p.leaseExpiredBefore)
     q.where("lease_expires_at", "<", p.leaseExpiredBefore);
-  if (p.submittedBefore) q.where("submitted_at", "<", p.submittedBefore);
-  return q.orderBy("updated_at", "asc").orderBy("id", "asc").limit(p.limit);
+  if (p.submittedBefore) {
+    // Age by submission (updated_at when never stamped), oldest first.
+    q.whereRaw("COALESCE(submitted_at, updated_at) < ?", [p.submittedBefore]);
+    q.orderByRaw("COALESCE(submitted_at, updated_at) ASC");
+  } else {
+    q.orderBy("updated_at", "asc");
+  }
+  return q.orderBy("id", "asc").limit(p.limit);
+}
+
+/** Marks a still-submitted job as just polled so the poll window rotates. */
+export async function touchSubmittedJob(
+  db: Db,
+  id: string,
+  now: Date,
+): Promise<void> {
+  await db(T.jobs)
+    .where({ id, status: "submitted" })
+    .update({ updated_at: now });
 }

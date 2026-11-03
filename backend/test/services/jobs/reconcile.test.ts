@@ -209,6 +209,97 @@ describe("runReconcile", () => {
     expect(h.queue.tasks).toHaveLength(2);
   });
 
+  it("re-queues a finalize with a new suffix across the 10-minute boundary", async () => {
+    const id = await newJob();
+    const now = h.clock.now();
+    await testDb(T.jobs)
+      .where({ id })
+      .update({
+        status: "finalizing",
+        lease_expires_at: new Date(now.getTime() - 1000),
+      });
+    h.clock.set(
+      new Date(
+        Math.ceil(h.clock.now().getTime() / 600_000) * 600_000 + 3 * MIN,
+      ),
+    );
+    await runReconcile(h.deps);
+    await runReconcile(h.deps);
+    expect(h.queue.tasks).toHaveLength(1);
+    h.clock.advance(10 * MIN);
+    await runReconcile(h.deps);
+    expect(h.queue.tasks).toHaveLength(2);
+    expect(h.queue.tasks[0]?.suffix).not.toBe(h.queue.tasks[1]?.suffix);
+    expect(h.queue.tasks.every((t) => t.kind === "finalize")).toBe(true);
+  });
+
+  async function bulkSubmitted(
+    count: number,
+    over: (i: number) => Record<string, unknown>,
+    model = "flux-schnell",
+  ): Promise<void> {
+    await testDb(T.jobs).insert(
+      Array.from({ length: count }, (_, i) => ({
+        user_id: userId,
+        model_key: model,
+        input: "{}",
+        credit_cost: 0,
+        status: "submitted",
+        idempotency_key: `sub-${model}-${i}-${Math.random()}`,
+        request_hash: "x",
+        fal_request_id: `bulk-${model}-${i}-${Math.random()}`,
+        ...over(i),
+      })),
+    );
+  }
+
+  it("times out a job past its limit even behind 100 younger submitted rows", async () => {
+    const now = h.clock.now();
+    // updated_at order would put these 100 ahead of the timed-out job
+    await bulkSubmitted(
+      100,
+      (i) => ({
+        submitted_at: new Date(now.getTime() - 30 * MIN),
+        updated_at: new Date(now.getTime() - (40 + i / 100) * MIN),
+      }),
+      "kling-i2v",
+    );
+    await bulkSubmitted(
+      1,
+      () => ({
+        idempotency_key: "late",
+        submitted_at: new Date(now.getTime() - 61 * MIN),
+        updated_at: new Date(now.getTime() - 1 * MIN),
+      }),
+      "kling-i2v",
+    );
+    const counts = await runReconcile(h.deps);
+    expect(counts.timedOut).toBe(1);
+    expect(
+      await testDb(T.jobs).where({ status: "failed", error_code: "TIMED_OUT" }),
+    ).toHaveLength(1);
+  });
+
+  it("rotates the poll window so a 101st submitted job is polled next run", async () => {
+    const now = h.clock.now();
+    await bulkSubmitted(101, (i) => ({
+      submitted_at: new Date(now.getTime() - 5 * MIN),
+      updated_at: new Date(now.getTime() - 4 * MIN - i * 1000),
+    }));
+    expect((await runReconcile(h.deps)).polled).toBe(100);
+    const firstIds = new Set(
+      h.fal.calls.filter((c) => c.method === "status").map((c) => c.args[1]),
+    );
+    expect(firstIds.size).toBe(100);
+    h.fal.calls.length = 0;
+    h.clock.advance(3 * MIN + 1000);
+    await runReconcile(h.deps);
+    const second = h.fal.calls
+      .filter((c) => c.method === "status")
+      .map((c) => c.args[1]);
+    expect(second.some((id) => !firstIds.has(id))).toBe(true);
+  });
+
   it("handles at most 100 rows per bucket", async () => {
     const now = h.clock.now();
     await testDb(T.jobs).insert(
@@ -237,7 +328,10 @@ describe("runReconcile", () => {
     const counts = await runReconcile(h.deps);
     expect(counts.requeuedGenerate).toBe(1);
     expect(h.queue.tasks.map((t) => t.jobId)).toEqual([b]);
-    expect(a).not.toBe(b);
+    // a's enqueue failed, so it stays queued and is picked up on the next run
+    expect((await row(a)).status).toBe("queued");
+    await runReconcile(h.deps);
+    expect(h.queue.tasks.map((t) => t.jobId).sort()).toEqual([a, b].sort());
   });
 
   it("POST /tasks/reconcile returns the counts", async () => {

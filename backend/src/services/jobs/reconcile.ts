@@ -1,5 +1,8 @@
 import { FalError } from "../../clients/fal.js";
-import { listJobsForReconcile } from "../../db/repositories/jobs.repo.js";
+import {
+  listJobsForReconcile,
+  touchSubmittedJob,
+} from "../../db/repositories/jobs.repo.js";
 import type { JobRow } from "../../db/rows.js";
 import type { Deps } from "../../deps.js";
 import { getModel, listModels } from "../../models/registry.js";
@@ -102,8 +105,8 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
     limit: BUCKET_LIMIT,
   });
   const isTimedOut = (job: JobRow): boolean =>
-    job.submitted_at !== null &&
-    job.submitted_at.getTime() < now.getTime() - timeoutMinutes(job) * 60_000;
+    (job.submitted_at ?? job.updated_at).getTime() <
+    now.getTime() - timeoutMinutes(job) * 60_000;
   const timedOutIds = new Set<string>();
   await each(4, timedOutRows.filter(isTimedOut), async (job) => {
     timedOutIds.add(job.id);
@@ -161,7 +164,12 @@ export async function runReconcile(deps: Deps): Promise<ReconcileCounts> {
         throw err;
       }
       counts.polled += 1;
-      if (status === "COMPLETED") await requeue(5, job, "finalize");
+      if (status === "COMPLETED") {
+        await requeue(5, job, "finalize");
+      } else {
+        // Polling must move the job out of the oldest-updated window.
+        await touchSubmittedJob(deps.db, job.id, now);
+      }
     },
   );
 
