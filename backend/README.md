@@ -80,13 +80,13 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 | `RENEWAL_GRACE_MINUTES`    | 60              | grace after a period ends before its credits stop             |
 | `SUPABASE_SECRET_KEY`      | required        | service key for Storage (server only)                         |
 | `FAL_KEY`                  | required        | fal.ai API key                                                |
-| `API_PUBLIC_URL`           | required        | public URL of the API (fal webhook target), no trailing slash |
-| `WORKER_URL`               | required        | URL the task queue calls for worker routes, no trailing slash |
+| `API_PUBLIC_URL`           | required        | public URL of the API (fal webhook target)                    |
+| `WORKER_URL`               | required        | URL the task queue calls for worker routes                    |
 | `STORAGE_BUCKET_INPUTS`    | inputs          | Storage bucket for uploads                                    |
 | `STORAGE_BUCKET_OUTPUTS`   | outputs         | Storage bucket for generated files                            |
 | `FAL_JWKS_URL`             | fal public JWKS | verifies fal webhook signatures                               |
 | `FAL_WEBHOOK_USER_ID`      | optional        | set in production to our fal user id                          |
-| `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks)                       |
+| `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks); `cloud` on Cloud Run |
 | `TASKS_QUEUE_GENERATION`   | generation      | generation queue name                                         |
 | `TASKS_QUEUE_FINALIZATION` | finalization    | finalization queue name                                       |
 | `GCP_PROJECT_ID`           | unset           | required when `TASKS_MODE=cloud`                              |
@@ -94,7 +94,9 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 | `TASKS_SERVICE_ACCOUNT`    | unset           | required when `TASKS_MODE=cloud`                              |
 | `MAX_ACTIVE_JOBS_PER_USER` | 4               | concurrent unfinished jobs per user                           |
 | `UPLOAD_MAX_BYTES`         | 20971520        | max upload size in bytes                                      |
-| `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types                     |
+| `UPLOAD_MIME_TYPES`        | png,jpeg,webp   | comma-separated allowed upload MIME types (not empty)         |
+
+An optional key set to an empty value (`KEY=`) counts as unset. One trailing slash on `API_PUBLIC_URL` and `WORKER_URL` is dropped. On Cloud Run (where `K_SERVICE` is set) the app refuses to start with `TASKS_MODE=http`: the local queue's fire-and-forget POSTs have no retries or auth.
 
 ## Generation flow
 
@@ -119,7 +121,12 @@ client                API                         Cloud Tasks        worker     
 
 Job states: `queued` -> `submitting` -> `submitted` -> `finalizing` -> `completed`. Any state except `completed` can go to `failed`. `completed` and `failed` are final. Creating a job reserves its credits; `completed` captures them, `failed` releases them. A job in an active state (`queued`, `submitting`, `submitted`, `finalizing`) counts toward `MAX_ACTIVE_JOBS_PER_USER`.
 
-The reconciler (`POST /tasks/reconcile`) makes sure every job keeps moving: it re-queues stale `queued` jobs, `submitting` and `finalizing` jobs whose lease ran out, polls `submitted` jobs that fal hasn't called back about (after about 3 minutes), and cancels and fails `submitted` jobs past the model's timeout (`TIMED_OUT`).
+The reconciler (`POST /tasks/reconcile`) makes sure every job keeps moving:
+
+- It re-queues stale `queued` jobs and `submitting` jobs whose lease ran out. Generate fails a job with `SUBMIT_FAILED` after 5 attempts.
+- It re-queues finalize for `finalizing` jobs whose lease ran out, or fails them `TIMED_OUT` once they were submitted more than the model's timeout + 60 minutes ago (120 minutes if the model is gone).
+- It polls `submitted` jobs that fal hasn't called back about (after about 3 minutes) and queues finalize when fal answers `COMPLETED`, or when the job's model was removed (finalize then fails it `MODEL_UNAVAILABLE`).
+- For a `submitted` job past the model's timeout it asks fal first. `IN_QUEUE` or `IN_PROGRESS`: cancel at fal and fail `TIMED_OUT`. `COMPLETED`: queue finalize instead, so a finished result isn't lost (for example one whose copy kept failing during a Storage outage). A fal error: try again on the next run. Past a hard ceiling of timeout + 60 minutes the job is cancelled and failed `TIMED_OUT` whatever fal says.
 
 fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request id to a `fal_request_id` we saved. If the worker crashed before saving it, the webhook links the request to the job only after `fal.status` succeeds with our own key; a request id from another fal account makes `fal.status` answer with a 4xx such as 404, and it is treated as an orphan (logged, 200, never linked). A 401 or 403 means our own key is bad: the webhook answers 503 so fal retries, and nothing is linked.
 
@@ -147,7 +154,6 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 
 - `FAL_KEY`: fal dashboard API key.
 - Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (while the key is unset, the API logs it at info as `falUserId`), or look in the fal dashboard.
-- `WORKER_URL` and `API_PUBLIC_URL` must not end with a slash.
 - The two models (`flux-schnell`, `kling-i2v`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
 
 ## Local end-to-end run
@@ -172,6 +178,8 @@ Backend spec section 12. In a dev GCP/Supabase project, run one real image job a
 Also confirm against the real services, because these could not be tested locally:
 
 - fal answers `queue.status` with a 4xx for a request id that belongs to another fal account (the `?jobId` linking path relies on it).
+- fal's `X-Fal-Webhook-Request-Id` header equals the body's `request_id`. Otherwise every webhook gets 401 and jobs recover only through the reconciler's polling.
+- fal re-signs a retried webhook with a fresh `X-Fal-Webhook-Timestamp`. Signatures more than 300 s from our clock are rejected, so a retry that kept the first timestamp would fail.
 - Supabase Storage `info()` on a missing object reports "not found" (not an error).
 - A streamed upload without `Content-Length` works.
 - fal's real input and output shapes match the model files in `src/models/`.

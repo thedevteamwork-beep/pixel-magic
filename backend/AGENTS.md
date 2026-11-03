@@ -24,8 +24,10 @@ Throw `AppError(status, code, message)` from `src/lib/errors.ts`. Codes: `UNAUTH
 
 `queued` -> `submitting` -> `submitted` -> `finalizing` -> `completed`; any non-final state can go to `failed`. `completed` and `failed` are final.
 
-- Every status change goes through the compare-and-set `transitionJob` (it names the allowed `from` states); never write `status` any other way.
-- Credits follow the job: reserved at creation, captured on `completed`, released on `failed`. Fail a job only through `failJob` (it releases credits once). Never leave a job in `submitting` or `finalizing` after an error: fail it or send it back to the previous state with the lease cleared.
+- Status changes only through the compare-and-set functions in `jobs.repo` (`claimJob`, `transitionJob`, `linkFalRequest`) and `failJob` (`services/jobs/jobs.ts`, built on `transitionJob`); each names the states it may move from. Never write `status` any other way.
+- Credits follow the job: reserved at creation, captured on `completed`, released on `failed`. Fail a job only through `failJob` (it releases credits once).
+- After an error, fail the job or send it back to the previous state with the lease cleared. One deliberate exception: when saving the fal request id keeps failing, generate cancels that request and leaves the job `submitting` under its lease (Decision 6); the lease runs out and the task retry or the reconciler takes it over.
+- Every active state is bounded: generate fails a job after 5 attempts (`SUBMIT_FAILED`), and the reconciler fails `submitted` and `finalizing` jobs that outlive their limits (`TIMED_OUT`).
 - Lock order: for an existing job, lock/update the job row first and touch credits (which lock the profile) second. Never take the profile lock and then update an existing job row.
 - `error_message` shown to users is fixed per error code (`JOB_ERROR_MESSAGES`); raw provider text goes only to logs.
 - Every task (generate, finalize, reconcile) must be safe to run twice.
