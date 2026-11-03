@@ -45,7 +45,7 @@ export class FakeFal implements FalClient {
   async result(modelId: string, requestId: string): Promise<FalResult> {
     this.enter("result", [modelId, requestId]);
     const r = this.results.get(requestId);
-    if (!r) throw new FalError(`no fake result for ${requestId}`, false, 404);
+    if (!r) throw new Error("FakeFal: no result configured");
     return r;
   }
 

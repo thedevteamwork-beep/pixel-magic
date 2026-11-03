@@ -6,6 +6,9 @@ import {
 } from "node:crypto";
 import type { FalPublicKeys } from "../../src/clients/falWebhook.js";
 
+/** TestClock start (2026-03-10T12:00:00Z) in unix seconds. */
+const DEFAULT_TIMESTAMP = Date.parse("2026-03-10T12:00:00Z") / 1000;
+
 const testPair = generateKeyPairSync("ed25519");
 const otherPair = generateKeyPairSync("ed25519");
 
@@ -23,7 +26,7 @@ export function signFalWebhook(
   const raw = Buffer.from(JSON.stringify(body));
   const requestId = opts.requestId ?? "req_1";
   const userId = "fal-user";
-  const timestamp = String(opts.timestamp ?? Math.floor(Date.now() / 1000));
+  const timestamp = String(opts.timestamp ?? DEFAULT_TIMESTAMP);
   const privateKey: KeyObject = (opts.key === "other" ? otherPair : testPair)
     .privateKey;
   const message = [

@@ -41,6 +41,7 @@ const baseSchema = z.object({
     .string()
     .min(1)
     .default("https://rest.fal.ai/.well-known/jwks.json"),
+  FAL_WEBHOOK_USER_ID: z.string().min(1).optional(),
   TASKS_MODE: z.enum(["http", "cloud"]).default("http"),
   TASKS_QUEUE_GENERATION: z.string().min(1).default("generation"),
   TASKS_QUEUE_FINALIZATION: z.string().min(1).default("finalization"),

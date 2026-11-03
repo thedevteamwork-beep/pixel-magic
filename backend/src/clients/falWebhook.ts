@@ -27,9 +27,8 @@ export const FalWebhookBody = z.object({
 const KEY_CACHE_MS = 24 * 60 * 60 * 1000;
 const TOLERANCE_MS = 300_000;
 
-const Jwks = z.object({
-  keys: z.array(z.object({ kty: z.string(), crv: z.string(), x: z.string() })),
-});
+const Jwks = z.object({ keys: z.array(z.unknown()) });
+const JWKS_TIMEOUT_MS = 5000;
 
 export function createFalKeySource(
   jwksUrl: string,
@@ -39,12 +38,23 @@ export function createFalKeySource(
   let cache: { keys: KeyObject[]; fetchedAt: number } | undefined;
 
   async function load(): Promise<KeyObject[]> {
-    const res = await fetchFn(jwksUrl);
+    const res = await fetchFn(jwksUrl, {
+      signal: AbortSignal.timeout(JWKS_TIMEOUT_MS),
+    });
     if (!res.ok) throw new Error(`fal JWKS fetch failed: HTTP ${res.status}`);
     const doc = Jwks.parse(await res.json());
-    return doc.keys
-      .filter((k) => k.kty === "OKP" && k.crv === "Ed25519")
-      .map((k) => createPublicKey({ key: k as JsonWebKey, format: "jwk" }));
+    const keys: KeyObject[] = [];
+    for (const k of doc.keys) {
+      const jwk = k as JsonWebKey | null;
+      if (!jwk || jwk.kty !== "OKP" || jwk.crv !== "Ed25519") continue;
+      try {
+        keys.push(createPublicKey({ key: jwk, format: "jwk" }));
+      } catch {
+        // skip unusable key
+      }
+    }
+    if (keys.length === 0) throw new Error("fal JWKS has no usable keys");
+    return keys;
   }
 
   return async () => {
@@ -64,9 +74,13 @@ export async function verifyFalWebhook(p: {
   rawBody: Buffer;
   now: Date;
   keys: FalPublicKeys;
+  expectedUserId?: string;
 }): Promise<boolean> {
   const { requestId, userId, timestamp, signature } = p.headers;
   if (!requestId || !userId || !timestamp || !signature) return false;
+  if (p.expectedUserId !== undefined && userId !== p.expectedUserId) {
+    return false;
+  }
   if (!/^\d+$/.test(timestamp)) return false;
   if (!/^(?:[0-9a-fA-F]{2})+$/.test(signature)) return false;
   if (Math.abs(p.now.getTime() - Number(timestamp) * 1000) > TOLERANCE_MS) {

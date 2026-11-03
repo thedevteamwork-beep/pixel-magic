@@ -92,7 +92,87 @@ describe("verifyFalWebhook", () => {
   });
 });
 
+describe("expectedUserId", () => {
+  it("accepts a matching user id", async () => {
+    expect(
+      await verifyFalWebhook({
+        ...signed(),
+        now,
+        keys: testFalKeys,
+        expectedUserId: "fal-user",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects a different user id even with a valid signature", async () => {
+    expect(
+      await verifyFalWebhook({
+        ...signed(),
+        now,
+        keys: testFalKeys,
+        expectedUserId: "someone-else",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not check the user id when unset", async () => {
+    expect(
+      await verifyFalWebhook({ ...signed(), now, keys: testFalKeys }),
+    ).toBe(true);
+  });
+});
+
 describe("createFalKeySource", () => {
+  it("verifies a webhook using keys parsed by the key source", async () => {
+    const keys = createFalKeySource(
+      "https://jwks",
+      new TestClock(),
+      (async () =>
+        new Response(JSON.stringify(testJwksDocument()))) as typeof fetch,
+    );
+    expect(await verifyFalWebhook({ ...signed(), now, keys })).toBe(true);
+  });
+
+  it("skips unusable keys but keeps the Ed25519 one", async () => {
+    const doc = {
+      keys: [
+        { kty: "RSA", n: "abc", e: "AQAB" },
+        { kty: "OKP", crv: "Ed25519", x: "!!!bad" },
+        ...testJwksDocument().keys,
+      ],
+    };
+    const keys = createFalKeySource(
+      "https://jwks",
+      new TestClock(),
+      (async () => new Response(JSON.stringify(doc))) as typeof fetch,
+    );
+    expect(await keys()).toHaveLength(1);
+    expect(await verifyFalWebhook({ ...signed(), now, keys })).toBe(true);
+  });
+
+  it("keeps the old cache when a refresh has no usable keys", async () => {
+    const clock = new TestClock();
+    let doc: unknown = testJwksDocument();
+    const keys = createFalKeySource(
+      "https://jwks",
+      clock,
+      (async () => new Response(JSON.stringify(doc))) as typeof fetch,
+    );
+    await keys();
+    doc = { keys: [{ kty: "RSA", n: "abc", e: "AQAB" }] };
+    clock.advance(86_400_001);
+    expect(await keys()).toHaveLength(1);
+  });
+
+  it("throws on a cold cache with no usable keys", async () => {
+    const keys = createFalKeySource(
+      "https://jwks",
+      new TestClock(),
+      (async () => new Response(JSON.stringify({ keys: [] }))) as typeof fetch,
+    );
+    await expect(keys()).rejects.toThrow();
+  });
+
   function makeFetch(state: { calls: number; fail: boolean }): typeof fetch {
     return (async () => {
       state.calls += 1;

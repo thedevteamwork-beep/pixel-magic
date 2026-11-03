@@ -69,6 +69,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     WORKER_URL: "https://worker.test",
     STORAGE_BUCKET_INPUTS: "inputs",
     STORAGE_BUCKET_OUTPUTS: "outputs",
+    FAL_WEBHOOK_USER_ID: "fal-user",
     FAL_JWKS_URL: "https://rest.fal.ai/.well-known/jwks.json",
     TASKS_MODE: "http",
     TASKS_QUEUE_GENERATION: "generation",

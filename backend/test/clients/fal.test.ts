@@ -22,45 +22,74 @@ const apiError = (status: number) =>
     : new ApiError({ message: `http ${status}`, status });
 
 describe("createFalClient", () => {
-  it("submits with webhookUrl and returns the request id", async () => {
-    const seen: unknown[] = [];
-    const client = createFalClient(
-      config,
-      stub({
-        submit: async (id: string, opts: unknown) => {
-          seen.push(id, opts);
-          return { request_id: "abc" };
-        },
-      }),
+  function recordingFetch(respond: () => Response): {
+    fetchFn: typeof fetch;
+    calls: Array<{ url: string; init: RequestInit }>;
+  } {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return respond();
+    }) as unknown as typeof fetch;
+    return { fetchFn, calls };
+  }
+
+  it("submits exactly once with a direct POST and returns the request id", async () => {
+    const { fetchFn, calls } = recordingFetch(
+      () => new Response(JSON.stringify({ request_id: "abc" })),
     );
-    expect(await client.submit("fal-ai/m", { p: 1 }, "https://hook")).toEqual({
-      requestId: "abc",
+    const client = createFalClient(config, stub({}), fetchFn);
+    expect(
+      await client.submit("fal-ai/m/edit", { p: 1 }, "https://hook/x?a=b"),
+    ).toEqual({ requestId: "abc" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(
+      `https://queue.fal.run/fal-ai/m/edit?fal_webhook=${encodeURIComponent("https://hook/x?a=b")}`,
+    );
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(calls[0]?.init.headers).toEqual({
+      Authorization: `Key ${config.FAL_KEY}`,
+      "Content-Type": "application/json",
     });
-    expect(seen[0]).toBe("fal-ai/m");
-    expect(seen[1]).toMatchObject({
-      input: { p: 1 },
-      webhookUrl: "https://hook",
-    });
+    expect(calls[0]?.init.body).toBe(JSON.stringify({ p: 1 }));
+    expect(calls[0]?.init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it.each([
     [429, true],
+    [502, true],
     [503, true],
     [400, false],
     [422, false],
-  ])("maps submit HTTP %i to retryable=%s", async (status, retryable) => {
-    const client = createFalClient(
-      config,
-      stub({
-        submit: async () => {
-          throw apiError(status);
-        },
-      }),
-    );
+  ])(
+    "maps submit HTTP %i to retryable=%s without retrying",
+    async (status, retryable) => {
+      const { fetchFn, calls } = recordingFetch(
+        () => new Response("nope", { status }),
+      );
+      const client = createFalClient(config, stub({}), fetchFn);
+      const err = await client.submit("m", {}, "u").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(FalError);
+      expect((err as FalError).retryable).toBe(retryable);
+      expect((err as FalError).status).toBe(status);
+      expect(calls).toHaveLength(1);
+    },
+  );
+
+  it("maps a submit network error to retryable", async () => {
+    const fetchFn = (async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch;
+    const client = createFalClient(config, stub({}), fetchFn);
     const err = await client.submit("m", {}, "u").catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(FalError);
-    expect((err as FalError).retryable).toBe(retryable);
-    expect((err as FalError).status).toBe(status);
+    expect((err as FalError).retryable).toBe(true);
+  });
+
+  it("rejects a submit response without request_id as non-retryable", async () => {
+    const { fetchFn } = recordingFetch(() => new Response("{}"));
+    const client = createFalClient(config, stub({}), fetchFn);
+    const err = await client.submit("m", {}, "u").catch((e: unknown) => e);
+    expect((err as FalError).retryable).toBe(false);
   });
 
   it("maps network errors to retryable", async () => {
@@ -109,6 +138,23 @@ describe("createFalClient", () => {
       message: "bad",
     });
   });
+
+  it.each([401, 403])(
+    "throws a retryable error for a %i result (bad FAL_KEY)",
+    async (status) => {
+      const client = createFalClient(
+        config,
+        stub({
+          result: async () => {
+            throw apiError(status);
+          },
+        }),
+      );
+      const err = await client.result("m", "r").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(FalError);
+      expect((err as FalError).retryable).toBe(true);
+    },
+  );
 
   it("throws a retryable error for a 5xx result", async () => {
     const client = createFalClient(

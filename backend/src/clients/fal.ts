@@ -47,7 +47,13 @@ function toFalError(err: unknown): FalError {
   return new FalError(messageOf(err), true);
 }
 
-export function createFalClient(config: Config, sdk?: FalSdk): FalClient {
+const FAL_QUEUE_URL = "https://queue.fal.run";
+
+export function createFalClient(
+  config: Config,
+  sdk?: FalSdk,
+  fetchFn: typeof fetch = fetch,
+): FalClient {
   const queue = (sdk ?? createSdkClient({ credentials: config.FAL_KEY })).queue;
 
   async function call<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -69,11 +75,44 @@ export function createFalClient(config: Config, sdk?: FalSdk): FalClient {
   }
 
   return {
+    // Direct fetch, one attempt: the SDK's queue.submit retries internally
+    // and could create duplicate (double-billed) fal requests.
     async submit(modelId, input, webhookUrl) {
-      const res = await call((abortSignal) =>
-        queue.submit(modelId, { input, webhookUrl, abortSignal }),
-      );
-      return { requestId: res.request_id };
+      let res: Response;
+      try {
+        res = await fetchFn(
+          `${FAL_QUEUE_URL}/${modelId}?fal_webhook=${encodeURIComponent(webhookUrl)}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${config.FAL_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(input),
+            signal: AbortSignal.timeout(FAL_TIMEOUT_MS),
+          },
+        );
+      } catch (err) {
+        throw toFalError(err);
+      }
+      if (!res.ok) {
+        const s = res.status;
+        throw new FalError(
+          `fal submit failed: HTTP ${s}`,
+          s === 429 || s >= 500,
+          s,
+        );
+      }
+      let requestId: unknown;
+      try {
+        requestId = ((await res.json()) as { request_id?: unknown }).request_id;
+      } catch (err) {
+        throw toFalError(err);
+      }
+      if (typeof requestId !== "string" || requestId === "") {
+        throw new FalError("fal submit response missing request_id", false);
+      }
+      return { requestId };
     },
     async status(modelId, requestId) {
       const res = await call((abortSignal) =>
@@ -93,6 +132,10 @@ export function createFalClient(config: Config, sdk?: FalSdk): FalClient {
           !err.retryable &&
           err.status !== undefined
         ) {
+          // A bad or rotated FAL_KEY must not fail users' jobs.
+          if (err.status === 401 || err.status === 403) {
+            throw new FalError(err.message, true, err.status);
+          }
           return { ok: false, message: err.message };
         }
         throw err;

@@ -77,6 +77,7 @@ A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 | `STORAGE_BUCKET_INPUTS`    | inputs          | Storage bucket for uploads                              |
 | `STORAGE_BUCKET_OUTPUTS`   | outputs         | Storage bucket for generated files                      |
 | `FAL_JWKS_URL`             | fal public JWKS | verifies fal webhook signatures                         |
+| `FAL_WEBHOOK_USER_ID`      | optional        | set in production to our fal user id                    |
 | `TASKS_MODE`               | http            | `http` (local) or `cloud` (Cloud Tasks)                 |
 | `TASKS_QUEUE_GENERATION`   | generation      | generation queue name                                   |
 | `TASKS_QUEUE_FINALIZATION` | finalization    | finalization queue name                                 |
