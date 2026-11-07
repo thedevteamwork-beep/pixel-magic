@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Run it locally
+
+1. Copy `.env.example` to `.env.local` and fill in the Supabase URL, the publishable key and the backend API URL.
+2. Start the backend API and the worker (see `backend/README.md`).
+3. In this folder, run `npm run dev`.
+4. Open [http://localhost:3000/generate](http://localhost:3000/generate), sign in, pick a model, type a prompt and press **Generate**.
+
+Checks: `npm run lint && npm run build && npm test`.
+
 ## Getting Started
 
 First, run the development server:
