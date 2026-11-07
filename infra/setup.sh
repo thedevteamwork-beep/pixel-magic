@@ -24,6 +24,9 @@ SECRET_NAMES=(
   "PADDLE_WEBHOOK_SECRET:pm-paddle-webhook-secret"
 )
 
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 step() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 quiet() { "$@" >/dev/null 2>&1; }
@@ -32,10 +35,10 @@ quiet() { "$@" >/dev/null 2>&1; }
 
 load_settings() {
   [ -f "$ENV_FILE" ] || fail "settings file not found: $ENV_FILE (copy infra/deploy.env.example)"
-  set -a
+  # Plain shell variables only: nothing from the file is exported, so the
+  # secrets never reach child processes.
   # shellcheck disable=SC1090
   source "$ENV_FILE"
-  set +a
   CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:3000}"
   PADDLE_ENV="${PADDLE_ENV:-sandbox}"
   STORAGE_BUCKET_INPUTS="${STORAGE_BUCKET_INPUTS:-inputs}"
@@ -56,6 +59,17 @@ require_settings() {
 
 # ---- Small helpers ----------------------------------------------------------
 
+# Retries a command a few times: a just-created service account may not be
+# visible to IAM yet.
+retry() {
+  local attempt
+  for attempt in 1 2 3 4 5 6; do
+    "$@" && return 0
+    sleep 5
+  done
+  return 1
+}
+
 sha256_of() { # stdin -> hex digest
   if command -v sha256sum >/dev/null 2>&1; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi
 }
@@ -70,8 +84,7 @@ yaml_line() {
 }
 
 write_env_file() { # $1 = MODE (api|worker), prints the file path
-  local file
-  file="$(mktemp)"
+  local file="$TMP_DIR/env-$1.yaml"
   {
     yaml_line MODE "$1"
     yaml_line NODE_ENV production
@@ -94,9 +107,10 @@ write_env_file() { # $1 = MODE (api|worker), prints the file path
   printf '%s' "$file"
 }
 
-secrets_flag() { # ENV=secret:latest,... for every secret
+secrets_flag() { # ENV=secret:latest,... for the services (not the migration URL)
   local pair out=""
   for pair in "${SECRET_NAMES[@]}"; do
+    [ "${pair%%:*}" = DATABASE_MIGRATION_URL ] && continue
     out+="${out:+,}${pair%%:*}=${pair#*:}:latest"
   done
   printf '%s' "$out"
@@ -110,7 +124,6 @@ check_gcloud() {
   [ -n "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" ] ||
     fail "gcloud is not logged in (run: gcloud auth login)"
   quiet gcloud projects describe "$GCP_PROJECT_ID" || fail "project not found or no access: $GCP_PROJECT_ID"
-  gcloud config set project "$GCP_PROJECT_ID" >/dev/null 2>&1
   PROJECT_NUMBER="$(gcloud projects describe "$GCP_PROJECT_ID" --format='value(projectNumber)')"
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
     artifactregistry.googleapis.com cloudtasks.googleapis.com \
@@ -128,6 +141,24 @@ create_artifact_repo() {
       --location "$GCP_REGION" --description="Pixel Magic images"
 }
 
+# Newer projects give the default build identity no roles; grant what a build needs.
+grant_build_identity() {
+  local build_sa bucket="${GCP_PROJECT_ID}_cloudbuild"
+  build_sa="$(gcloud builds get-default-service-account --format='value(serviceAccountEmail)')"
+  build_sa="${build_sa##*/}"
+  [ -n "$build_sa" ] || fail "could not find the default Cloud Build service account"
+  quiet gcloud storage buckets describe "gs://$bucket" ||
+    gcloud storage buckets create "gs://$bucket" --location "$GCP_REGION"
+  retry gcloud artifacts repositories add-iam-policy-binding "$REPO_NAME" \
+    --location "$GCP_REGION" --member "serviceAccount:$build_sa" \
+    --role roles/artifactregistry.writer >/dev/null
+  retry gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+    --member "serviceAccount:$build_sa" --role roles/logging.logWriter \
+    --condition=None >/dev/null
+  retry gcloud storage buckets add-iam-policy-binding "gs://$bucket" \
+    --member "serviceAccount:$build_sa" --role roles/storage.objectViewer >/dev/null
+}
+
 build_image() {
   step "3. Build and push the image"
   local tag
@@ -136,6 +167,7 @@ build_image() {
     tag="${tag}-dirty-$(date +%H%M%S)"
   fi
   IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REPO_NAME}/backend:${tag}"
+  grant_build_identity
   gcloud builds submit "$ROOT/backend" --tag "$IMAGE" --project "$GCP_PROJECT_ID"
 }
 
@@ -168,21 +200,20 @@ create_accounts_and_secrets() {
     name="${pair#*:}"
     var="${pair%%:*}"
     store_secret "$name" "${!var}"
+    # The migration URL is only for the migrate job, which runs as worker-sa.
     for sa in api-sa worker-sa; do
-      gcloud secrets add-iam-policy-binding "$name" \
+      [ "$var" = DATABASE_MIGRATION_URL ] && [ "$sa" = api-sa ] && continue
+      retry gcloud secrets add-iam-policy-binding "$name" \
         --member "serviceAccount:$(sa_email "$sa")" \
         --role roles/secretmanager.secretAccessor >/dev/null
     done
   done
   for sa in api-sa worker-sa; do
-    gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
-      --member "serviceAccount:$(sa_email "$sa")" \
-      --role roles/cloudtasks.enqueuer --condition=None >/dev/null
-    gcloud iam service-accounts add-iam-policy-binding "$(sa_email tasks-sa)" \
+    retry gcloud iam service-accounts add-iam-policy-binding "$(sa_email tasks-sa)" \
       --member "serviceAccount:$(sa_email "$sa")" \
       --role roles/iam.serviceAccountUser >/dev/null
   done
-  # run.invoker for tasks-sa and scheduler-sa is bound on the worker in step 7,
+  # cloudtasks.enqueuer is bound per queue in step 5. run.invoker for tasks-sa and scheduler-sa is bound on the worker in step 7,
   # once the worker service exists.
 }
 
@@ -192,6 +223,12 @@ upsert_queue() { # $1 name, $2 max attempts, $3 max concurrent dispatches
   gcloud tasks queues "$verb" "$1" --location "$GCP_REGION" \
     --max-attempts "$2" --min-backoff 10s --max-backoff 300s --max-doublings 4 \
     --max-concurrent-dispatches "$3"
+  # Enqueue rights on this queue only.
+  local sa
+  for sa in api-sa worker-sa; do
+    retry gcloud tasks queues add-iam-policy-binding "$1" --location "$GCP_REGION" \
+      --member "serviceAccount:$(sa_email "$sa")" --role roles/cloudtasks.enqueuer >/dev/null
+  done
 }
 
 create_queues() {
@@ -213,6 +250,11 @@ run_migrations() {
   gcloud run jobs execute "$MIGRATE_JOB" --region "$GCP_REGION" --wait
 }
 
+# After a manual rollback new revisions get 0% traffic; a re-run moves forward.
+send_traffic_to_latest() {
+  gcloud run services update-traffic "$1" --region "$GCP_REGION" --to-latest
+}
+
 deploy_worker() {
   step "7. Deploy $WORKER_SERVICE (private)"
   local env_file
@@ -222,7 +264,7 @@ deploy_worker() {
     --env-vars-file "$env_file" --set-secrets "$(secrets_flag)" \
     --timeout 900 --cpu 1 --memory 1Gi --concurrency 8 \
     --min-instances 0 --max-instances 5
-  rm -f "$env_file"
+  send_traffic_to_latest "$WORKER_SERVICE"
   # Only the tasks and scheduler accounts may call the worker.
   local sa
   for sa in tasks-sa scheduler-sa; do
@@ -240,7 +282,16 @@ deploy_api() {
     --env-vars-file "$env_file" --set-secrets "$(secrets_flag)" \
     --timeout 300 --cpu 1 --memory 512Mi --concurrency 80 \
     --min-instances 0 --max-instances 10
-  rm -f "$env_file"
+  send_traffic_to_latest "$API_SERVICE"
+  check_api_is_public
+}
+
+# gcloud only warns when it cannot make the API public, so check the policy.
+check_api_is_public() {
+  local policy
+  policy="$(gcloud run services get-iam-policy "$API_SERVICE" --region "$GCP_REGION" --format=json)"
+  case "$policy" in *allUsers*) case "$policy" in *roles/run.invoker*) return ;; esac ;; esac
+  fail "$API_SERVICE is not public (no allUsers run.invoker). An organisation policy such as Domain Restricted Sharing (iam.allowedPolicyMemberDomains) probably blocks it; allow allUsers for this project or change the policy, then run again."
 }
 
 check_service_url() { # $1 service, $2 expected URL
@@ -293,6 +344,10 @@ Left to do by hand:
   [ ] Supabase: Auth > URL Configuration: set the Site URL and add redirect URLs
       http://localhost:3000/auth/callback and <vercel-url>/auth/callback.
 EOT
+  if [ "$PADDLE_WEBHOOK_SECRET" = pending ]; then
+    echo
+    echo "WARNING: PADDLE_WEBHOOK_SECRET is the placeholder 'pending', so Paddle webhooks are rejected until you replace it."
+  fi
   [ -n "$FAL_WEBHOOK_USER_ID" ] ||
     echo "  [ ] FAL_WEBHOOK_USER_ID is empty: set it once known (see backend/README.md)."
 }
@@ -300,6 +355,8 @@ EOT
 main() {
   load_settings
   require_settings
+  # Every gcloud command targets this project, without touching gcloud's config.
+  export CLOUDSDK_CORE_PROJECT="$GCP_PROJECT_ID"
   check_gcloud
   create_artifact_repo
   build_image

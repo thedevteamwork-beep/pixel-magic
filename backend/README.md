@@ -322,19 +322,19 @@ The billing sweep (renews expired Free rows, retries pending Paddle cancels, exp
 `infra/setup.sh` deploys everything with `gcloud`. It is idempotent: it creates what is missing and updates what exists, so you run it again after any change.
 
 1. Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install), then `gcloud auth login`. You need Owner (or equivalent) on the GCP project, with billing enabled. Docker is not needed; Cloud Build builds the image.
-2. Copy `infra/deploy.env.example` to `infra/deploy.env` (git-ignored) and fill it in. `GCP_REGION` should be your Supabase project's region. The two database URLs are different: `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DATABASE_MIGRATION_URL` is the session pooler (port 5432, same pooler host). Do not use the `db.<ref>.supabase.co` host: it is IPv6-only and Cloud Run cannot reach it. Start `CORS_ORIGINS` as `http://localhost:3000`.
-3. Run `bash infra/setup.sh` (or `bash infra/setup.sh path/to/file.env`). It stops before touching GCP if a required value is empty, and never prints secret values.
+2. Copy `infra/deploy.env.example` to `infra/deploy.env` (git-ignored) and fill it in. `GCP_REGION` should be the GCP region closest to your Supabase project's (Supabase uses AWS region codes). The two database URLs are different: `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DATABASE_MIGRATION_URL` is the session pooler (port 5432, same pooler host). Do not use the `db.<ref>.supabase.co` host: it is IPv6-only and Cloud Run cannot reach it. Start `CORS_ORIGINS` as `http://localhost:3000` and leave `PADDLE_WEBHOOK_SECRET=pending` for the first run. Both example database URLs end with `?sslmode=no-verify`: the connection is encrypted but the server certificate is not verified. To verify it, download the CA certificate from Supabase (Database settings > SSL configuration), ship it in the image, and use `sslmode=verify-full&sslrootcert=<path>` (this needs a small image change, so it is not done by default).
+3. Run `bash infra/setup.sh` (or `bash infra/setup.sh path/to/file.env`). It stops before touching GCP if a required value is empty, never prints secret values, and does not export them to child processes. Every `gcloud` command targets `GCP_PROJECT_ID` through `CLOUDSDK_CORE_PROJECT`; your gcloud config is not changed. `backend/.gcloudignore` keeps `.env`, `.env.*`, `.git`, `node_modules`, `dist`, `coverage`, `test`, `docker`, `docker-compose.yml` and `*.md` out of the Cloud Build upload.
 
 What it creates, in order:
 
 1. Enables the Run, Build, Artifact Registry, Tasks, Scheduler, Secret Manager and IAM APIs.
 2. Artifact Registry repository `pixel-magic`.
-3. The image, built from `backend/` and tagged with the git short SHA.
-4. Service accounts `api-sa`, `worker-sa`, `tasks-sa`, `scheduler-sa`; the six secrets in Secret Manager (a new version only when a value changed); `secretAccessor` on each secret for `api-sa` and `worker-sa`; `cloudtasks.enqueuer` and `iam.serviceAccountUser` on `tasks-sa` for the same two.
-5. Queues `generation` and `finalization`.
+3. The image, built from `backend/` and tagged with the git short SHA. Newer organisations give the default Cloud Build identity no roles, so the script finds it (`gcloud builds get-default-service-account`) and grants it `artifactregistry.writer` on the repository, `logging.logWriter` on the project and `storage.objectViewer` on the staging bucket `gs://<project>_cloudbuild` (created if missing).
+4. Service accounts `api-sa`, `worker-sa`, `tasks-sa`, `scheduler-sa`; the six secrets in Secret Manager (a new version only when a value changed); `secretAccessor` on each secret for `api-sa` and `worker-sa` (the migration URL secret only for `worker-sa`, which runs the migrate job); `iam.serviceAccountUser` on `tasks-sa` for both.
+5. Queues `generation` and `finalization`, with `cloudtasks.enqueuer` granted to `api-sa` and `worker-sa` on those two queues only.
 6. Cloud Run job `pixel-magic-migrate`, executed and awaited: compiled migrations, then the catalog seed (`node dist/db/migrate.js && node dist/db/seeds/run.js`). The seed upserts by name, so it overwrites catalog fields with the seed file's values on every run; change a price by editing the seed and running the script again.
 7. `pixel-magic-worker` (private, 15 min timeout, `worker-sa`). Only `tasks-sa` and `scheduler-sa` get `run.invoker` on it.
-8. `pixel-magic-api` (public, `api-sa`).
+8. `pixel-magic-api` (public, `api-sa`). gcloud only warns if it cannot make the service public, so the script checks for `allUsers` with `roles/run.invoker` and stops with an error if missing. The usual cause is the organisation policy Domain Restricted Sharing (`iam.allowedPolicyMemberDomains`); allow `allUsers` for this project, then run again. After each deploy the script runs `update-traffic --to-latest` for the service.
 9. A check that the service URLs match the ones given to the apps. The script computes `https://<service>-<projectNumber>.<region>.run.app` before deploying so `WORKER_URL` and `API_PUBLIC_URL` are right on the first deploy, then compares with `gcloud run services describe` and stops on a mismatch.
 10. Scheduler jobs `pixel-magic-reconcile` (`*/5 * * * *`, `POST /tasks/reconcile`) and `pixel-magic-billing-sweep` (`0 * * * *`, `POST /tasks/billing-sweep`), both with an OIDC token for `scheduler-sa` and the worker URL as audience.
 11. Prints the URLs and a checklist.
@@ -352,7 +352,7 @@ Settings chosen:
 
 ### Paddle webhook
 
-After the first run, in Paddle go to Developer tools > Notifications and add a destination with the URL the script printed (`https://pixel-magic-api-<projectNumber>.<region>.run.app/webhooks/paddle`). Subscribe to `subscription.*` and `transaction.*`. Copy the destination's secret into `PADDLE_WEBHOOK_SECRET` in `infra/deploy.env` and run the script again.
+The first run uses the placeholder `PADDLE_WEBHOOK_SECRET=pending`, and the script warns about it at the end (webhooks are rejected until it is replaced). Flow: run the script once, then in Paddle go to Developer tools > Notifications and add a destination with the URL the script printed (`https://pixel-magic-api-<projectNumber>.<region>.run.app/webhooks/paddle`). Subscribe to `subscription.*` and `transaction.*`. Copy the destination's secret into `PADDLE_WEBHOOK_SECRET` in `infra/deploy.env` and run the script again.
 
 ### Roll back
 
@@ -362,7 +362,7 @@ Cloud Run keeps old revisions. Send traffic back to a good one (list them with `
 gcloud run services update-traffic pixel-magic-api --region <region> --to-revisions <revision>=100
 ```
 
-Do the same for `pixel-magic-worker`. Database migrations are not rolled back; write a new migration instead. Running `setup.sh` again deploys a new revision from the current code and takes all traffic.
+Do the same for `pixel-magic-worker`. Database migrations are not rolled back; write a new migration instead. After a rollback, new revisions get no traffic by themselves. Running `setup.sh` again (which is moving forward) deploys a new revision from the current code and runs `update-traffic --to-latest`, so it takes all traffic.
 
 ## Set up Supabase, Google and Vercel
 
@@ -370,7 +370,7 @@ Do this before the first deploy (Supabase) and after it (Vercel).
 
 **Supabase**
 
-1. Create the project in the same region as `GCP_REGION`.
+1. Create the project in the region closest to `GCP_REGION` (Supabase uses AWS region codes).
 2. Storage: create two private buckets, `inputs` and `outputs` (see "Supabase setup" above for limits).
 3. Auth > Providers > Email: turn on "Confirm email".
 4. Auth > Providers > Google: turn it on with a client ID and secret from a Google Cloud OAuth client (APIs & Services > Credentials > OAuth client ID, type Web application). Its authorized redirect URI is `https://<project>.supabase.co/auth/v1/callback`.
