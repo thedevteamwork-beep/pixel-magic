@@ -252,7 +252,7 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 | Queue          | Max attempts | Backoff       | Dispatch deadline |
 | -------------- | ------------ | ------------- | ----------------- |
 | `generation`   | 5            | 10 s to 5 min | 60 s              |
-| `finalization` | 10           | default       | 15 min            |
+| `finalization` | 10           | 10 s to 5 min | 15 min            |
 
 The worker service request timeout is 15 minutes (finalize copies files). Task names are deterministic per job and kind, so the same task is not queued twice.
 
@@ -315,4 +315,75 @@ The billing sweep (renews expired Free rows, retries pending Paddle cancels, exp
 - `POST /tasks/reconcile` every 5 minutes (recovers stuck jobs and missed fal webhooks).
 - `POST /tasks/billing-sweep` hourly.
 
-Set them up in the deploy milestone.
+`infra/setup.sh` creates both (see "Deploy to GCP").
+
+## Deploy to GCP
+
+`infra/setup.sh` deploys everything with `gcloud`. It is idempotent: it creates what is missing and updates what exists, so you run it again after any change.
+
+1. Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install), then `gcloud auth login`. You need Owner (or equivalent) on the GCP project, with billing enabled. Docker is not needed; Cloud Build builds the image.
+2. Copy `infra/deploy.env.example` to `infra/deploy.env` (git-ignored) and fill it in. `GCP_REGION` should be your Supabase project's region. The two database URLs are different: `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DATABASE_MIGRATION_URL` is the session pooler (port 5432, same pooler host). Do not use the `db.<ref>.supabase.co` host: it is IPv6-only and Cloud Run cannot reach it. Start `CORS_ORIGINS` as `http://localhost:3000`.
+3. Run `bash infra/setup.sh` (or `bash infra/setup.sh path/to/file.env`). It stops before touching GCP if a required value is empty, and never prints secret values.
+
+What it creates, in order:
+
+1. Enables the Run, Build, Artifact Registry, Tasks, Scheduler, Secret Manager and IAM APIs.
+2. Artifact Registry repository `pixel-magic`.
+3. The image, built from `backend/` and tagged with the git short SHA.
+4. Service accounts `api-sa`, `worker-sa`, `tasks-sa`, `scheduler-sa`; the six secrets in Secret Manager (a new version only when a value changed); `secretAccessor` on each secret for `api-sa` and `worker-sa`; `cloudtasks.enqueuer` and `iam.serviceAccountUser` on `tasks-sa` for the same two.
+5. Queues `generation` and `finalization`.
+6. Cloud Run job `pixel-magic-migrate`, executed and awaited: compiled migrations, then the catalog seed (`node dist/db/migrate.js && node dist/db/seeds/run.js`). The seed upserts by name, so it overwrites catalog fields with the seed file's values on every run; change a price by editing the seed and running the script again.
+7. `pixel-magic-worker` (private, 15 min timeout, `worker-sa`). Only `tasks-sa` and `scheduler-sa` get `run.invoker` on it.
+8. `pixel-magic-api` (public, `api-sa`).
+9. A check that the service URLs match the ones given to the apps. The script computes `https://<service>-<projectNumber>.<region>.run.app` before deploying so `WORKER_URL` and `API_PUBLIC_URL` are right on the first deploy, then compares with `gcloud run services describe` and stops on a mismatch.
+10. Scheduler jobs `pixel-magic-reconcile` (`*/5 * * * *`, `POST /tasks/reconcile`) and `pixel-magic-billing-sweep` (`0 * * * *`, `POST /tasks/billing-sweep`), both with an OIDC token for `scheduler-sa` and the worker URL as audience.
+11. Prints the URLs and a checklist.
+
+Settings chosen:
+
+| Item                       | Choice                                                                                                                                                                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generation` queue         | 5 attempts, backoff 10 s doubling up to 5 min, 10 concurrent dispatches. The handler itself fails a job after 5 attempts, so more would never run.                                                                                                                   |
+| `finalization` queue       | 10 attempts, backoff 10 s doubling up to 5 min, 5 concurrent dispatches. Finalize returns 503 while fal is not finished or a copy fails; the reconciler also re-queues, so retries only need to bridge short gaps. Few concurrent copies limit memory and bandwidth. |
+| API service                | 1 CPU, 512 Mi, concurrency 80, 0 to 10 instances, 300 s timeout. Raise `--min-instances` to 1 in `setup.sh` to avoid cold starts.                                                                                                                                    |
+| Worker service             | 1 CPU, 1 Gi (it streams output files), concurrency 8, 0 to 5 instances, 900 s timeout.                                                                                                                                                                               |
+| Migrate job                | 1 CPU, 512 Mi, no retries, 10 min timeout.                                                                                                                                                                                                                           |
+| Database pool per instance | `DB_POOL_MAX=5`. Worst case is 50 API plus 25 worker connections through the transaction pooler.                                                                                                                                                                     |
+
+### Paddle webhook
+
+After the first run, in Paddle go to Developer tools > Notifications and add a destination with the URL the script printed (`https://pixel-magic-api-<projectNumber>.<region>.run.app/webhooks/paddle`). Subscribe to `subscription.*` and `transaction.*`. Copy the destination's secret into `PADDLE_WEBHOOK_SECRET` in `infra/deploy.env` and run the script again.
+
+### Roll back
+
+Cloud Run keeps old revisions. Send traffic back to a good one (list them with `gcloud run revisions list --service pixel-magic-api --region <region>`):
+
+```
+gcloud run services update-traffic pixel-magic-api --region <region> --to-revisions <revision>=100
+```
+
+Do the same for `pixel-magic-worker`. Database migrations are not rolled back; write a new migration instead. Running `setup.sh` again deploys a new revision from the current code and takes all traffic.
+
+## Set up Supabase, Google and Vercel
+
+Do this before the first deploy (Supabase) and after it (Vercel).
+
+**Supabase**
+
+1. Create the project in the same region as `GCP_REGION`.
+2. Storage: create two private buckets, `inputs` and `outputs` (see "Supabase setup" above for limits).
+3. Auth > Providers > Email: turn on "Confirm email".
+4. Auth > Providers > Google: turn it on with a client ID and secret from a Google Cloud OAuth client (APIs & Services > Credentials > OAuth client ID, type Web application). Its authorized redirect URI is `https://<project>.supabase.co/auth/v1/callback`.
+5. Auth > URL Configuration: set the Site URL, and add the redirect URLs `http://localhost:3000/auth/callback` and `https://<your-vercel-url>/auth/callback`.
+6. Copy the keys: the secret key goes to `SUPABASE_SECRET_KEY` (backend, server only); the publishable key and project URL go to the frontend.
+7. Dashboard > Connect: copy the transaction pooler (6543) and session pooler (5432) URLs into `deploy.env`.
+
+**Vercel**
+
+Create the project from `frontend/` and set three environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_API_URL` (the API URL printed by `setup.sh`). Then add the Vercel URL to `CORS_ORIGINS` in `infra/deploy.env`, run `setup.sh` again, and add the URL to Supabase's redirect list.
+
+**Run locally end to end**
+
+1. Backend: create `.env` from `.env.example` with real `FAL_KEY` and `SUPABASE_*` values (see "Local end-to-end run").
+2. Start the database, then `npm run migrate` and `npm run seed`, then the API and worker (`npm run dev:api`, `PORT=8081 npm run dev:worker`).
+3. Frontend: copy `frontend/.env.example` to `frontend/.env.local`, then `npm run dev` in `frontend/`.
