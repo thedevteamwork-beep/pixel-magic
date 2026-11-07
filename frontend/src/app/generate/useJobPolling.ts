@@ -44,7 +44,7 @@ export function useJobPolling(kindOf: (modelKey: string) => ModelKind): Polling 
     try {
       await pollJob(jobId, {
         get: api.get,
-        intervalMs: INTERVAL_MS[kind ?? "image"],
+        intervalMs: INTERVAL_MS[kind ?? "video"],
         intervalFor: kind ? undefined : (first) => INTERVAL_MS[kindOfRef.current(first.model)],
         signal,
         onUpdate: setJob,

@@ -359,8 +359,11 @@ Left to do by hand:
   [ ] Vercel: set NEXT_PUBLIC_API_URL=$API_URL (plus the two Supabase
       NEXT_PUBLIC_* values), deploy, then add the Vercel URL to CORS_ORIGINS
       in $ENV_FILE and run this script again.
-  [ ] Supabase: Auth > URL Configuration: set the Site URL and add redirect URLs
-      http://localhost:3000/auth/callback and <vercel-url>/auth/callback.
+  [ ] Supabase: Auth > URL Configuration: set the Site URL to the production
+      URL (https://<your-vercel-domain>) and add the redirect URLs
+      http://localhost:3000/** and https://<your-vercel-domain>/**
+      (wildcards are required: the app sends /auth/callback?next=..., and
+      exact entries never match the query string).
 EOT
   if [ "$PADDLE_WEBHOOK_SECRET" = pending ]; then
     echo
