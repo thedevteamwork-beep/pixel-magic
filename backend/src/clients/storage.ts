@@ -18,6 +18,12 @@ export interface StorageClient {
     path: string,
     expiresInSeconds: number,
   ): Promise<string>;
+  /** One URL per path, in the order of `paths`. */
+  createSignedUrls(
+    bucket: string,
+    paths: string[],
+    expiresInSeconds: number,
+  ): Promise<string[]>;
   /** Streams sourceUrl into the bucket, overwriting any existing object. */
   copyFromUrl(
     bucket: string,
@@ -93,6 +99,23 @@ export function createSupabaseStorage(
           .createSignedUrl(path, expiresInSeconds);
         if (error) throw error;
         return data.signedUrl;
+      }),
+
+    createSignedUrls: (bucket, paths, expiresInSeconds) =>
+      wrap("createSignedUrls", async () => {
+        if (paths.length === 0) return [];
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .createSignedUrls(paths, expiresInSeconds);
+        if (error) throw error;
+        return data.map((item) => {
+          if (item.error || !item.signedUrl) {
+            throw new StorageError(
+              `createSignedUrls failed for ${item.path}: ${item.error}`,
+            );
+          }
+          return item.signedUrl;
+        });
       }),
 
     copyFromUrl: (bucket, path, sourceUrl, mimeType) =>

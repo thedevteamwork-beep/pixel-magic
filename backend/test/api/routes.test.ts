@@ -32,6 +32,7 @@ const PANEL: [Method, string][] = [
   ["get", "/v1/billing/invoices"],
   ["post", "/v1/uploads"],
   ["post", "/v1/jobs"],
+  ["get", "/v1/jobs"],
   ["get", `/v1/jobs/${id}`],
 ];
 

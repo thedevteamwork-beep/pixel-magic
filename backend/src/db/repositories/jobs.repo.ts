@@ -57,6 +57,28 @@ export async function getUserJob(
   return (await db(T.jobs).where({ id, user_id: userId }).first()) ?? null;
 }
 
+/** One page of a user's jobs, newest first. `before` is the last row of the previous page. */
+export async function listUserJobs(
+  db: Db,
+  userId: string,
+  p: { limit: number; before?: { createdAt: Date; id: string } },
+): Promise<JobRow[]> {
+  const query = db(T.jobs)
+    .where("user_id", userId)
+    .orderBy([
+      { column: "created_at", order: "desc" },
+      { column: "id", order: "desc" },
+    ])
+    .limit(p.limit);
+  if (p.before) {
+    query.whereRaw("(created_at, id) < (?, ?)", [
+      p.before.createdAt,
+      p.before.id,
+    ]);
+  }
+  return query;
+}
+
 export async function getJobByFalRequestId(
   db: Db,
   requestId: string,

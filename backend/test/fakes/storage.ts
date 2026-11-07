@@ -62,6 +62,18 @@ export class FakeStorage implements StorageClient {
     return `https://storage.test/${bucket}/${path}?mode=read&expires=${expiresInSeconds}`;
   }
 
+  async createSignedUrls(
+    bucket: string,
+    paths: string[],
+    expiresInSeconds: number,
+  ): Promise<string[]> {
+    this.enter("createSignedUrls", [bucket, paths, expiresInSeconds]);
+    return paths.map(
+      (path) =>
+        `https://storage.test/${bucket}/${path}?mode=read&expires=${expiresInSeconds}`,
+    );
+  }
+
   async copyFromUrl(
     bucket: string,
     path: string,

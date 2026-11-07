@@ -16,6 +16,7 @@ export async function createUpload(
   body: { filename: string; mimeType: string; sizeBytes: number },
 ): Promise<{
   uploadId: string;
+  bucket: string;
   path: string;
   signedUrl: string;
   token: string;
@@ -51,6 +52,7 @@ export async function createUpload(
   });
   return {
     uploadId,
+    bucket,
     path,
     signedUrl,
     token,

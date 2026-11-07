@@ -57,6 +57,7 @@ Route files only parse and validate; the logic is in `src/services/`.
 | api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)           |
 | api    | `POST /v1/credits/estimate`                        | price a job before creating it (public, see Credit pricing) |
 | api    | `POST /v1/jobs`                                    | create a job; `Idempotency-Key` header required (auth)      |
+| api    | `GET /v1/jobs`                                     | list your jobs, newest first, with `limit`/`cursor` (auth)  |
 | api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)       |
 | api    | `POST /webhooks/paddle`                            | signed Paddle events                                        |
 | api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)    |

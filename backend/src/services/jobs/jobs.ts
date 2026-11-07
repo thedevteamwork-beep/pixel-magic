@@ -34,36 +34,58 @@ export const DOWNLOAD_URL_TTL_SECONDS = 3600;
 
 /** The job as the client sees it. A completed job gets fresh signed output URLs. */
 export async function jobView(deps: Deps, job: JobRow): Promise<JobView> {
+  return (await jobViews(deps, [job]))[0];
+}
+
+/** Views in the order of `jobs`; signs the outputs of all completed jobs with one call per bucket. */
+export async function jobViews(deps: Deps, jobs: JobRow[]): Promise<JobView[]> {
   const expiresAt = new Date(
     deps.clock.now().getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000,
   );
-  const outputs =
-    job.status === "completed"
-      ? await Promise.all(
-          (job.outputs ?? []).map(async (o, index) => ({
-            index,
-            mimeType: o.mimeType,
-            url: await deps.storage.createSignedUrl(
-              o.bucket,
-              o.path,
-              DOWNLOAD_URL_TTL_SECONDS,
-            ),
-            expiresAt,
-          })),
-        )
-      : [];
-  return {
+
+  const pathsByBucket = new Map<string, string[]>();
+  for (const job of completedJobs(jobs)) {
+    for (const o of job.outputs ?? []) {
+      pathsByBucket.set(o.bucket, [
+        ...(pathsByBucket.get(o.bucket) ?? []),
+        o.path,
+      ]);
+    }
+  }
+  const urlByObject = new Map<string, string>();
+  for (const [bucket, paths] of pathsByBucket) {
+    const urls = await deps.storage.createSignedUrls(
+      bucket,
+      paths,
+      DOWNLOAD_URL_TTL_SECONDS,
+    );
+    paths.forEach((path, i) => urlByObject.set(`${bucket}/${path}`, urls[i]));
+  }
+
+  return jobs.map((job) => ({
     jobId: job.id,
     status: job.status,
     model: job.model_key,
     creditCost: job.credit_cost,
     createdAt: job.created_at,
     completedAt: job.completed_at,
-    outputs,
+    outputs:
+      job.status === "completed"
+        ? (job.outputs ?? []).map((o, index) => ({
+            index,
+            mimeType: o.mimeType,
+            url: urlByObject.get(`${o.bucket}/${o.path}`)!,
+            expiresAt,
+          }))
+        : [],
     ...(job.error_code
       ? { error: { code: job.error_code, message: job.error_message ?? "" } }
       : {}),
-  };
+  }));
+}
+
+function completedJobs(jobs: JobRow[]): JobRow[] {
+  return jobs.filter((job) => job.status === "completed");
 }
 
 export async function createJob(

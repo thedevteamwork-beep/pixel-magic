@@ -24,6 +24,7 @@ describe("POST /v1/uploads", () => {
       .send({ filename: "a.png", mimeType: "image/png", sizeBytes: 1000 });
     expect(res.status).toBe(201);
     const { uploadId, path, signedUrl, token, expiresAt } = res.body;
+    expect(res.body.bucket).toBe("inputs");
     expect(path).toBe(`${userId}/${uploadId}`);
     expect(signedUrl).toBe(`https://storage.test/inputs/${path}?mode=upload`);
     expect(token).toBe(`tok-${path}`);

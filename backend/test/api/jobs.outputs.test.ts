@@ -138,7 +138,7 @@ describe("output URLs in the job response", () => {
   it("surfaces a Storage signing failure instead of hiding it", async () => {
     await create();
     await complete();
-    h.storage.failNext("createSignedUrl");
+    h.storage.failNext("createSignedUrls");
     const res = await get();
     expect(res.status).toBeGreaterThanOrEqual(500);
     expect((await get()).status).toBe(200);

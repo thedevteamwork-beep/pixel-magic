@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createSupabaseStorage,
   StorageError,
@@ -52,6 +52,13 @@ describe("FakeStorage contract", () => {
     });
   });
 
+  it("signed read URLs keep the order of the paths", async () => {
+    expect(await fake.createSignedUrls("outputs", ["a", "b"], 60)).toEqual([
+      "https://storage.test/outputs/a?mode=read&expires=60",
+      "https://storage.test/outputs/b?mode=read&expires=60",
+    ]);
+  });
+
   it("signed read URL carries the expiry", async () =>
     expect(await fake.createSignedUrl("outputs", "p", 3600)).toBe(
       "https://storage.test/outputs/p?mode=read&expires=3600",
@@ -87,5 +94,57 @@ describe("createSupabaseStorage copyFromUrl", () => {
       /redirected to a non-https URL/,
     );
     expect(calls).toEqual(["https://fal.media/a.png"]);
+  });
+});
+
+describe("createSupabaseStorage createSignedUrls", () => {
+  const config = {
+    ...makeDeps().deps.config,
+    SUPABASE_URL: "http://supabase.test",
+  };
+
+  const fetchFn = vi.fn();
+
+  /** Supabase answers one entry per path, in order. */
+  function storageAnswering(entries: unknown[]) {
+    fetchFn.mockImplementation(
+      async () =>
+        new Response(JSON.stringify(entries), {
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchFn);
+    return createSupabaseStorage(config);
+  }
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchFn.mockReset();
+  });
+
+  it("returns the URLs in the order of the paths", async () => {
+    const storage = storageAnswering([
+      { error: null, path: "a", signedURL: "/object/sign/outputs/a?token=1" },
+      { error: null, path: "b", signedURL: "/object/sign/outputs/b?token=2" },
+    ]);
+    const urls = await storage.createSignedUrls("outputs", ["a", "b"], 60);
+    expect(urls).toHaveLength(2);
+    expect(urls[0]).toContain("/outputs/a?token=1");
+    expect(urls[1]).toContain("/outputs/b?token=2");
+  });
+
+  it("maps an item error to StorageError", async () => {
+    const storage = storageAnswering([
+      { error: null, path: "a", signedURL: "/object/sign/outputs/a?token=1" },
+      { error: "Object not found", path: "b", signedURL: null },
+    ]);
+    await expect(
+      storage.createSignedUrls("outputs", ["a", "b"], 60),
+    ).rejects.toBeInstanceOf(StorageError);
+  });
+
+  it("does not call Supabase for no paths", async () => {
+    const storage = storageAnswering([]);
+    expect(await storage.createSignedUrls("outputs", [], 60)).toEqual([]);
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 });
