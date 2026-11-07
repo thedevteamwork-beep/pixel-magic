@@ -95,6 +95,7 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
     if (!resumingRef.current || !jobModel || !models) return;
     resumingRef.current = false;
     const own = models.find((m) => m.key === jobModel);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from the resumed job
     if (own) selectModel(own);
   }, [jobModel, models]); // eslint-disable-line react-hooks/exhaustive-deps
 
