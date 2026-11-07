@@ -2,18 +2,26 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
+/** Supabase requires no-cache headers on any response that sets auth cookies. */
+function setHeaders(response: NextResponse, headers: Record<string, string>) {
+  for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+}
+
 /** Refreshes the Supabase session cookie and keeps signed-out users off /generate. */
 export async function proxy(request: NextRequest) {
   const env = publicEnv();
   let response = NextResponse.next({ request });
+  let latestCacheHeaders: Record<string, string> = {};
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll: (cookiesToSet) => {
+      setAll: (cookiesToSet, cacheHeaders) => {
+        latestCacheHeaders = cacheHeaders;
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
+        setHeaders(response, cacheHeaders);
       },
     },
   });
@@ -28,6 +36,7 @@ export async function proxy(request: NextRequest) {
     const redirect = NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, request.url));
     // Carry over any cookies Supabase just cleared or refreshed.
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    setHeaders(redirect, latestCacheHeaders);
     return redirect;
   }
 

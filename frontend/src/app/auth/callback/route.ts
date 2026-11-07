@@ -9,9 +9,16 @@ export async function GET(request: Request) {
   const next = safeNext(url.searchParams.get("next"));
 
   if (code) {
-    const supabase = await createSupabaseServerClient();
+    let cacheHeaders: Record<string, string> = {};
+    const supabase = await createSupabaseServerClient((headers) => {
+      cacheHeaders = headers;
+    });
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+    if (!error) {
+      const response = NextResponse.redirect(new URL(next, url.origin));
+      for (const [key, value] of Object.entries(cacheHeaders)) response.headers.set(key, value);
+      return response;
+    }
   }
   return NextResponse.redirect(new URL("/sign-in?error=1", url.origin));
 }

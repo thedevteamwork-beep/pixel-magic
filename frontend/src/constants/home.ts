@@ -119,7 +119,7 @@ export const homeWidgets: WidgetConfig[] = [
       eyebrow: "Now on Pixel Magic",
       title: "Kling Video",
       description: "Kling's newest video generation model, ready to use on Pixel Magic.",
-      action: { label: "Explore Kling", href: "#kling" },
+      action: { label: "Explore Kling", href: "/generate" },
       media: media.hero,
     },
   },
