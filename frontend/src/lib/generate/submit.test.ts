@@ -17,10 +17,13 @@ type Call = { path: string; body: unknown; idempotencyKey?: string };
 function setup() {
   const calls: Call[] = [];
   const uploaded: string[] = [];
+  let uploadCount = 0;
   const api = {
     post: (async (path: string, body: unknown, opts?: { idempotencyKey?: string }) => {
       calls.push({ path, body, idempotencyKey: opts?.idempotencyKey });
-      return path === "/v1/uploads" ? upload : jobView("queued");
+      if (path !== "/v1/uploads") return jobView("queued");
+      uploadCount += 1;
+      return { ...upload, uploadId: `up-${uploadCount}` };
     }) as <T>(path: string, body: unknown, opts?: { idempotencyKey?: string }) => Promise<T>,
   };
   const uploadFile = async (_upload: UploadResponse, file: File) => {
@@ -72,5 +75,20 @@ describe("submitGeneration", () => {
     await submitGeneration(t.base);
     await submitGeneration(t.base);
     expect(t.calls[1]).toEqual(t.calls[0]);
+  });
+
+  it("a retry with an image reuses the kept upload and sends the same body", async () => {
+    const t = setup();
+    const file = new File(["x"], "cat.png", { type: "image/png" });
+    let kept: string | undefined;
+    const attempt = () =>
+      submitGeneration({ ...t.base, file, uploadId: kept, onUploaded: (id) => (kept = id) });
+    await attempt();
+    await attempt();
+    expect(t.uploaded).toEqual(["cat.png"]);
+    const jobCalls = t.calls.filter((c) => c.path === "/v1/jobs");
+    expect(jobCalls).toHaveLength(2);
+    expect(jobCalls[1]).toEqual(jobCalls[0]);
+    expect(jobCalls[1].body).toMatchObject({ uploadIds: ["up-1"] });
   });
 });

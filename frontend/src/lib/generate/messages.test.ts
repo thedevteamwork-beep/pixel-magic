@@ -16,9 +16,9 @@ describe("messageForError", () => {
   });
 
   it("shows the validation message with the field from meta", () => {
-    const withKey = new ApiError(422, "VALIDATION_FAILED", "Bad options", { unrecognized_keys: ["durations"] });
+    const withKey = new ApiError(422, "VALIDATION_FAILED", "Bad options", [{ code: "unrecognized_keys", keys: ["durations"], path: ["options"], message: "Unrecognized key" }]);
     expect(messageForError(withKey)).toBe("Bad options (durations)");
-    const withPath = new ApiError(422, "VALIDATION_FAILED", "Bad input", [{ path: ["options", "duration"] }]);
+    const withPath = new ApiError(422, "VALIDATION_FAILED", "Bad input", [{ code: "invalid_value", path: ["options", "duration"], message: "Invalid" }]);
     expect(messageForError(withPath)).toBe("Bad input (options.duration)");
     expect(messageForError(new ApiError(422, "VALIDATION_FAILED", "Bad input"))).toBe("Bad input");
   });
@@ -32,8 +32,21 @@ describe("messageForError", () => {
 
   it("maps polling errors", () => {
     expect(messageForError(new PollLostError())).toBe("Lost connection — retrying stopped");
-    const failed = jobView("failed", { error: { code: "FAL_ERROR", message: "Content rejected" } });
-    expect(messageForError(new JobFailedError(failed))).toBe("Content rejected. Your credits were returned");
+    const rejected = jobView("failed", {
+      error: { code: "SUBMIT_REJECTED", message: "The model rejected this request." },
+    });
+    expect(messageForError(new JobFailedError(rejected))).toBe(
+      "The model rejected this request. Your credits were returned.",
+    );
+    const unavailable = jobView("failed", {
+      error: {
+        code: "SUBMIT_FAILED",
+        message: "The model service was unavailable. Your credits were returned.",
+      },
+    });
+    expect(messageForError(new JobFailedError(unavailable))).toBe(
+      "The model service was unavailable. Your credits were returned.",
+    );
   });
 
   it("falls back to a plain message", () => {

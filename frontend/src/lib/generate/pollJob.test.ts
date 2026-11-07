@@ -44,6 +44,22 @@ describe("pollJob", () => {
     expect(t.sleeps).toEqual([8000]);
   });
 
+  it("picks the interval from the first job once it arrives", async () => {
+    const t = setup([jobView("queued", { model: "kling21" }), jobView("completed")]);
+    await pollJob("job-1", { ...t.base, intervalFor: (job) => (job.model === "kling21" ? 8000 : 4000) });
+    expect(t.sleeps).toEqual([8000]);
+  });
+
+  it("encodes the job id in the path", async () => {
+    const paths: string[] = [];
+    const get = async (path: string) => {
+      paths.push(path);
+      return jobView("completed");
+    };
+    await pollJob("../models", { get, intervalMs: 1 });
+    expect(paths).toEqual(["/v1/jobs/..%2Fmodels"]);
+  });
+
   it("throws JobFailedError on failed", async () => {
     const failed = jobView("failed", { error: { code: "X", message: "nope" } });
     const t = setup([jobView("queued"), failed]);

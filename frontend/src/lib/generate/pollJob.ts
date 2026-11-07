@@ -21,6 +21,8 @@ export class PollLostError extends Error {
 type PollParams = {
   get: (path: string, opts?: { signal?: AbortSignal }) => Promise<JobView>;
   intervalMs: number;
+  /** Picks the interval from the latest job (e.g. by its model), once one has arrived. */
+  intervalFor?: (job: JobView) => number;
   signal?: AbortSignal;
   onUpdate?: (job: JobView) => void;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
@@ -67,13 +69,15 @@ export async function pollJob(jobId: string, p: PollParams): Promise<JobView> {
   const sleep = p.sleep ?? sleepUnlessAborted;
   const maxErrors = p.maxConsecutiveErrors ?? DEFAULT_MAX_ERRORS;
   let errorsInARow = 0;
+  let intervalMs = p.intervalMs;
 
   while (true) {
     if (p.signal?.aborted) throw abortError();
 
     try {
-      const job = await p.get(`/v1/jobs/${jobId}`, { signal: p.signal });
+      const job = await p.get(`/v1/jobs/${encodeURIComponent(jobId)}`, { signal: p.signal });
       errorsInARow = 0;
+      if (p.intervalFor) intervalMs = p.intervalFor(job);
       p.onUpdate?.(job);
       if (job.status === "completed") return job;
       if (job.status === "failed") throw new JobFailedError(job);
@@ -83,6 +87,6 @@ export async function pollJob(jobId: string, p: PollParams): Promise<JobView> {
       if (errorsInARow >= maxErrors) throw new PollLostError();
     }
 
-    await sleep(p.intervalMs, p.signal);
+    await sleep(intervalMs, p.signal);
   }
 }

@@ -5,14 +5,16 @@ import { Button, ButtonWithLink } from "@/ui/Button";
 
 type JobResultProps = {
   job: JobView | null;
+  waiting: boolean;
   error: unknown;
   onCheckAgain: () => void;
 };
 
 /** The running status, the finished outputs, or the error. */
-export function JobResult({ job, error, onCheckAgain }: JobResultProps) {
+export function JobResult({ job, waiting, error, onCheckAgain }: JobResultProps) {
   return (
     <section className="mt-8 flex flex-col gap-4" aria-live="polite">
+      {!job && waiting && <p className="text-sm">Waiting for status…</p>}
       {job && <p className="text-sm">Status: {job.status} · {job.creditCost} credits</p>}
       {error != null && <p role="alert" className="text-sm text-red-500">{messageForError(error)}</p>}
       {error instanceof PollLostError && <CheckAgain onClick={onCheckAgain} />}

@@ -11,6 +11,9 @@ type SubmitParams = {
   values: Record<string, unknown>;
   file?: File;
   idempotencyKey: string;
+  /** An upload kept from an earlier attempt with this key: reused, not uploaded again. */
+  uploadId?: string;
+  onUploaded?: (uploadId: string) => void;
 };
 
 async function uploadImage(p: SubmitParams, file: File): Promise<string> {
@@ -20,6 +23,7 @@ async function uploadImage(p: SubmitParams, file: File): Promise<string> {
     sizeBytes: file.size,
   });
   await p.uploadFile(upload, file);
+  p.onUploaded?.(upload.uploadId);
   return upload.uploadId;
 }
 
@@ -30,7 +34,10 @@ export async function submitGeneration(p: SubmitParams): Promise<JobView> {
     prompt: p.prompt,
     options: buildOptions(p.model, p.values),
   };
-  if (p.file) body.uploadIds = [await uploadImage(p, p.file)];
+  if (p.file) {
+    const uploadId = p.uploadId ?? (await uploadImage(p, p.file));
+    body.uploadIds = [uploadId];
+  }
 
   return p.api.post<JobView>("/v1/jobs", body, { idempotencyKey: p.idempotencyKey });
 }

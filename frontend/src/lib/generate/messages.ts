@@ -1,14 +1,15 @@
 import { ApiError } from "@/lib/api/client";
 import { JobFailedError, PollLostError } from "@/lib/generate/pollJob";
 
-// The field a VALIDATION_FAILED error points at: an unknown key, or the first issue's path.
+// The field a VALIDATION_FAILED error points at. `meta` is the list of zod issues:
+// an unrecognized key is named in `keys` (its `path` is the parent); others use `path`.
 function validationField(meta: unknown): string | undefined {
-  if (Array.isArray(meta)) {
-    const path = (meta[0] as { path?: unknown } | undefined)?.path;
-    return Array.isArray(path) && path.length > 0 ? path.join(".") : undefined;
+  if (!Array.isArray(meta)) return undefined;
+  const issue = meta[0] as { code?: string; keys?: unknown; path?: unknown } | undefined;
+  if (issue?.code === "unrecognized_keys" && Array.isArray(issue.keys) && issue.keys.length > 0) {
+    return String(issue.keys[0]);
   }
-  const keys = (meta as { unrecognized_keys?: unknown } | null | undefined)?.unrecognized_keys;
-  return Array.isArray(keys) && keys.length > 0 ? String(keys[0]) : undefined;
+  return Array.isArray(issue?.path) && issue.path.length > 0 ? issue.path.join(".") : undefined;
 }
 
 function messageForApiError(error: ApiError): string {
@@ -33,10 +34,19 @@ function messageForApiError(error: ApiError): string {
   }
 }
 
+const CREDITS_RETURNED = "Your credits were returned.";
+
+// Backend messages end with a period, and one already says the credits were returned.
+function failedJobMessage(message: string): string {
+  if (message.includes(CREDITS_RETURNED)) return message;
+  const sentence = message.endsWith(".") ? message : `${message}.`;
+  return `${sentence} ${CREDITS_RETURNED}`;
+}
+
 /** A plain message for the user, from any error the generate page can hit. */
 export function messageForError(error: unknown): string {
   if (error instanceof PollLostError) return "Lost connection — retrying stopped";
-  if (error instanceof JobFailedError) return `${error.message}. Your credits were returned`;
+  if (error instanceof JobFailedError) return failedJobMessage(error.message);
   if (error instanceof ApiError) return messageForApiError(error);
   return "Something went wrong";
 }

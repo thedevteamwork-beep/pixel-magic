@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api/client";
 import type { JobView, ModelKind } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
-import { pollJob } from "@/lib/generate/pollJob";
+import { PollLostError, pollJob } from "@/lib/generate/pollJob";
 
 const INTERVAL_MS: Record<ModelKind, number> = { image: 4000, video: 8000 };
 
@@ -12,8 +12,12 @@ type Polling = {
   job: JobView | null;
   error: unknown;
   polling: boolean;
-  /** Start (or restart) polling. Without `kind`, the job is fetched once to learn its model. */
+  /** A job is known and not finished: polling now, or stopped by lost connection. */
+  waiting: boolean;
+  /** Start polling a job. Without `kind`, the interval follows the job's model once it is known. */
   start: (jobId: string, kind?: ModelKind) => void;
+  /** Poll again the job last started (after a lost connection). */
+  checkAgain: () => void;
   clear: () => void;
 };
 
@@ -23,9 +27,11 @@ type Polling = {
  */
 export function useJobPolling(kindOf: (modelKey: string) => ModelKind): Polling {
   const [job, setJob] = useState<JobView | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [polling, setPolling] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const startedRef = useRef<{ jobId: string; kind?: ModelKind } | null>(null);
   const kindOfRef = useRef(kindOf);
   useEffect(() => {
     kindOfRef.current = kindOf;
@@ -36,13 +42,13 @@ export function useJobPolling(kindOf: (modelKey: string) => ModelKind): Polling 
 
   const run = useCallback(async (jobId: string, kind: ModelKind | undefined, signal: AbortSignal) => {
     try {
-      let kindToUse = kind;
-      if (!kindToUse) {
-        const first = await api.get<JobView>(`/v1/jobs/${jobId}`, { signal });
-        setJob(first);
-        kindToUse = kindOfRef.current(first.model);
-      }
-      await pollJob(jobId, { get: api.get, intervalMs: INTERVAL_MS[kindToUse], signal, onUpdate: setJob });
+      await pollJob(jobId, {
+        get: api.get,
+        intervalMs: INTERVAL_MS[kind ?? "image"],
+        intervalFor: kind ? undefined : (first) => INTERVAL_MS[kindOfRef.current(first.model)],
+        signal,
+        onUpdate: setJob,
+      });
     } catch (err) {
       if (signal.aborted) return;
       setError(err);
@@ -53,23 +59,35 @@ export function useJobPolling(kindOf: (modelKey: string) => ModelKind): Polling 
   }, []);
 
   const start = useCallback(
-    (jobId: string, kind?: ModelKind) => {
+    (id: string, kind?: ModelKind) => {
       stop();
       const controller = new AbortController();
       controllerRef.current = controller;
+      startedRef.current = { jobId: id, kind };
+      setJobId(id);
       setError(null);
       setPolling(true);
-      void run(jobId, kind, controller.signal);
+      void run(id, kind, controller.signal);
     },
     [run, stop],
   );
 
+  const checkAgain = useCallback(() => {
+    const started = startedRef.current;
+    if (started) start(started.jobId, started.kind);
+  }, [start]);
+
   const clear = useCallback(() => {
     stop();
+    startedRef.current = null;
+    setJobId(null);
     setJob(null);
     setError(null);
     setPolling(false);
   }, [stop]);
 
-  return { job, error, polling, start, clear };
+  const finished = job?.status === "completed" || job?.status === "failed";
+  const waiting = jobId !== null && !finished && (polling || error instanceof PollLostError);
+
+  return { job, error, polling, waiting, start, checkAgain, clear };
 }

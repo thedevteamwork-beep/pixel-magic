@@ -25,9 +25,14 @@ function isSessionEnded(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
 }
 
-function isNetworkError(error: unknown): boolean {
-  return error instanceof ApiError && error.code === "NETWORK_ERROR";
+// A 4xx means the server refused the request, so nothing was created and the key can go.
+// Anything else (network, 5xx) may have created the job, so a retry must reuse the key.
+function isClientError(error: unknown): boolean {
+  return error instanceof ApiError && error.status >= 400 && error.status < 500;
 }
+
+// What one Generate click remembers for a retry: its key, and the image it already uploaded.
+type Attempt = { key: string; uploadId?: string };
 
 function showJobInUrl(jobId: string) {
   window.history.replaceState(null, "", `/generate?job=${encodeURIComponent(jobId)}`);
@@ -45,13 +50,12 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [retrying, setRetrying] = useState(false);
 
-  // One Idempotency-Key per Generate click; kept for a retry after a network error.
-  const keyRef = useRef<string | null>(null);
+  const attemptRef = useRef<Attempt | null>(null);
   const submittingRef = useRef(false);
   const jobIdRef = useRef<string | null>(initialJobId);
 
   const kindOf = (key: string): ModelKind => models?.find((m) => m.key === key)?.kind ?? "image";
-  const { job, error: pollError, polling, start, clear } = useJobPolling(kindOf);
+  const { job, error: pollError, polling, waiting, start, checkAgain, clear } = useJobPolling(kindOf);
 
   const model = models?.find((m) => m.key === modelKey);
 
@@ -62,10 +66,11 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
     edited();
   }
 
-  // Any edit makes a new request, so it gets a new key.
+  // Any edit makes a new request: a new key, and a job we lost track of is let go.
   function edited() {
-    keyRef.current = null;
+    attemptRef.current = null;
     setRetrying(false);
+    if (waiting && !polling) clear();
   }
 
   useEffect(() => {
@@ -78,10 +83,20 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
       .catch(setLoadError);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A reload with ?job=<id> resumes polling.
+  // A reload with ?job=<id> resumes polling, once the models are known (for the interval).
+  const resumingRef = useRef(initialJobId !== null);
   useEffect(() => {
-    if (initialJobId) start(initialJobId);
-  }, [initialJobId, start]);
+    if (initialJobId && models) start(initialJobId);
+  }, [initialJobId, models, start]);
+
+  // The resumed job selects its own model in the form.
+  const jobModel = job?.model;
+  useEffect(() => {
+    if (!resumingRef.current || !jobModel || !models) return;
+    resumingRef.current = false;
+    const own = models.find((m) => m.key === jobModel);
+    if (own) selectModel(own);
+  }, [jobModel, models]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // An ended session sends the user to sign in, then back to this job.
   const error = submitError ?? pollError;
@@ -98,7 +113,9 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
     setSubmitting(true);
     setSubmitError(null);
     clear();
-    keyRef.current ??= newIdempotencyKey();
+    jobIdRef.current = null;
+    resumingRef.current = false;
+    const attempt = (attemptRef.current ??= { key: newIdempotencyKey() });
 
     try {
       const created = await submitGeneration({
@@ -108,7 +125,9 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
         prompt,
         values,
         file,
-        idempotencyKey: keyRef.current,
+        idempotencyKey: attempt.key,
+        uploadId: attempt.uploadId,
+        onUploaded: (uploadId) => (attempt.uploadId = uploadId),
       });
       edited();
       jobIdRef.current = created.jobId;
@@ -116,9 +135,9 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
       notifyCreditsChanged();
       start(created.jobId, model.kind);
     } catch (err) {
-      // After a network error the key stays, so "Try again" cannot create a second job.
-      const keepKey = isNetworkError(err);
-      if (!keepKey) keyRef.current = null;
+      // Unless the server refused (4xx), the key and upload stay, so "Try again" cannot create a second job.
+      const keepKey = !isClientError(err);
+      if (!keepKey) attemptRef.current = null;
       setRetrying(keepKey);
       setSubmitError(err);
     } finally {
@@ -131,6 +150,7 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
   if (!models) return <p className="text-sm text-subtle">Loading models…</p>;
 
   const busy = submitting || polling;
+  const generateDisabled = busy || waiting || !model;
   const image = model ? imageField(model) : undefined;
   const promptField = model?.input.prompt;
 
@@ -203,7 +223,7 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
           </label>
         )}
 
-        <Button type="submit" disabled={busy || !model} className="self-start">
+        <Button type="submit" disabled={generateDisabled} className="self-start">
           {retrying ? "Try again" : "Generate"}
         </Button>
       </form>
@@ -215,8 +235,9 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
       )}
       <JobResult
         job={job}
+        waiting={waiting}
         error={pollError}
-        onCheckAgain={() => job && start(job.jobId, kindOf(job.model))}
+        onCheckAgain={checkAgain}
       />
     </div>
   );
