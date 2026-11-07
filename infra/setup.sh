@@ -39,6 +39,9 @@ load_settings() {
   # secrets never reach child processes.
   # shellcheck disable=SC1090
   source "$ENV_FILE"
+  # A secret the caller's shell already exported stays exported after source.
+  local pair
+  for pair in "${SECRET_NAMES[@]}"; do export -n "${pair%%:*}"; done
   CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:3000}"
   PADDLE_ENV="${PADDLE_ENV:-sandbox}"
   STORAGE_BUCKET_INPUTS="${STORAGE_BUCKET_INPUTS:-inputs}"
@@ -128,7 +131,7 @@ check_gcloud() {
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
     artifactregistry.googleapis.com cloudtasks.googleapis.com \
     cloudscheduler.googleapis.com secretmanager.googleapis.com \
-    iam.googleapis.com --project "$GCP_PROJECT_ID"
+    iam.googleapis.com compute.googleapis.com --project "$GCP_PROJECT_ID"
   # Cloud Run's deterministic URL format, known before the first deploy.
   API_URL="https://${API_SERVICE}-${PROJECT_NUMBER}.${GCP_REGION}.run.app"
   WORKER_URL="https://${WORKER_SERVICE}-${PROJECT_NUMBER}.${GCP_REGION}.run.app"
@@ -147,6 +150,13 @@ grant_build_identity() {
   build_sa="$(gcloud builds get-default-service-account --format='value(serviceAccountEmail)')"
   build_sa="${build_sa##*/}"
   [ -n "$build_sa" ] || fail "could not find the default Cloud Build service account"
+  # The Compute Engine default account only exists once compute.googleapis.com is on.
+  case "$build_sa" in
+    *-compute@developer.gserviceaccount.com)
+      retry quiet gcloud iam service-accounts describe "$build_sa" ||
+        fail "Compute Engine default service account not found ($build_sa) - enable compute.googleapis.com and re-run"
+      ;;
+  esac
   quiet gcloud storage buckets describe "gs://$bucket" ||
     gcloud storage buckets create "gs://$bucket" --location "$GCP_REGION"
   retry gcloud artifacts repositories add-iam-policy-binding "$REPO_NAME" \
@@ -168,7 +178,12 @@ build_image() {
   fi
   IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REPO_NAME}/backend:${tag}"
   grant_build_identity
-  gcloud builds submit "$ROOT/backend" --tag "$IMAGE" --project "$GCP_PROJECT_ID"
+  # IAM grants can take a minute to apply, so a first 403 gets one retry.
+  if ! gcloud builds submit "$ROOT/backend" --tag "$IMAGE" --project "$GCP_PROJECT_ID"; then
+    echo "Build failed; waiting 60 s for IAM grants to apply, then retrying once"
+    sleep 60
+    gcloud builds submit "$ROOT/backend" --tag "$IMAGE" --project "$GCP_PROJECT_ID"
+  fi
 }
 
 create_service_account() { # $1 = short name
@@ -289,8 +304,11 @@ deploy_api() {
 # gcloud only warns when it cannot make the API public, so check the policy.
 check_api_is_public() {
   local policy
-  policy="$(gcloud run services get-iam-policy "$API_SERVICE" --region "$GCP_REGION" --format=json)"
-  case "$policy" in *allUsers*) case "$policy" in *roles/run.invoker*) return ;; esac ;; esac
+  policy="$(gcloud run services get-iam-policy "$API_SERVICE" --region "$GCP_REGION" \
+    --flatten='bindings[].members' \
+    --filter='bindings.role=roles/run.invoker AND bindings.members=allUsers' \
+    --format='value(bindings.members)')"
+  [ -z "$policy" ] || return 0
   fail "$API_SERVICE is not public (no allUsers run.invoker). An organisation policy such as Domain Restricted Sharing (iam.allowedPolicyMemberDomains) probably blocks it; allow allUsers for this project or change the policy, then run again."
 }
 

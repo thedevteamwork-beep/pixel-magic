@@ -116,7 +116,7 @@ Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry p
 
 ```json
 {
-  "kling21": {
+  "kling21_generate": {
     "tiers": [
       {
         "name": "Basic",
@@ -136,7 +136,7 @@ Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry p
       }
     ]
   },
-  "flux-schnell": {
+  "fluxSchnell_generate": {
     "tiers": [
       {
         "name": "Basic",
@@ -239,7 +239,7 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 
 - `FAL_KEY`: fal dashboard API key.
 - Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (while the key is unset, the API logs it at info as `falUserId`), or look in the fal dashboard.
-- The two models (`flux-schnell`, `kling21`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
+- The two models (`fluxSchnell/generate`, `kling21/generate`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
 
 ## Local end-to-end run
 
@@ -329,7 +329,7 @@ What it creates, in order:
 
 1. Enables the Run, Build, Artifact Registry, Tasks, Scheduler, Secret Manager and IAM APIs.
 2. Artifact Registry repository `pixel-magic`.
-3. The image, built from `backend/` and tagged with the git short SHA. Newer organisations give the default Cloud Build identity no roles, so the script finds it (`gcloud builds get-default-service-account`) and grants it `artifactregistry.writer` on the repository, `logging.logWriter` on the project and `storage.objectViewer` on the staging bucket `gs://<project>_cloudbuild` (created if missing).
+3. The image, built from `backend/` and tagged with the git short SHA. Newer organisations give the default Cloud Build identity no roles, so the script finds it (`gcloud builds get-default-service-account`) and grants it `artifactregistry.writer` on the repository, `logging.logWriter` on the project and `storage.objectViewer` on the staging bucket `gs://<project>_cloudbuild` (created if missing). The Compute Engine API is enabled too, because that default identity is the Compute Engine default service account and only exists once the API is on; the script stops with a clear message if it is still missing. IAM grants can take a minute to apply, so the script retries the first build once after 60 s; if the build still fails with 403, run the script again.
 4. Service accounts `api-sa`, `worker-sa`, `tasks-sa`, `scheduler-sa`; the six secrets in Secret Manager (a new version only when a value changed); `secretAccessor` on each secret for `api-sa` and `worker-sa` (the migration URL secret only for `worker-sa`, which runs the migrate job); `iam.serviceAccountUser` on `tasks-sa` for both.
 5. Queues `generation` and `finalization`, with `cloudtasks.enqueuer` granted to `api-sa` and `worker-sa` on those two queues only.
 6. Cloud Run job `pixel-magic-migrate`, executed and awaited: compiled migrations, then the catalog seed (`node dist/db/migrate.js && node dist/db/seeds/run.js`). The seed upserts by name, so it overwrites catalog fields with the seed file's values on every run; change a price by editing the seed and running the script again.
