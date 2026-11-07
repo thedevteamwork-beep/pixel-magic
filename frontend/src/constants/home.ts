@@ -130,7 +130,7 @@ export const homeWidgets: WidgetConfig[] = [
       title: "Made by the Pixel Magic community",
       description: "See what creators are making, then remix it with your own characters, places and products.",
       actions: [
-        { label: "Start generating", href: "#get-started" },
+        { label: "Start generating", href: "/generate" },
         { label: "Learn more", href: "#community" },
       ],
       items: galleryItems("community", media.community, 12),

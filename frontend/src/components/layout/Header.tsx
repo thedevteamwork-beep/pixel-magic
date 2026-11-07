@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { headerContent } from "@/constants/navigation";
+import { HeaderAccount } from "@/components/layout/HeaderAccount";
 import { Logo } from "@/components/layout/Logo";
-import { ButtonWithLink } from "@/ui/Button";
 import { Container } from "@/ui/Container";
 
 export function Header() {
-  const { links, cta } = headerContent;
+  const { links } = headerContent;
 
   return (
     <header className="sticky top-0 z-40 h-(--header-height) border-b border-border bg-background/85 backdrop-blur">
@@ -22,9 +22,7 @@ export function Header() {
             ))}
           </ul>
         </nav>
-        <ButtonWithLink href={cta.href} variant={cta.variant ?? "primary"} size="sm" className="ml-auto">
-          {cta.label}
-        </ButtonWithLink>
+        <HeaderAccount />
       </Container>
     </header>
   );
