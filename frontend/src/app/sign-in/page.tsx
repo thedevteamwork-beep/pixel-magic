@@ -1,10 +1,18 @@
 import { Suspense } from "react";
 import { SignInForm } from "@/app/sign-in/SignInForm";
+import { isSupabaseEnabled } from "@/lib/env";
 import { Container } from "@/ui/Container";
 
 export const metadata = { title: "Sign in — Pixel Magic" };
 
 export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
+  if (!isSupabaseEnabled()) {
+    return (
+      <Container className="flex justify-center py-16">
+        <p className="text-sm text-subtle">Sign-in is turned off for now.</p>
+      </Container>
+    );
+  }
   return (
     <Container className="flex justify-center py-16">
       <Suspense>

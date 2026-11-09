@@ -1,5 +1,6 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
+import { jobBody } from "../helpers/jobs.js";
 import { createApp } from "../../src/api/server.js";
 import { runFinalize } from "../../src/services/jobs/finalize.js";
 import { runGenerate } from "../../src/services/jobs/generate.js";
@@ -22,13 +23,13 @@ describe("output URLs in the job response", () => {
   });
 
   async function create(
-    model = "flux-schnell",
+    model = "fluxSchnell_generate",
     options: Record<string, unknown> = {},
   ) {
     const { job } = await createJob(
       h.deps,
       userId,
-      { model, prompt: "a cat", uploadIds: [], options },
+      jobBody(model, { prompt: "a cat", uploadIds: [], options }),
       "k1",
     );
     jobId = job.jobId;
@@ -73,7 +74,7 @@ describe("output URLs in the job response", () => {
   });
 
   it("signs every output of a multi-image job", async () => {
-    await create("flux-schnell", { num_images: 3 });
+    await create("fluxSchnell_generate", { num_images: 3 });
     await complete(3);
     const res = await get();
     expect(res.body.outputs).toHaveLength(3);
@@ -126,10 +127,10 @@ describe("output URLs in the job response", () => {
     await create();
     await complete();
     const res = await request(createApp(h.deps))
-      .post("/v1/jobs")
+      .post("/v1/jobs/fluxSchnell/generate")
       .set(await authHeader(userId))
       .set("Idempotency-Key", "k1")
-      .send({ model: "flux-schnell", prompt: "a cat" });
+      .send({ input: { prompt: "a cat" } });
     expect(res.status).toBe(200);
     expect(res.body.outputs).toHaveLength(1);
     expect(res.body.outputs[0].url).toContain(`/${jobId}/0.jpg`);

@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { getModel, listModels } from "../../src/models/registry.js";
+import {
+  getModel,
+  getOperation,
+  listModels,
+} from "../../src/models/registry.js";
 import { FakeFal } from "../fakes/fal.js";
 import { OutputInvalidError } from "../../src/models/types.js";
 
@@ -13,13 +17,30 @@ function fixture(name: string): unknown {
   );
 }
 
-const flux = getModel("flux-schnell")!;
-const kling = getModel("kling21")!;
+const flux = getOperation("fluxSchnell", "generate")!;
+const kling = getOperation("kling21", "generate")!;
 
 describe("model registry", () => {
-  it("lists both models and looks them up by key", () => {
-    expect(listModels().map((m) => m.key)).toEqual(["flux-schnell", "kling21"]);
+  it("lists each operation with its plugin, operation and key", () => {
+    expect(listModels().map((m) => [m.plugin, m.operation, m.key])).toEqual([
+      ["fluxSchnell", "generate", "fluxSchnell_generate"],
+      ["kling21", "generate", "kling21_generate"],
+    ]);
+  });
+
+  it("finds an operation by plugin and operation, and a job's model by key", () => {
+    expect(getOperation("kling21", "generate")?.key).toBe("kling21_generate");
+    expect(getModel("kling21_generate")?.plugin).toBe("kling21");
+    expect(getOperation("kling21", "nope")).toBeUndefined();
+    expect(getOperation("nope", "generate")).toBeUndefined();
     expect(getModel("nope")).toBeUndefined();
+  });
+
+  it("never treats an object's built-in keys as a plugin or an operation", () => {
+    expect(getOperation("constructor", "generate")).toBeUndefined();
+    expect(getOperation("__proto__", "generate")).toBeUndefined();
+    expect(getOperation("kling21", "constructor")).toBeUndefined();
+    expect(getOperation("kling21", "hasOwnProperty")).toBeUndefined();
   });
 
   it("every model's options parse from an empty object", () => {

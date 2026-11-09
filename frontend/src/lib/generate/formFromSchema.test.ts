@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildOptions, defaultOptions, imageField, optionFields } from "@/lib/generate/formFromSchema";
+import {
+  buildOptions,
+  defaultOptions,
+  imageField,
+  imageFieldName,
+  optionFields,
+} from "@/lib/generate/formFromSchema";
 import { fluxSchnell, kling21 } from "@/lib/generate/fixtures";
 
 describe("defaultOptions", () => {
@@ -20,6 +26,13 @@ describe("imageField", () => {
   it("finds the image field, or nothing", () => {
     expect(imageField(kling21)?.supportedContentTypes).toContain("image/png");
     expect(imageField(fluxSchnell)).toBeUndefined();
+  });
+});
+
+describe("imageFieldName", () => {
+  it("names the image field, or nothing", () => {
+    expect(imageFieldName(kling21)).toBe("image");
+    expect(imageFieldName(fluxSchnell)).toBeUndefined();
   });
 });
 

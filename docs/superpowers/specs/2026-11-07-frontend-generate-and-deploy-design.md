@@ -121,7 +121,7 @@ A single client page:
 
    The bucket name comes from what `POST /v1/uploads` returns. If it doesn't return one, read the backend's upload code and use the inputs bucket name it signs for.
 5. **One Generate button.** It is disabled while a job is running. On click:
-   - make a new `Idempotency-Key`, upload the image if any, then `POST /v1/jobs` with `{ model, prompt, uploadIds, options }`. Send only option keys the model declares; the backend rejects unknown keys.
+   - make a new `Idempotency-Key`, upload the image if any, then `POST /v1/jobs/:plugin/:operation` with `{ input }`: the options, the prompt (if the model has one) and the upload ids in the model's image field. Send only keys the model declares; the backend rejects unknown keys.
    - Then poll.
 6. **Polling** (`pollJob(jobId, { signal })` plus a small hook). It works like sharingan's `pollPrediction`, with these differences:
    - It calls `GET /v1/jobs/:id`. It stops on `completed` (returning the job, whose `outputs[].url` are signed links) and on `failed` (throwing with `error.message`, which is safe to show).

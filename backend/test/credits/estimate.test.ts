@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TIERED_CREDIT_MAPPING } from "../../src/credits/defaultTieredCreditMapping.js";
 import type { TieredCreditMapping } from "../../src/credits/tieredCredits.js";
-import { fluxSchnell } from "../../src/models/flux-schnell/index.js";
-import { kling21 } from "../../src/models/kling21/index.js";
+import { fluxSchnellGenerate as fluxSchnell } from "../../src/models/plugins/fluxSchnell/generate/index.js";
+import { kling21Generate as kling21 } from "../../src/models/plugins/kling21/generate/index.js";
 import { listModels } from "../../src/models/registry.js";
 import { optionsValidator } from "../../src/models/schemaGenerator.js";
 import type { ModelDefinition, ModelSchema } from "../../src/models/types.js";
@@ -17,7 +18,7 @@ import { readmeExampleMapping } from "../helpers/creditMappings.js";
 function fluxMeter(meter: object): TieredCreditMapping {
   return {
     ...DEFAULT_TIERED_CREDIT_MAPPING,
-    "flux-schnell": {
+    fluxSchnell_generate: {
       tiers: [
         {
           name: "Basic",
@@ -59,9 +60,9 @@ describe("creditRange with an option that can be left out", () => {
   it("prices the job that leaves it out too", () => {
     // Only a job with no style matches "Plain": 10 s x 100 = 1000.
     const creditMapping: TieredCreditMapping = {
-      kling21: {
+      kling21_generate: {
         tiers: [
-          DEFAULT_TIERED_CREDIT_MAPPING.kling21!.tiers[0]!,
+          DEFAULT_TIERED_CREDIT_MAPPING.kling21_generate!.tiers[0]!,
           {
             name: "Plain",
             conditions: { fact: "style", operator: "notIn", value: ["a", "b"] },
@@ -94,7 +95,7 @@ describe("loadCreditMapping", () => {
   ])("refuses %s, naming the model and the tier", (_name, meter, price) => {
     const start = () => loadCreditMapping(fluxMeter(meter), listModels());
     expect(start).toThrow(
-      /^TIERED_CREDIT_MAPPING invalid \(flux-schnell, tier Basic\): /,
+      /^TIERED_CREDIT_MAPPING invalid \(fluxSchnell_generate, tier Basic\): /,
     );
     expect(start).toThrow(price);
     expect(start).toThrow(/it must be 1 to 2147483647/);
@@ -103,18 +104,18 @@ describe("loadCreditMapping", () => {
   it("refuses a price only an image job reaches", () => {
     // The image tier floors 5 s to 0 units, so a 5 s image job costs 0.
     const mapping = readmeExampleMapping();
-    mapping.kling21!.tiers[1]!.credits = 0;
-    mapping.kling21!.tiers[1]!.meters = [
+    mapping.kling21_generate!.tiers[1]!.credits = 0;
+    mapping.kling21_generate!.tiers[1]!.meters = [
       { metric: "duration", unitSize: 10, rate: 7, round: "floor" },
     ];
     expect(() => loadCreditMapping(mapping, listModels())).toThrow(
-      /^TIERED_CREDIT_MAPPING invalid \(kling21, tier Image to video\): .*"image":true.* at 0 credits/,
+      /^TIERED_CREDIT_MAPPING invalid \(kling21_generate, tier Image to video\): .*"image":true.* at 0 credits/,
     );
   });
 
   it("still fails a bad mapping on its shape first", () => {
     expect(() => loadCreditMapping({}, listModels())).toThrow(
-      /TIERED_CREDIT_MAPPING invalid \(flux-schnell\): the model has no mapping entry/,
+      /TIERED_CREDIT_MAPPING invalid \(fluxSchnell_generate\): the model has no mapping entry/,
     );
   });
 });
@@ -124,13 +125,13 @@ describe("estimateCredits", () => {
     // Set the mapping directly, skipping loadCreditMapping.
     const deps = { creditMapping: fluxMeter({ unitSize: 10, round: "floor" }) };
     expect(() =>
-      estimateCredits(deps, fluxSchnell, { options: {}, uploadCount: 0 }),
+      estimateCredits(deps, fluxSchnell, { prompt: "a cat" }),
     ).toThrow(
-      /^TIERED_CREDIT_MAPPING invalid \(flux-schnell, tier Basic\): .* at 0 credits/,
+      /^TIERED_CREDIT_MAPPING invalid \(fluxSchnell_generate, tier Basic\): .* at 0 credits/,
     );
     const huge = { creditMapping: fluxMeter({ rate: 1e12 }) };
     expect(() =>
-      estimateCredits(huge, fluxSchnell, { options: {}, uploadCount: 0 }),
+      estimateCredits(huge, fluxSchnell, { prompt: "a cat" }),
     ).toThrow(/it must be 1 to 2147483647/);
   });
 
@@ -138,8 +139,9 @@ describe("estimateCredits", () => {
     const deps = { creditMapping: readmeExampleMapping() };
     expect(
       estimateCredits(deps, kling21, {
-        options: { duration: "5" },
-        uploadCount: 1,
+        prompt: "waves",
+        duration: "5",
+        image: [randomUUID()],
       }),
     ).toEqual({
       creditsPerJob: 40,

@@ -29,7 +29,11 @@ export type FieldSchema =
 
 /** One item of `GET /v1/models`. */
 export type PublicModel = {
+  /** `<plugin>_<operation>`; a job's `model` is this key. */
   key: string;
+  /** A job is created with `POST /v1/jobs/:plugin/:operation`. */
+  plugin: string;
+  operation: string;
   name: string;
   kind: ModelKind;
   category: string[];

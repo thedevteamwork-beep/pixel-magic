@@ -2,23 +2,46 @@ import { z } from "zod";
 import type { FieldSchema, ModelSchema } from "./types.js";
 
 type ImageField = Extract<FieldSchema, { type: "image" }>;
+type StringField = Extract<FieldSchema, { type: "string" }>;
 
-function imageField(schema: ModelSchema): ImageField | undefined {
-  return Object.values(schema.input).find(
-    (f): f is ImageField => f.type === "image",
+const NO_LIMIT = Number.MAX_SAFE_INTEGER;
+
+/** The image field and its name, if the model has one. */
+function imageField(schema: ModelSchema): [string, ImageField] | undefined {
+  return Object.entries(schema.input).find(
+    (entry): entry is [string, ImageField] => entry[1].type === "image",
   );
+}
+
+function notBlank(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function stringValidator(field: StringField) {
+  const base: z.ZodType<string> = field.enum
+    ? z.enum(field.enum as [string, ...string[]])
+    : z.string().max(field.maxLength ?? NO_LIMIT);
+  // 1. A required string must be sent, and can't be blank.
+  if (field.required) return base.refine(notBlank, "Must not be blank");
+  // 2. Otherwise a missing value takes the default, if there is one.
+  if (field.default !== undefined) return base.default(field.default);
+  // 3. Without a default it can be left out.
+  return base.optional();
+}
+
+/** The image field holds upload ids. */
+function imageValidator(field: ImageField) {
+  const uploadIds = z.array(z.string().uuid()).max(field.maxItems);
+  // 1. A required image needs at least one upload.
+  if (field.required) return uploadIds.min(1);
+  // 2. Otherwise it can be left out, meaning no uploads.
+  return uploadIds.default([]);
 }
 
 function fieldValidator(field: Exclude<FieldSchema, { type: "image" }>) {
   switch (field.type) {
-    case "string": {
-      const base = field.enum
-        ? z.enum(field.enum as [string, ...string[]])
-        : z.string().max(field.maxLength ?? Number.MAX_SAFE_INTEGER);
-      return field.default === undefined
-        ? base.optional()
-        : base.default(field.default);
-    }
+    case "string":
+      return stringValidator(field);
     case "integer":
       return z
         .number()
@@ -31,42 +54,66 @@ function fieldValidator(field: Exclude<FieldSchema, { type: "image" }>) {
   }
 }
 
-/** Validates the user's options: every field except `prompt` and the image. */
+/** The fields a price can depend on: every input except `prompt` and the image. */
 export function optionsValidator(schema: ModelSchema): z.ZodObject {
   const shape: Record<string, z.ZodType> = {};
   for (const [name, field] of Object.entries(schema.input)) {
     if (name === "prompt" || field.type === "image") continue;
     shape[name] = fieldValidator(field);
   }
-  return z.object(shape).strict();
+  return z.strictObject(shape);
 }
 
-export function promptRule(schema: ModelSchema): {
-  required: boolean;
-  maxLength: number;
-} {
-  const field = schema.input.prompt;
-  if (field?.type !== "string") {
-    throw new Error(`${schema.info.name}: input.prompt must be a string`);
+/**
+ * Validates a job's input, as in jiraiya: every field `schema.input`
+ * declares, each by its own rules, and nothing else.
+ */
+export function inputValidator(schema: ModelSchema): z.ZodObject {
+  const shape: Record<string, z.ZodType> = {};
+  for (const [name, field] of Object.entries(schema.input)) {
+    shape[name] =
+      field.type === "image" ? imageValidator(field) : fieldValidator(field);
   }
-  return {
-    required: field.required ?? false,
-    maxLength: field.maxLength ?? Number.MAX_SAFE_INTEGER,
-  };
+  return z.strictObject(shape);
 }
 
 export function uploadRule(schema: ModelSchema): {
+  field: string | undefined;
   min: number;
   max: number;
   supportedContentTypes: string[];
 } {
-  const field = imageField(schema);
-  if (!field) return { min: 0, max: 0, supportedContentTypes: [] };
+  const image = imageField(schema);
+  if (!image) {
+    return { field: undefined, min: 0, max: 0, supportedContentTypes: [] };
+  }
+  const [name, field] = image;
   return {
+    field: name,
     min: field.required ? 1 : 0,
     max: field.maxItems,
     supportedContentTypes: [...field.supportedContentTypes],
   };
+}
+
+/** The upload ids in a validated input: the image field's value, or none. */
+export function uploadIdsIn(
+  uploads: { field: string | undefined },
+  input: Record<string, unknown>,
+): string[] {
+  if (!uploads.field) return [];
+  return (input[uploads.field] as string[] | undefined) ?? [];
+}
+
+/** The options in a validated input, for pricing: every field but `prompt` and the image. */
+export function optionsIn(
+  uploads: { field: string | undefined },
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const options = { ...input };
+  delete options.prompt;
+  if (uploads.field) delete options[uploads.field];
+  return options;
 }
 
 /** The `input` map shown by `GET /v1/models`. */

@@ -5,7 +5,7 @@ import type { TieredCreditMapping } from "./tieredCredits.js";
 // pages): kling 2.1 Master about $1.40 for 5 s plus $0.28 per extra second;
 // flux schnell about $0.003 per megapixel.
 export const DEFAULT_TIERED_CREDIT_MAPPING: TieredCreditMapping = {
-  kling21: {
+  kling21_generate: {
     tiers: [
       {
         name: "Basic",
@@ -14,7 +14,7 @@ export const DEFAULT_TIERED_CREDIT_MAPPING: TieredCreditMapping = {
       },
     ],
   },
-  "flux-schnell": {
+  fluxSchnell_generate: {
     tiers: [
       {
         name: "Basic",

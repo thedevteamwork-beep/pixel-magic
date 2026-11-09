@@ -1,4 +1,4 @@
-import { buildOptions } from "@/lib/generate/formFromSchema";
+import { buildInput } from "@/lib/generate/formFromSchema";
 import type { JobView, PublicModel, UploadResponse } from "@/lib/api/types";
 
 type SubmitParams = {
@@ -29,15 +29,11 @@ async function uploadImage(p: SubmitParams, file: File): Promise<string> {
 
 /** Uploads the image (if any), then creates the job. Returns the new job. */
 export async function submitGeneration(p: SubmitParams): Promise<JobView> {
-  const body: Record<string, unknown> = {
-    model: p.model.key,
-    prompt: p.prompt,
-    options: buildOptions(p.model, p.values),
-  };
-  if (p.file) {
-    const uploadId = p.uploadId ?? (await uploadImage(p, p.file));
-    body.uploadIds = [uploadId];
-  }
+  const uploadIds: string[] = [];
+  if (p.file) uploadIds.push(p.uploadId ?? (await uploadImage(p, p.file)));
+  const input = buildInput(p.model, { prompt: p.prompt, values: p.values, uploadIds });
 
-  return p.api.post<JobView>("/v1/jobs", body, { idempotencyKey: p.idempotencyKey });
+  const { plugin, operation } = p.model;
+  const path = `/v1/jobs/${encodeURIComponent(plugin)}/${encodeURIComponent(operation)}`;
+  return p.api.post<JobView>(path, { input }, { idempotencyKey: p.idempotencyKey });
 }

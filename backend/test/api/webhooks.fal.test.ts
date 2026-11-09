@@ -29,7 +29,7 @@ describe("fal webhook", () => {
   async function jobWith(
     status: JobStatus,
     falRequestId: string | null,
-    modelKey = "flux-schnell",
+    modelKey = "fluxSchnell_generate",
   ): Promise<JobRow> {
     const job = await insertJob(testDb, userId);
     const [row] = await testDb(T.jobs)
@@ -141,7 +141,7 @@ describe("fal webhook", () => {
   });
 
   it("verifies a text-to-video job on the text-to-video endpoint", async () => {
-    const job = await jobWith("submitting", null, "kling21");
+    const job = await jobWith("submitting", null, "kling21_generate");
     const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
     expect(res.status).toBe(200);
     expect(ctx.fal.calls).toEqual([
@@ -153,7 +153,7 @@ describe("fal webhook", () => {
   });
 
   it("verifies an image-to-video job on the image-to-video endpoint", async () => {
-    const job = await jobWith("submitting", null, "kling21");
+    const job = await jobWith("submitting", null, "kling21_generate");
     await testDb(T.jobs)
       .where({ id: job.id })
       .update({ upload_ids: [randomUUID()] });

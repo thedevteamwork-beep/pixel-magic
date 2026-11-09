@@ -174,21 +174,23 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Prompt
-          <textarea
-            className={fieldClasses}
-            rows={4}
-            value={prompt}
-            disabled={busy}
-            required={promptField?.type === "string" && Boolean(promptField.required)}
-            maxLength={promptField?.type === "string" ? promptField.maxLength : undefined}
-            onChange={(event) => {
-              edited();
-              setPrompt(event.target.value);
-            }}
-          />
-        </label>
+        {promptField && (
+          <label className="flex flex-col gap-1 text-sm">
+            Prompt
+            <textarea
+              className={fieldClasses}
+              rows={4}
+              value={prompt}
+              disabled={busy}
+              required={promptField?.type === "string" && Boolean(promptField.required)}
+              maxLength={promptField?.type === "string" ? promptField.maxLength : undefined}
+              onChange={(event) => {
+                edited();
+                setPrompt(event.target.value);
+              }}
+            />
+          </label>
+        )}
 
         {model &&
           optionFields(model).map(([name, field]) => (

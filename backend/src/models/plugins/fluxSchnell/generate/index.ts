@@ -1,9 +1,9 @@
 import {
+  inputValidator,
   optionsValidator,
-  promptRule,
   uploadRule,
-} from "../schemaGenerator.js";
-import type { ModelDefinition } from "../types.js";
+} from "../../../schemaGenerator.js";
+import type { ModelDefinition } from "../../../types.js";
 import { billingInputs } from "./billing.js";
 import {
   cancelPrediction,
@@ -14,12 +14,14 @@ import {
 } from "./requests.js";
 import { schema } from "./schema.js";
 
-export const kling21: ModelDefinition = {
+export const fluxSchnellGenerate: ModelDefinition = {
+  plugin: "fluxSchnell",
+  operation: "generate",
   key: schema.info.name,
   kind: schema.info.kind,
   displayName: schema.info.displayName,
   schema,
-  prompt: promptRule(schema),
+  input: inputValidator(schema),
   uploads: uploadRule(schema),
   options: optionsValidator(schema),
   billingInputs,
@@ -28,5 +30,5 @@ export const kling21: ModelDefinition = {
   getPredictionResult,
   cancelPrediction,
   parseOutput,
-  timeoutMinutes: 60,
+  timeoutMinutes: 10,
 };

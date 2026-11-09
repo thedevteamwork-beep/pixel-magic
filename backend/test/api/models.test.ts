@@ -9,8 +9,8 @@ describe("models route", () => {
     expect(res.status).toBe(200);
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     expect(res.body.map((m: { key: string }) => m.key)).toEqual([
-      "flux-schnell",
-      "kling21",
+      "fluxSchnell_generate",
+      "kling21_generate",
     ]);
     expect(
       res.body.map((m: { credits: { min: number; max: number } }) => m.credits),

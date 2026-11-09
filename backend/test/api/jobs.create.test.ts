@@ -10,7 +10,9 @@ import { seedTestCatalog } from "../helpers/catalog.js";
 import { resetDb, testDb } from "../helpers/db.js";
 import { createFundedUser } from "../helpers/factories.js";
 
-const flux = { model: "flux-schnell", prompt: "a cat" };
+const FLUX = "fluxSchnell/generate";
+const KLING = "kling21/generate";
+const flux = { input: { prompt: "a cat" } };
 
 describe("POST /v1/jobs", () => {
   let h: ReturnType<typeof makeDeps>;
@@ -22,13 +24,20 @@ describe("POST /v1/jobs", () => {
     userId = await createFundedUser(h.deps, 100);
   });
 
-  async function post(body: unknown, key: string | null = "k1", uid = userId) {
+  async function postTo(
+    route: string,
+    body: unknown,
+    key: string | null = "k1",
+    uid = userId,
+  ) {
     const req = request(createApp(h.deps))
-      .post("/v1/jobs")
+      .post(`/v1/jobs/${route}`)
       .set(await authHeader(uid));
     if (key !== null) req.set("Idempotency-Key", key);
     return req.send(body as object);
   }
+  const post = (body: unknown, key: string | null = "k1", uid = userId) =>
+    postTo(FLUX, body, key, uid);
   async function reservedFor(jobId: string): Promise<number> {
     const rows = await testDb(T.creditAllocations).where({
       job_id: jobId,
@@ -42,11 +51,44 @@ describe("POST /v1/jobs", () => {
   }
 
   it("rejects an unknown option with 422 naming it", async () => {
-    const res = await post({ ...flux, options: { durations: "5" } });
+    const res = await post({ input: { prompt: "a cat", durations: "5" } });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("VALIDATION_FAILED");
     expect(JSON.stringify(res.body)).toContain("durations");
     expect(await jobCount()).toBe(0);
+  });
+
+  it.each([
+    ["an unknown plugin", "nope/generate"],
+    ["an unknown operation", "fluxSchnell/nope"],
+    ["a built-in key", "constructor/generate"],
+  ])("returns 404 NOT_FOUND for %s", async (_name, route) => {
+    const res = await postTo(route, flux);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_FOUND");
+    expect(await jobCount()).toBe(0);
+  });
+
+  it("stores the validated input, defaults filled in", async () => {
+    const res = await post(flux);
+    const row = await testDb(T.jobs).where({ id: res.body.jobId }).first();
+    expect(row.model_key).toBe("fluxSchnell_generate");
+    expect(row.input).toEqual({
+      prompt: "a cat",
+      image_size: "landscape_4_3",
+      num_images: 1,
+    });
+    expect(row.upload_ids).toEqual([]);
+  });
+
+  it("rejects more uploads than the image field's maxItems", async () => {
+    const res = await postTo(KLING, {
+      input: { prompt: "move", image: [randomUUID(), randomUUID()] },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.meta).toContainEqual(
+      expect.objectContaining({ path: ["image"] }),
+    );
   });
 
   it("rejects an unknown top-level body key with 422", async () => {
@@ -61,7 +103,7 @@ describe("POST /v1/jobs", () => {
     expect(res.body).toMatchObject({
       status: "queued",
       creditCost: 1,
-      model: "flux-schnell",
+      model: "fluxSchnell_generate",
     });
     expect(await reservedFor(res.body.jobId)).toBe(1);
     expect(h.queue.tasks).toEqual([
@@ -75,7 +117,7 @@ describe("POST /v1/jobs", () => {
 
   it("replays the same key and body with 200 and no second reservation", async () => {
     const a = await post(flux);
-    const b = await post({ ...flux, options: { num_images: 1 } });
+    const b = await post({ input: { prompt: "a cat", num_images: 1 } });
     expect(b.status).toBe(200);
     expect(b.body.jobId).toBe(a.body.jobId);
     expect(await jobCount()).toBe(1);
@@ -85,7 +127,7 @@ describe("POST /v1/jobs", () => {
 
   it("rejects the same key with a different body with 409 IDEMPOTENCY_KEY_REUSED", async () => {
     await post(flux);
-    const res = await post({ ...flux, prompt: "a dog" });
+    const res = await post({ input: { prompt: "a dog" } });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("IDEMPOTENCY_KEY_REUSED");
   });
@@ -131,10 +173,14 @@ describe("POST /v1/jobs", () => {
   });
 
   it.each([
-    ["unknown model", { model: "nope", prompt: "x" }, "k1"],
-    ["bad option", { ...flux, options: { num_images: 99 } }, "k1"],
-    ["missing prompt", { model: "flux-schnell" }, "k1"],
-    ["too many uploads", { ...flux, uploadIds: [randomUUID()] }, "k1"],
+    ["missing input", {}, "k1"],
+    ["bad option", { input: { prompt: "a cat", num_images: 99 } }, "k1"],
+    ["missing prompt", { input: {} }, "k1"],
+    [
+      "an upload flux doesn't take",
+      { input: { prompt: "a cat", image: [randomUUID()] } },
+      "k1",
+    ],
     ["missing Idempotency-Key", flux, null],
   ])("422 for %s", async (_name, body, key) => {
     const res = await post(body, key);
@@ -143,15 +189,28 @@ describe("POST /v1/jobs", () => {
     expect(await jobCount()).toBe(0);
   });
 
+  it("rejects a prompt over the model's maxLength, pointing at the prompt", async () => {
+    const res = await post({ input: { prompt: "a".repeat(2001) } });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe("VALIDATION_FAILED");
+    expect(res.body.meta).toContainEqual(
+      expect.objectContaining({ path: ["prompt"] }),
+    );
+    expect(await jobCount()).toBe(0);
+  });
+
+  it("accepts a prompt that only the longer model allows", async () => {
+    const res = await postTo(KLING, { input: { prompt: "a".repeat(2100) } });
+    expect(res.status).toBe(202);
+  });
+
   it("rejects an undeclared upload object with 422 UPLOAD_NOT_READY and reserves nothing", async () => {
     const up = await request(createApp(h.deps))
       .post("/v1/uploads")
       .set(await authHeader(userId))
       .send({ filename: "a.png", mimeType: "image/png", sizeBytes: 100 });
-    const res = await post({
-      model: "kling21",
-      prompt: "move",
-      uploadIds: [up.body.uploadId],
+    const res = await postTo(KLING, {
+      input: { prompt: "move", image: [up.body.uploadId] },
     });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("UPLOAD_NOT_READY");
@@ -169,14 +228,12 @@ describe("POST /v1/jobs", () => {
       mimeType: "image/png",
     });
     // The test config allows png everywhere, so narrow the model instead.
-    const model = getModel("kling21")!;
+    const model = getModel("kling21_generate")!;
     const original = model.uploads.supportedContentTypes;
     model.uploads.supportedContentTypes = ["image/jpeg"];
     try {
-      const res = await post({
-        model: "kling21",
-        prompt: "move",
-        uploadIds: [up.body.uploadId],
+      const res = await postTo(KLING, {
+        input: { prompt: "move", image: [up.body.uploadId] },
       });
       expect(res.status).toBe(422);
       expect(res.body.code).toBe("UPLOAD_NOT_READY");

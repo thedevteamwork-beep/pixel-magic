@@ -39,7 +39,7 @@ describe("createDeps", () => {
     // Valid in shape, but one flux image floors to 0 units: a 0-credit job.
     const mapping = {
       ...DEFAULT_TIERED_CREDIT_MAPPING,
-      "flux-schnell": {
+      fluxSchnell_generate: {
         tiers: [
           {
             name: "Basic",
@@ -56,15 +56,15 @@ describe("createDeps", () => {
       TIERED_CREDIT_MAPPING: JSON.stringify(mapping),
     });
     expect(() => createDeps(config)).toThrow(
-      /^TIERED_CREDIT_MAPPING invalid \(flux-schnell, tier Basic\): .* at 0 credits/,
+      /^TIERED_CREDIT_MAPPING invalid \(fluxSchnell_generate, tier Basic\): .* at 0 credits/,
     );
   });
 
   it("uses the default mapping when none is set", async () => {
     const deps = createDeps(loadConfig(env));
     expect(Object.keys(deps.creditMapping).sort()).toEqual([
-      "flux-schnell",
-      "kling21",
+      "fluxSchnell_generate",
+      "kling21_generate",
     ]);
     await deps.db.destroy();
   });

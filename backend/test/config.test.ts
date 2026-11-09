@@ -139,7 +139,7 @@ describe("loadConfig", () => {
   });
   it("parses a TIERED_CREDIT_MAPPING", () => {
     const mapping = {
-      kling21: {
+      kling21_generate: {
         tiers: [
           {
             name: "Basic",
@@ -157,7 +157,7 @@ describe("loadConfig", () => {
   it("fails on an invalid TIERED_CREDIT_MAPPING", () => {
     const bad = (rate: number, extra = {}) =>
       JSON.stringify({
-        kling21: {
+        kling21_generate: {
           tiers: [
             {
               name: "Basic",

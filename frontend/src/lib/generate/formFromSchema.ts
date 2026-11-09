@@ -12,6 +12,14 @@ export function imageField(model: PublicModel): ImageField | undefined {
   return undefined;
 }
 
+/** The name of the model's image input, or `undefined` for text-only models. */
+export function imageFieldName(model: PublicModel): string | undefined {
+  for (const [name, field] of Object.entries(model.input)) {
+    if (field.type === IMAGE_TYPE) return name;
+  }
+  return undefined;
+}
+
 /** Every input except the prompt and the image: the fields shown as options. */
 export function optionFields(model: PublicModel): [string, FieldSchema][] {
   return Object.entries(model.input).filter(([name, field]) => name !== "prompt" && field.type !== IMAGE_TYPE);
@@ -35,4 +43,19 @@ export function buildOptions(model: PublicModel, values: Record<string, unknown>
     options[name] = field.type === "integer" ? Number(value) : value;
   }
   return options;
+}
+
+/**
+ * The job's `input`: the options, the prompt (when the model has one) and the
+ * upload ids in the model's image field. The backend checks it against the schema.
+ */
+export function buildInput(
+  model: PublicModel,
+  p: { prompt: string; values: Record<string, unknown>; uploadIds: string[] },
+): Record<string, unknown> {
+  const input = buildOptions(model, p.values);
+  if (model.input.prompt) input.prompt = p.prompt;
+  const image = imageFieldName(model);
+  if (image && p.uploadIds.length > 0) input[image] = p.uploadIds;
+  return input;
 }

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
+import { jobBody } from "../../helpers/jobs.js";
 import { ApiError } from "@fal-ai/client";
 import { createFalClient, FalError } from "../../../src/clients/fal.js";
 import { getJob } from "../../../src/db/repositories/jobs.repo.js";
@@ -38,9 +39,9 @@ describe("runFinalize", () => {
   });
 
   async function submittedJob(
-    model = "flux-schnell",
+    model = "fluxSchnell_generate",
     key = "k1",
-    withImage = model === "kling21",
+    withImage = model === "kling21_generate",
   ) {
     const uploadIds: string[] = [];
     if (withImage) {
@@ -58,7 +59,7 @@ describe("runFinalize", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      { model, prompt: "a cat", uploadIds, options: {} },
+      jobBody(model, { prompt: "a cat", uploadIds, options: {} }),
       key,
     );
     await runGenerate(h.deps, job.jobId);
@@ -309,14 +310,14 @@ describe("runFinalize", () => {
   });
 
   it("stores kling video outputs as mp4", async () => {
-    const id = await submittedJob("kling21");
+    const id = await submittedJob("kling21_generate");
     h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.storage.copies[0]?.path).toBe(`${userId}/${id}/0.mp4`);
   });
 
   it("finalizes a text-to-video job against the text-to-video endpoint", async () => {
-    const id = await submittedJob("kling21", "k1", false);
+    const id = await submittedJob("kling21_generate", "k1", false);
     h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
@@ -327,7 +328,7 @@ describe("runFinalize", () => {
   });
 
   it("finalizes an image-to-video job against the image-to-video endpoint", async () => {
-    const id = await submittedJob("kling21");
+    const id = await submittedJob("kling21_generate");
     h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([

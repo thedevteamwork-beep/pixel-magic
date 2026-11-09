@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { jobBody } from "../../helpers/jobs.js";
 import { T } from "../../../src/db/tables.js";
 import {
   createJob,
@@ -22,7 +23,11 @@ describe("failJob", () => {
     const { job } = await createJob(
       deps,
       userId,
-      { model: "flux-schnell", prompt: "a cat", uploadIds: [], options: {} },
+      jobBody("fluxSchnell_generate", {
+        prompt: "a cat",
+        uploadIds: [],
+        options: {},
+      }),
       "k1",
     );
     const totals = async () => {

@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Run it locally
 
-1. Copy `.env.example` to `.env.local` and fill in the Supabase URL, the publishable key and the backend API URL.
+1. Copy `.env.example` to `.env.local` and fill in the Supabase URL, the publishable key and the backend API URL. To work without Supabase for now, set `NEXT_PUBLIC_SUPABASE_ENABLED=false`: there is then no sign-in and no Supabase keys are needed, but the backend still requires a Supabase login for its own routes, so jobs and uploads will not work until you turn it back on.
 2. Start the backend API and the worker (see `backend/README.md`).
 3. In this folder, run `npm run dev`.
 4. Open [http://localhost:3000/generate](http://localhost:3000/generate), sign in, pick a model, type a prompt and press **Generate**.

@@ -3,35 +3,36 @@ import { z } from "zod";
 import { SUPPORTED_UNITS } from "../../../credits/units.js";
 import type { Deps } from "../../../deps.js";
 import { AppError } from "../../../lib/errors.js";
-import { getModel } from "../../../models/registry.js";
+import { getOperation } from "../../../models/registry.js";
 import { estimateCredits } from "../../../services/credits/estimate.js";
 import { validate } from "../../middlewares/validate.js";
 
-const estimateBody = z
-  .object({
-    model: z.string().min(1),
-    options: z.record(z.string(), z.unknown()).default({}),
-    uploadCount: z.number().int().min(0).max(10).default(0),
-    count: z.number().int().min(1).max(20).default(1),
-  })
-  .strict();
+// The same input as POST /v1/jobs/:plugin/:operation, plus how many jobs.
+const estimateBody = z.strictObject({
+  input: z.record(z.string(), z.unknown()),
+  count: z.number().int().min(1).max(20).default(1),
+});
 
 export function creditsRoutes(deps: Deps): Router {
   const router = Router();
 
   // Public: the price list is not secret and needs no account.
   router.post(
-    "/credits/estimate",
+    "/credits/estimate/:plugin/:operation",
     express.json({ limit: "100kb" }),
     validate({ body: estimateBody }),
     (req, res) => {
       const body = req.body as z.infer<typeof estimateBody>;
-      const model = getModel(body.model);
-      if (!model) throw new AppError(422, "VALIDATION_FAILED", "Unknown model");
+      const { plugin, operation } = req.params as {
+        plugin: string;
+        operation: string;
+      };
+      const model = getOperation(plugin, operation);
+      if (!model) throw new AppError(404, "NOT_FOUND", "Plugin not found");
       const { creditsPerJob, tier, baseCredits, breakdown } = estimateCredits(
         deps,
         model,
-        { options: body.options, uploadCount: body.uploadCount },
+        body.input,
       );
       res.json({
         model: model.key,

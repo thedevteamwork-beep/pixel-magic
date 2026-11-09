@@ -5,25 +5,11 @@ import {
   validateCreditMapping,
   type TieredCreditMapping,
 } from "../../credits/tieredCredits.js";
-import { AppError } from "../../lib/errors.js";
+import { optionsIn, uploadIdsIn } from "../../models/schemaGenerator.js";
 import type { BillingFacts, ModelDefinition } from "../../models/types.js";
 
 /** Pricing only needs the mapping. */
 type PricingDeps = Pick<Deps, "creditMapping">;
-
-/** Throws 422 when the number of uploads is outside what the model takes. */
-export function assertUploadCount(
-  model: ModelDefinition,
-  uploadCount: number,
-): void {
-  if (uploadCount < model.uploads.min || uploadCount > model.uploads.max) {
-    throw new AppError(
-      422,
-      "VALIDATION_FAILED",
-      `This model takes ${model.uploads.min} to ${model.uploads.max} uploads`,
-    );
-  }
-}
 
 const MAX_CREDITS = 2147483647; // the largest credit_cost the database holds
 
@@ -57,23 +43,26 @@ function priceJob(
 }
 
 /**
- * The price of one job. Job creation and the estimate endpoint both call
- * this, so what is shown is what is reserved. `creditsPerJob` is
- * `baseCredits` plus every breakdown item's credits, rounded up once.
+ * The price of one job, from the same input the job is created with. Job
+ * creation and the estimate endpoint both call this, so what is shown is
+ * what is reserved. `creditsPerJob` is `baseCredits` plus every breakdown
+ * item's credits, rounded up once. Upload ids are counted, never looked up.
  */
 export function estimateCredits(
   deps: PricingDeps,
   model: ModelDefinition,
-  p: { options: unknown; uploadCount: number },
+  rawInput: unknown,
 ): {
   creditsPerJob: number;
   tier: string;
   baseCredits: number;
   breakdown: ReturnType<typeof priceTier>["breakdown"];
 } {
-  assertUploadCount(model, p.uploadCount);
-  const options = model.options.parse(p.options ?? {});
-  const facts = model.billingInputs({ options, uploadCount: p.uploadCount });
+  const input = model.input.parse(rawInput);
+  const facts = model.billingInputs({
+    options: optionsIn(model.uploads, input),
+    uploadCount: uploadIdsIn(model.uploads, input).length,
+  });
   const { credits, tier, baseCredits, breakdown } = priceJob(
     deps,
     model,

@@ -28,6 +28,7 @@ vi.mock("../../../src/db/repositories/jobs.repo.js", async (importOriginal) => {
   };
 });
 
+import { jobBody } from "../../helpers/jobs.js";
 import { getJob } from "../../../src/db/repositories/jobs.repo.js";
 import { T } from "../../../src/db/tables.js";
 import { runGenerate } from "../../../src/services/jobs/generate.js";
@@ -52,7 +53,11 @@ describe("runGenerate: saving the request id", () => {
       await createJob(
         h.deps,
         userId,
-        { model: "flux-schnell", prompt: "a cat", uploadIds: [], options: {} },
+        jobBody("fluxSchnell_generate", {
+          prompt: "a cat",
+          uploadIds: [],
+          options: {},
+        }),
         "k1",
       )
     ).job.jobId;

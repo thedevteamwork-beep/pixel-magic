@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
 import type { Me } from "@/lib/api/types";
 import { onCreditsChanged } from "@/lib/balance";
+import { isSupabaseEnabled } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button, ButtonWithLink } from "@/ui/Button";
 
@@ -30,6 +31,8 @@ export function HeaderAccount({ links, signedInLinks }: { links: NavLinks; signe
   }, []);
 
   useEffect(() => {
+    // Supabase is off: `email` stays unknown, so the header shows no account.
+    if (!isSupabaseEnabled()) return;
     const supabase = createSupabaseBrowserClient();
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user.email ?? null);

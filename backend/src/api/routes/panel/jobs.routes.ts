@@ -10,14 +10,10 @@ import { decodeCursor, encodeCursor } from "../../../services/jobs/cursor.js";
 import { createJob, jobView, jobViews } from "../../../services/jobs/jobs.js";
 import { validate } from "../../middlewares/validate.js";
 
-const createBody = z
-  .object({
-    model: z.string().min(1),
-    prompt: z.string().default(""),
-    uploadIds: z.array(z.string().uuid()).max(10).default([]),
-    options: z.record(z.string(), z.unknown()).default({}),
-  })
-  .strict();
+// The input's fields are checked against the operation's schema in createJob.
+const createBody = z.strictObject({
+  input: z.record(z.string(), z.unknown()),
+});
 
 const idempotencyKey = z.string().min(1).max(200);
 const jobId = z.string().uuid();
@@ -32,15 +28,20 @@ export function jobsRoutes(deps: Deps): Router {
   const json = express.json({ limit: "100kb" });
 
   router.post(
-    "/jobs",
+    "/jobs/:plugin/:operation",
     json,
     validate({ body: createBody }),
     async (req, res) => {
       const key = idempotencyKey.parse(req.header("Idempotency-Key"));
+      const { plugin, operation } = req.params as {
+        plugin: string;
+        operation: string;
+      };
+      const body = req.body as z.infer<typeof createBody>;
       const { status, job } = await createJob(
         deps,
         req.user!.id,
-        req.body,
+        { plugin, operation, input: body.input },
         key,
       );
       res.status(status).json(job);

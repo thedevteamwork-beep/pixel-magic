@@ -205,8 +205,8 @@ Every state change is a compare-and-set: `UPDATE jobs SET … WHERE id = ? AND s
    - It inserts a `pending` upload and returns a Supabase `createSignedUploadUrl` URL and token.
    - The browser uploads the file directly to Supabase.
    - The bucket's own `file_size_limit` and `allowed_mime_types` enforce the same limits on Supabase's side.
-2. **`POST /v1/jobs`** (requires the `Idempotency-Key` header)
-   1. Validate the body against the model's input schema from the registry.
+2. **`POST /v1/jobs/:plugin/:operation`** `{input}` (requires the `Idempotency-Key` header)
+   1. Look up the operation in the registry (`404 NOT_FOUND` if the plugin or operation is unknown), then validate `input` against its `schema.input`: every field by its own rules, nothing undeclared. The image field holds upload ids.
    2. Check that each upload belongs to the user. Confirm the object exists in Storage, record its real size and MIME type, and mark the upload `ready`. Otherwise return `422 UPLOAD_NOT_READY`.
    3. In one transaction:
       - Upsert the profile (and the Free plan for a new user).
@@ -313,12 +313,12 @@ This section covers only verifying and recording webhooks. Checkout, routing, re
 | Method | Path | Auth | Success | Notable errors |
 |---|---|---|---|---|
 | POST | `/v1/uploads` `{filename, mimeType, sizeBytes}` | user | `201 {uploadId, path, signedUrl, token, expiresAt}` | 422 |
-| POST | `/v1/jobs` `{model, prompt, uploadIds?, options?}` + `Idempotency-Key` | user | `202 {jobId, status, creditCost}`, or `200` on an idempotent replay | 402, 409, 422, 429 |
+| POST | `/v1/jobs/:plugin/:operation` `{input}` + `Idempotency-Key` | user | `202 {jobId, status, creditCost}`, or `200` on an idempotent replay | 402, 404, 409, 422, 429 |
 | GET | `/v1/jobs/:id` | user (owner) | `200 {jobId, status, model, creditCost, createdAt, completedAt, outputs:[{index, mimeType, url, expiresAt}], error?}` (`outputs` is empty until `completed`) | 404 |
 | GET | `/v1/me` | user | `200 {userId, email, credits:{available, reserved, grants}, subscription}` (plans design §7) | 401 |
 | | `/v1/plans`, `/v1/addons`, `/v1/billing/*`, `/tasks/billing-sweep` | | Defined in plans design §7 | |
-| GET | `/v1/models` | public | `200 [{key, name, kind, category, description, credits:{min, max}, input}]` with `Cache-Control: public, max-age=300` | — |
-| POST | `/v1/credits/estimate` `{model, options?, uploadCount?, count?}` | public | `200 {model, count, tier, creditsPerJob, totalCredits, baseCredits, breakdown:[{unit, label, quantity, rate, credits}]}` | 422 |
+| GET | `/v1/models` | public | `200 [{key, plugin, operation, name, kind, category, description, credits:{min, max}, input}]` with `Cache-Control: public, max-age=300` | — |
+| POST | `/v1/credits/estimate/:plugin/:operation` `{input, count?}` | public | `200 {model, count, tier, creditsPerJob, totalCredits, baseCredits, breakdown:[{unit, label, quantity, rate, credits}]}` | 422 |
 | POST | `/webhooks/fal` | fal signature | `200` | 401, 503 |
 | POST | `/webhooks/paddle` | Paddle signature | `200` | 401 |
 | POST | `/tasks/generate`, `/tasks/finalize` `{jobId}` | Cloud Run IAM | `200` | 503 to retry |

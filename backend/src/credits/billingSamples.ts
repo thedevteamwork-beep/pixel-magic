@@ -25,26 +25,35 @@ function wholeNumbers(min: number, max: number): number[] {
   return values;
 }
 
+/** Stands in for what a user types in a required free-text option; a price can't depend on it. */
+const FREE_TEXT_SAMPLE = "sample";
+
 /**
  * The values one option can take. `undefined` means "left out", which a
- * string with no default allows.
+ * string with no default allows unless it is required.
  */
 function optionChoices(field: FieldSchema): (OptionValue | undefined)[] {
-  // 1. an enum: each value, and left out when there is no default
+  const canLeaveOut =
+    field.type === "string" &&
+    field.default === undefined &&
+    field.required !== true;
+  // 1. an enum: each value, and left out when it can be
   if (field.type === "string" && field.enum) {
     const values: (OptionValue | undefined)[] = [...field.enum];
-    if (field.default === undefined) values.push(undefined);
+    if (canLeaveOut) values.push(undefined);
     return values;
   }
-  // 2. free text: its default, or left out when it has none
+  // 2. required free text: a sample text, since it can't be left out
+  if (field.type === "string" && field.required) return [FREE_TEXT_SAMPLE];
+  // 3. other free text: its default, or left out when it has none
   if (field.type === "string") return [field.default];
-  // 3. an integer: every value from minimum to maximum
+  // 4. an integer: every value from minimum to maximum
   if (field.type === "integer") {
     return wholeNumbers(field.minimum, field.maximum);
   }
-  // 4. a boolean: both
+  // 5. a boolean: both
   if (field.type === "boolean") return [true, false];
-  // 5. the image is not an option; the upload count covers it
+  // 6. the image is not an option; the upload count covers it
   return [];
 }
 

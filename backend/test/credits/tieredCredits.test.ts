@@ -8,7 +8,7 @@ import {
   validateCreditMapping,
   type TieredCreditMapping,
 } from "../../src/credits/tieredCredits.js";
-import { kling21 } from "../../src/models/kling21/index.js";
+import { kling21Generate as kling21 } from "../../src/models/plugins/kling21/generate/index.js";
 import { listModels } from "../../src/models/registry.js";
 import { optionsValidator } from "../../src/models/schemaGenerator.js";
 import type { ModelDefinition, ModelSchema } from "../../src/models/types.js";
@@ -42,7 +42,7 @@ const defaults = () => structuredClone(DEFAULT_TIERED_CREDIT_MAPPING) as Loose;
 
 describe("priceTier", () => {
   it("uses the default tier's meter: kling21 5 s → 30, 10 s → 60", () => {
-    const entry = DEFAULT_TIERED_CREDIT_MAPPING.kling21!;
+    const entry = DEFAULT_TIERED_CREDIT_MAPPING.kling21_generate!;
     const five = priceTier(entry, { duration: 5, image: false });
     expect(five).toEqual({
       tier: "Basic",
@@ -164,7 +164,7 @@ describe("priceTier", () => {
   });
 
   it("throws when a meter's fact is missing or not a number", () => {
-    const entry = DEFAULT_TIERED_CREDIT_MAPPING.kling21!;
+    const entry = DEFAULT_TIERED_CREDIT_MAPPING.kling21_generate!;
     expect(() => priceTier(entry, {})).toThrow(/duration/);
     expect(() => priceTier(entry, { duration: "5" })).toThrow(/duration/);
     expect(() => priceTier(entry, { duration: Infinity })).toThrow(/duration/);
@@ -190,7 +190,7 @@ function klingWithStyle(): ModelDefinition {
 /** The default mapping with one extra kling21 tier "X" testing `conditions`. */
 function withKlingTier(conditions: unknown): Loose {
   const mapping = defaults();
-  mapping.kling21.tiers.push({
+  mapping.kling21_generate.tiers.push({
     name: "X",
     conditions,
     meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -213,7 +213,7 @@ describe("validateCreditMapping", () => {
 
   it("lets an optional string option with no default carry a string condition", () => {
     const mapping = {
-      kling21: withCondition({
+      kling21_generate: withCondition({
         fact: "style",
         operator: "equal",
         value: "anime",
@@ -226,7 +226,11 @@ describe("validateCreditMapping", () => {
 
   it("still rejects a mistyped value on that optional string option", () => {
     const mapping = {
-      kling21: withCondition({ fact: "style", operator: "equal", value: 5 }),
+      kling21_generate: withCondition({
+        fact: "style",
+        operator: "equal",
+        value: 5,
+      }),
     };
     expect(() => validateCreditMapping(mapping, [klingWithStyle()])).toThrow(
       /kling21.*Special.*style is a string/,
@@ -260,22 +264,22 @@ describe("validateCreditMapping", () => {
     [
       "a misspelled operator key",
       { fact: "image", operater: "equal", value: true },
-      /kling21\.tiers\.1\.conditions.*Unrecognized key: "operater"/,
+      /kling21_generate\.tiers\.1\.conditions.*Unrecognized key: "operater"/,
     ],
     [
       "a misspelled value key",
       { fact: "image", operator: "equal", valeu: true },
-      /kling21\.tiers\.1\.conditions.*Unrecognized key: "valeu"/,
+      /kling21_generate\.tiers\.1\.conditions.*Unrecognized key: "valeu"/,
     ],
     [
       "a misspelled all key",
       { alll: [{ fact: "image", operator: "equal", value: true }] },
-      /kling21\.tiers\.1\.conditions.*Unrecognized key: "alll"/,
+      /kling21_generate\.tiers\.1\.conditions.*Unrecognized key: "alll"/,
     ],
     [
       "an unknown operator",
       { fact: "image", operator: "equals", value: true },
-      /kling21\.tiers\.1\.conditions\.operator.*"equal".*"notIn"/,
+      /kling21_generate\.tiers\.1\.conditions\.operator.*"equal".*"notIn"/,
     ],
     [
       "a typo deep inside all / any",
@@ -285,7 +289,7 @@ describe("validateCreditMapping", () => {
     [
       "an extra key next to all",
       { all: [{ fact: "image", operator: "equal", value: true }], fact: "x" },
-      /kling21\.tiers\.1\.conditions.*Unrecognized key: "fact"/,
+      /kling21_generate\.tiers\.1\.conditions.*Unrecognized key: "fact"/,
     ],
   ])("names %s inside conditions", (_name, conditions, message) => {
     const mapping = withKlingTier(conditions);
@@ -293,17 +297,25 @@ describe("validateCreditMapping", () => {
   });
 
   it.each<[string, unknown, RegExp]>([
-    ["all", { all: [] }, /kling21\.tiers\.1\.conditions\.all.*Too small/],
-    ["any", { any: [] }, /kling21\.tiers\.1\.conditions\.any.*Too small/],
+    [
+      "all",
+      { all: [] },
+      /kling21_generate\.tiers\.1\.conditions\.all.*Too small/,
+    ],
+    [
+      "any",
+      { any: [] },
+      /kling21_generate\.tiers\.1\.conditions\.any.*Too small/,
+    ],
     [
       "in",
       { fact: "duration", operator: "in", value: [] },
-      /kling21\.tiers\.1\.conditions\.value.*Too small/,
+      /kling21_generate\.tiers\.1\.conditions\.value.*Too small/,
     ],
     [
       "notIn",
       { fact: "duration", operator: "notIn", value: [] },
-      /kling21\.tiers\.1\.conditions\.value.*Too small/,
+      /kling21_generate\.tiers\.1\.conditions\.value.*Too small/,
     ],
   ])("rejects an empty %s list", (_name, conditions, message) => {
     const mapping = withKlingTier(conditions);
@@ -313,30 +325,38 @@ describe("validateCreditMapping", () => {
   it.each<[string, (m: Loose) => void, RegExp]>([
     [
       "unknown unit metric",
-      (m) => (m.kling21.tiers[0].meters[0].metric = "megapixels"),
+      (m) => (m.kling21_generate.tiers[0].meters[0].metric = "megapixels"),
       /kling21.*metric/,
     ],
     [
       "a unit the model doesn't declare",
-      (m) => (m.kling21.tiers[0].meters[0].metric = "images"),
+      (m) => (m.kling21_generate.tiers[0].meters[0].metric = "images"),
       /kling21.*images/,
     ],
-    ["unknown model key", (m) => (m.klng21 = m.kling21), /klng21/],
-    ["missing model", (m) => delete m["flux-schnell"], /flux-schnell/],
+    ["unknown model key", (m) => (m.klng21 = m.kling21_generate), /klng21/],
+    [
+      "missing model",
+      (m) => delete m["fluxSchnell_generate"],
+      /fluxSchnell_generate/,
+    ],
     [
       "two defaults",
-      (m) => m.kling21.tiers.push({ ...m.kling21.tiers[0], name: "Other" }),
+      (m) =>
+        m.kling21_generate.tiers.push({
+          ...m.kling21_generate.tiers[0],
+          name: "Other",
+        }),
       /kling21.*default/,
     ],
     [
       "no default",
-      (m) => (m.kling21.tiers[0].isDefault = false),
+      (m) => (m.kling21_generate.tiers[0].isDefault = false),
       /kling21.*default/,
     ],
     [
       "unknown fact",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: { fact: "resolution", operator: "equal", value: "hd" },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -346,25 +366,37 @@ describe("validateCreditMapping", () => {
     [
       "a condition on prompt",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: { fact: "prompt", operator: "equal", value: "a" },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
       /kling21.*prompt/,
     ],
-    ["negative rate", (m) => (m.kling21.tiers[0].meters[0].rate = -1), /rate/],
+    [
+      "negative rate",
+      (m) => (m.kling21_generate.tiers[0].meters[0].rate = -1),
+      /rate/,
+    ],
     [
       "zero unitSize",
-      (m) => (m.kling21.tiers[0].meters[0].unitSize = 0),
+      (m) => (m.kling21_generate.tiers[0].meters[0].unitSize = 0),
       /unitSize/,
     ],
-    ["negative credits", (m) => (m.kling21.tiers[0].credits = -1), /credits/],
-    ["extra property", (m) => (m.kling21.tiers[0].meters[0].rat = 1), /rat/],
+    [
+      "negative credits",
+      (m) => (m.kling21_generate.tiers[0].credits = -1),
+      /credits/,
+    ],
+    [
+      "extra property",
+      (m) => (m.kling21_generate.tiers[0].meters[0].rat = 1),
+      /rat/,
+    ],
     [
       "a non-default tier without conditions",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
         }),
@@ -373,7 +405,7 @@ describe("validateCreditMapping", () => {
     [
       "a default tier with conditions",
       (m) =>
-        (m.kling21.tiers[0].conditions = {
+        (m.kling21_generate.tiers[0].conditions = {
           fact: "image",
           operator: "equal",
           value: true,
@@ -383,7 +415,7 @@ describe("validateCreditMapping", () => {
     [
       "duplicate tier names",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "Basic",
           conditions: { fact: "image", operator: "equal", value: true },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -393,7 +425,7 @@ describe("validateCreditMapping", () => {
     [
       "an `in` condition whose value is not an array",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: { fact: "image", operator: "in", value: true },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -402,18 +434,18 @@ describe("validateCreditMapping", () => {
     ],
     [
       "a tier that prices a job at 0",
-      (m) => (m.kling21.tiers[0].meters[0].rate = 0),
+      (m) => (m.kling21_generate.tiers[0].meters[0].rate = 0),
       /kling21.*Basic.*0 credits/,
     ],
     [
       "a tier with no meters and no credits",
-      (m) => delete m.kling21.tiers[0].meters,
+      (m) => delete m.kling21_generate.tiers[0].meters,
       /kling21.*Basic.*0 credits/,
     ],
     [
       "a string value on a number fact",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: { fact: "duration", operator: "equal", value: "10" },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -423,7 +455,7 @@ describe("validateCreditMapping", () => {
     [
       "a mistyped element in an in list",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: { fact: "duration", operator: "in", value: [5, "10"] },
           meters: [{ metric: "duration", unitSize: 1, rate: 1 }],
@@ -433,7 +465,7 @@ describe("validateCreditMapping", () => {
     [
       "an ordering operator on a string fact",
       (m) =>
-        m.kling21.tiers.push({
+        m.kling21_generate.tiers.push({
           name: "X",
           conditions: {
             fact: "aspect_ratio",
@@ -452,7 +484,7 @@ describe("validateCreditMapping", () => {
 
   it("names TIERED_CREDIT_MAPPING in its errors", () => {
     const mapping = defaults();
-    delete mapping.kling21;
+    delete mapping.kling21_generate;
     expect(() => validateCreditMapping(mapping, listModels())).toThrow(
       /TIERED_CREDIT_MAPPING/,
     );

@@ -31,7 +31,7 @@ describe("GET /v1/jobs", () => {
     await testDb(T.jobs).insert({
       id,
       user_id: owner,
-      model_key: "flux-schnell",
+      model_key: "fluxSchnell_generate",
       input: {},
       credit_cost: 1,
       status,
@@ -92,7 +92,7 @@ describe("GET /v1/jobs", () => {
       await testDb(T.jobs).insert({
         id,
         user_id: userId,
-        model_key: "flux-schnell",
+        model_key: "fluxSchnell_generate",
         input: {},
         credit_cost: 1,
         status: "queued",
