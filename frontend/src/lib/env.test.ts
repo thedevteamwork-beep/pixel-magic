@@ -22,6 +22,33 @@ describe("publicEnv", () => {
   });
 });
 
+describe("paddleEnv", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("defaults to sandbox", () => {
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_abc");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "");
+    expect(paddleEnv()).toEqual({ clientToken: "test_abc", environment: "sandbox" });
+  });
+
+  it("accepts production", () => {
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "live_abc");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "production");
+    expect(paddleEnv().environment).toBe("production");
+  });
+
+  it("throws on an unknown environment", () => {
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_abc");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "live");
+    expect(() => paddleEnv()).toThrow("NEXT_PUBLIC_PADDLE_ENV");
+  });
+
+  it("throws on a missing token", () => {
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "");
+    expect(() => paddleEnv()).toThrow("Missing env NEXT_PUBLIC_PADDLE_CLIENT_TOKEN");
+  });
+});
+
 describe("Supabase switch", () => {
   afterEach(() => vi.unstubAllEnvs());
 
@@ -61,32 +88,5 @@ describe("Supabase switch", () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ENABLED", "false");
     expect(() => publicEnv()).toThrow("Missing env NEXT_PUBLIC_API_URL");
-  });
-});
-
-describe("paddleEnv", () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("defaults to sandbox", () => {
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_abc");
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "");
-    expect(paddleEnv()).toEqual({ clientToken: "test_abc", environment: "sandbox" });
-  });
-
-  it("accepts production", () => {
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "live_abc");
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "production");
-    expect(paddleEnv().environment).toBe("production");
-  });
-
-  it("throws on an unknown environment", () => {
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_abc");
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "live");
-    expect(() => paddleEnv()).toThrow("NEXT_PUBLIC_PADDLE_ENV");
-  });
-
-  it("throws on a missing token", () => {
-    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "");
-    expect(() => paddleEnv()).toThrow("Missing env NEXT_PUBLIC_PADDLE_CLIENT_TOKEN");
   });
 });

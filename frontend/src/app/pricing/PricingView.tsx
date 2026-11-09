@@ -6,6 +6,7 @@ import { PlanCard } from "@/app/pricing/PlanCard";
 import { api } from "@/lib/api/client";
 import type { Account, Addon, Plan } from "@/lib/api/billingTypes";
 import { notifyCreditsChanged } from "@/lib/balance";
+import { isSupabaseEnabled } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/Button";
 import { cn } from "@/lib/cn";
@@ -18,8 +19,8 @@ type Catalog = { plans: Plan[]; addons: Addon[] };
 export function PricingView() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  /** `undefined` while we don't know yet, `null` when signed out. */
-  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
+  /** `undefined` while we don't know yet. With Supabase off nobody can sign in, so it starts `false`. */
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(() => (isSupabaseEnabled() ? undefined : false));
   const [account, setAccount] = useState<Account | null>(null);
   const [interval, setInterval] = useState<Interval>("monthly");
   const [message, setMessage] = useState<string | null>(null);
@@ -47,6 +48,8 @@ export function PricingView() {
   }, [attempt]);
 
   useEffect(() => {
+    // Supabase is off: stay signed out and make no /v1/me call.
+    if (!isSupabaseEnabled()) return;
     const { data } = createSupabaseBrowserClient().auth.onAuthStateChange((_event, session) => {
       setSignedIn(Boolean(session));
       if (session) void loadAccount();
