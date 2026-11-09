@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { optionsValidator } from "../../src/models/schemaGenerator.js";
 import type { ModelSchema } from "../../src/models/types.js";
 import { validateModelSchema } from "../../src/models/metaSchema.js";
-import { schema as flux } from "../../src/models/flux-schnell/schema.js";
-import { schema as kling } from "../../src/models/kling21/schema.js";
+import { schema as flux } from "../../src/models/plugins/fluxSchnell/generate/schema.js";
+import { schema as kling } from "../../src/models/plugins/kling21/generate/schema.js";
 
 // Loose on purpose: tests mutate the schema into invalid shapes.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,26 +13,34 @@ const clone = () => structuredClone(kling) as Rec;
 
 describe("validateModelSchema", () => {
   it("accepts both registered models", () => {
-    expect(() => validateModelSchema("kling21", kling)).not.toThrow();
-    expect(() => validateModelSchema("flux-schnell", flux)).not.toThrow();
+    expect(() => validateModelSchema("kling21_generate", kling)).not.toThrow();
+    expect(() =>
+      validateModelSchema("fluxSchnell_generate", flux),
+    ).not.toThrow();
   });
 
   it("requires a strict billing block of supported units", () => {
     const s = clone();
     delete s.billing;
-    expect(() => validateModelSchema("kling21", s)).toThrow(/billing/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(/billing/);
     s.billing = { units: ["video_seconds"] };
-    expect(() => validateModelSchema("kling21", s)).toThrow(/billing\.units/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
+      /billing\.units/,
+    );
     s.billing = { units: ["duration"], extra: 1 };
-    expect(() => validateModelSchema("kling21", s)).toThrow(/billing.*extra/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
+      /billing.*extra/,
+    );
   });
 
   it("rejects empty or duplicate billing units", () => {
     const s = clone();
     s.billing = { units: [] };
-    expect(() => validateModelSchema("kling21", s)).toThrow(/billing\.units/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
+      /billing\.units/,
+    );
     s.billing = { units: ["duration", "duration"] };
-    expect(() => validateModelSchema("kling21", s)).toThrow(
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
       /billing\.units.*duplicate/,
     );
   });
@@ -48,44 +56,52 @@ describe("validateModelSchema", () => {
       const s = clone();
       mutate(s);
       const msg = new RegExp(
-        `^Model kling21 schema invalid: ${path.replaceAll(".", "\\.")}.*${key}`,
+        `^Model kling21_generate schema invalid: ${path.replaceAll(".", "\\.")}.*${key}`,
       );
-      expect(() => validateModelSchema("kling21", s)).toThrow(msg);
+      expect(() => validateModelSchema("kling21_generate", s)).toThrow(msg);
     },
   );
 
   it("rejects a bad field key", () => {
     const s = clone();
     s.input["bad-key"] = { type: "boolean", description: "x", default: true };
-    expect(() => validateModelSchema("kling21", s)).toThrow(/input.*bad-key/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
+      /input.*bad-key/,
+    );
   });
 
   it("rejects a default outside the enum", () => {
     const s = clone();
     s.input.duration.default = "7";
-    expect(() => validateModelSchema("kling21", s)).toThrow(/duration/);
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
+      /duration/,
+    );
   });
 
   it("rejects an integer default outside minimum..maximum", () => {
     const s = structuredClone(flux) as Rec;
     s.input.num_images.default = 9;
-    expect(() => validateModelSchema("flux-schnell", s)).toThrow(/num_images/);
+    expect(() => validateModelSchema("fluxSchnell_generate", s)).toThrow(
+      /num_images/,
+    );
     s.input.num_images.default = 0;
-    expect(() => validateModelSchema("flux-schnell", s)).toThrow(/num_images/);
+    expect(() => validateModelSchema("fluxSchnell_generate", s)).toThrow(
+      /num_images/,
+    );
   });
 
   it("rejects two image fields", () => {
     const s = clone();
     s.input.image2 = structuredClone(s.input.image);
-    expect(() => validateModelSchema("kling21", s)).toThrow(
+    expect(() => validateModelSchema("kling21_generate", s)).toThrow(
       /at most one image/,
     );
   });
 
-  it("rejects a missing prompt", () => {
+  it("accepts a model with no prompt: it is just another field", () => {
     const s = clone();
     delete s.input.prompt;
-    expect(() => validateModelSchema("kling21", s)).toThrow(/prompt/);
+    expect(() => validateModelSchema("kling21_generate", s)).not.toThrow();
   });
 });
 

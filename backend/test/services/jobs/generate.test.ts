@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
+import { jobBody } from "../../helpers/jobs.js";
 import { FalError } from "../../../src/clients/fal.js";
 import { getJob } from "../../../src/db/repositories/jobs.repo.js";
 import { T } from "../../../src/db/tables.js";
@@ -31,7 +32,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      { model: "flux-schnell", prompt: "a cat", uploadIds: [], options: {} },
+      jobBody("fluxSchnell_generate", {
+        prompt: "a cat",
+        uploadIds: [],
+        options: {},
+      }),
       key,
     );
     return job.jobId;
@@ -81,12 +86,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      {
-        model: "kling21",
+      jobBody("kling21_generate", {
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
-      },
+      }),
       "k-kling",
     );
     expect(await runGenerate(h.deps, job.jobId)).toBe(200);
@@ -101,7 +105,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      { model: "kling21", prompt: "waves", uploadIds: [], options: {} },
+      jobBody("kling21_generate", {
+        prompt: "waves",
+        uploadIds: [],
+        options: {},
+      }),
       "k-t2v",
     );
     expect(await runGenerate(h.deps, job.jobId)).toBe(200);
@@ -125,12 +133,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      {
-        model: "kling21",
+      jobBody("kling21_generate", {
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
-      },
+      }),
       "k-i2v",
     );
     expect(await runGenerate(h.deps, job.jobId)).toBe(200);
@@ -212,12 +219,11 @@ describe("runGenerate", () => {
       const { job } = await createJob(
         h.deps,
         userId,
-        {
-          model: "kling21",
+        jobBody("kling21_generate", {
           prompt: "move",
           uploadIds: [up.uploadId],
           options: {},
-        },
+        }),
         "k-kling",
       );
       const sign = h.storage.createSignedUrl.bind(h.storage);
@@ -256,12 +262,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      {
-        model: "kling21",
+      jobBody("kling21_generate", {
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
-      },
+      }),
       "k-kling",
     );
     h.storage.failNext("createSignedUrl");
@@ -341,12 +346,11 @@ describe("runGenerate", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      {
-        model: "kling21",
+      jobBody("kling21_generate", {
         prompt: "move",
         uploadIds: [up.uploadId],
         options: {},
-      },
+      }),
       "k-kling",
     );
     await testDb(T.uploads).where({ id: up.uploadId }).delete();

@@ -14,8 +14,9 @@ import { lockProfile } from "../../db/repositories/profiles.repo.js";
 import type { JobErrorCode, JobRow, JobStatus } from "../../db/rows.js";
 import { AppError } from "../../lib/errors.js";
 import { canonicalJson, sha256Hex } from "../../lib/hash.js";
-import { getModel } from "../../models/registry.js";
-import { assertUploadCount, estimateCredits } from "../credits/estimate.js";
+import { getOperation } from "../../models/registry.js";
+import { uploadIdsIn } from "../../models/schemaGenerator.js";
+import { estimateCredits } from "../credits/estimate.js";
 import { resolveUploads } from "../uploads.js";
 
 export type JobView = {
@@ -91,26 +92,16 @@ function completedJobs(jobs: JobRow[]): JobRow[] {
 export async function createJob(
   deps: Deps,
   userId: string,
-  body: {
-    model: string;
-    prompt: string;
-    uploadIds: string[];
-    options: Record<string, unknown>;
-  },
+  body: { plugin: string; operation: string; input: unknown },
   idempotencyKey: string,
 ): Promise<{ status: 200 | 202; job: JobView }> {
-  const model = getModel(body.model);
-  if (!model) throw new AppError(422, "VALIDATION_FAILED", "Unknown model");
-  const options = model.options.parse(body.options);
-  const { prompt, uploadIds } = body;
-  if (model.prompt.required && prompt.trim().length === 0) {
-    throw new AppError(422, "VALIDATION_FAILED", "Prompt is required");
-  }
-  if (prompt.length > model.prompt.maxLength) {
-    throw new AppError(422, "VALIDATION_FAILED", "Prompt is too long");
-  }
-  assertUploadCount(model, uploadIds.length);
+  const model = getOperation(body.plugin, body.operation);
+  if (!model) throw new AppError(404, "NOT_FOUND", "Plugin not found");
+  // Every field is checked against its rules in the operation's `schema.input`.
+  const input = model.input.parse(body.input);
+  const uploadIds = uploadIdsIn(model.uploads, input);
 
+  // The real file type is only known once the upload is confirmed in storage.
   const uploads = await resolveUploads(deps, userId, uploadIds);
   for (const upload of uploads) {
     if (!model.uploads.supportedContentTypes.includes(upload.mime_type)) {
@@ -121,14 +112,13 @@ export async function createJob(
     }
   }
 
-  const requestHash = sha256Hex(
-    canonicalJson({ model: model.key, prompt, uploadIds, options }),
-  );
+  const requestHash = sha256Hex(canonicalJson({ model: model.key, input }));
   // The same function as POST /v1/credits/estimate, so the two always agree.
-  const { creditsPerJob: creditCost } = estimateCredits(deps, model, {
-    options: body.options,
-    uploadCount: uploadIds.length,
-  });
+  const { creditsPerJob: creditCost } = estimateCredits(
+    deps,
+    model,
+    body.input,
+  );
 
   const { job, created } = await deps.db.transaction(async (trx) => {
     await lockProfile(trx, userId);
@@ -153,7 +143,7 @@ export async function createJob(
     const row = await insertJob(trx, {
       user_id: userId,
       model_key: model.key,
-      input: { prompt, options },
+      input,
       upload_ids: uploadIds,
       credit_cost: creditCost,
       idempotency_key: idempotencyKey,

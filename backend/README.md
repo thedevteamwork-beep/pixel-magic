@@ -43,28 +43,28 @@ Route files only parse and validate; the logic is in `src/services/`.
 
 ## Endpoints
 
-| Where  | Endpoint                                           | Notes                                                       |
-| ------ | -------------------------------------------------- | ----------------------------------------------------------- |
-| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                             |
-| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                              |
-| api    | `GET /v1/me`                                       | credits and subscription (auth)                             |
-| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                           |
-| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                       |
-| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`)  |
-| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                      |
-| api    | `GET /v1/billing/invoices`                         | paid invoices                                               |
-| api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth) |
-| api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)           |
-| api    | `POST /v1/credits/estimate`                        | price a job before creating it (public, see Credit pricing) |
-| api    | `POST /v1/jobs`                                    | create a job; `Idempotency-Key` header required (auth)      |
-| api    | `GET /v1/jobs`                                     | list your jobs, newest first, with `limit`/`cursor` (auth)  |
-| api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)       |
-| api    | `POST /webhooks/paddle`                            | signed Paddle events                                        |
-| api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)    |
-| worker | `GET /_healthz`, `GET /_readyz`                    |                                                             |
-| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                          |
-| worker | `POST /tasks/reconcile`                            | recovers stuck jobs (every 5 minutes)                       |
-| worker | `POST /tasks/generate`, `POST /tasks/finalize`     | `{jobId}`; called by the task queue                         |
+| Where  | Endpoint                                           | Notes                                                             |
+| ------ | -------------------------------------------------- | ----------------------------------------------------------------- |
+| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                                   |
+| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                                    |
+| api    | `GET /v1/me`                                       | credits and subscription (auth)                                   |
+| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                                 |
+| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                             |
+| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`)        |
+| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                            |
+| api    | `GET /v1/billing/invoices`                         | paid invoices                                                     |
+| api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth)       |
+| api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)                 |
+| api    | `POST /v1/credits/estimate/:plugin/:operation`     | price a job before creating it (public, see Credit pricing)       |
+| api    | `POST /v1/jobs/:plugin/:operation`                 | `{input}`: create a job; `Idempotency-Key` header required (auth) |
+| api    | `GET /v1/jobs`                                     | list your jobs, newest first, with `limit`/`cursor` (auth)        |
+| api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)             |
+| api    | `POST /webhooks/paddle`                            | signed Paddle events                                              |
+| api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)          |
+| worker | `GET /_healthz`, `GET /_readyz`                    |                                                                   |
+| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                                |
+| worker | `POST /tasks/reconcile`                            | recovers stuck jobs (every 5 minutes)                             |
+| worker | `POST /tasks/generate`, `POST /tasks/finalize`     | `{jobId}`; called by the task queue                               |
 
 A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 
@@ -155,13 +155,13 @@ Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry p
 - Supported units (`src/credits/units.ts`): `duration` (seconds) and `images` (count). A meter's `metric` must be a unit the model declares in `billing.units`. Adding a unit means editing that file.
 - Credits are whole numbers: the tier total can be fractional and is rounded up once, at the end. A job reserves exactly what the estimate returns.
 
-### POST /v1/credits/estimate
+### POST /v1/credits/estimate/:plugin/:operation
 
-Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "uploadCount": 0, "count": 1 }`. Only `model` is required; `options` defaults to `{}`, `uploadCount` (0 to 10, within the model's upload limits) to 0 and `count` (1 to 20) to 1. An unknown model, an unknown option, a bad value or a bad upload count returns `422 VALIDATION_FAILED`. The `image` fact is `uploadCount > 0`, so with the example mapping above `uploadCount: 1` picks the "Image to video" tier.
+Public. Body (strict): `{ "input": { "prompt": "waves", "duration": "10" }, "count": 1 }`. `input` is the same input `POST /v1/jobs/:plugin/:operation` takes and is checked the same way; `count` (1 to 20) defaults to 1. Upload ids in the image field are only counted, never looked up. An unknown plugin or operation returns `404 NOT_FOUND`; an unknown field, a bad value or too many uploads returns `422 VALIDATION_FAILED`. The `image` fact is true when the input has an upload, so with the example mapping above `"image": ["<upload id>"]` picks the "Image to video" tier.
 
 ```json
 {
-  "model": "kling21",
+  "model": "kling21_generate",
   "count": 1,
   "tier": "Basic",
   "creditsPerJob": 60,
@@ -183,6 +183,18 @@ Public. Body (strict): `{ "model": "kling21", "options": { "duration": "10" }, "
 
 `GET /v1/models` shows `credits: { "min": 30, "max": 60 }` for each model instead of a single cost: the cheapest and the dearest job over every option combination and upload count. With the example mapping above, kling21 shows `{ "min": 30, "max": 75 }`, because a 10 s video from an image costs 5 + 10 × 7.
 
+## Models and jobs
+
+Models are laid out like jiraiya's prediction plugins: `src/models/plugins/<plugin>/<operation>/` holds an operation's `schema.ts` (its `info` and `input` fields), `requests.ts` (its fal calls), `billing.ts` and `index.ts`, and each plugin's `index.ts` lists its operations. `src/models/registry.ts` registers the plugins; at startup it checks every schema and that each operation's key is `<plugin>_<operation>` (for example `kling21_generate`). Jobs store that key as `model_key`, and `GET /v1/models` lists each model's `key`, `plugin`, `operation` and `input`.
+
+`POST /v1/jobs/:plugin/:operation` takes `{ "input": { ... } }`, every field flat, for example:
+
+```json
+{ "input": { "prompt": "waves", "image": ["<upload id>"], "duration": "10" } }
+```
+
+The operation's `schema.input` checks every field by its own rules (an enum, a range, `maxLength`, `required`, a default), and rejects fields it doesn't declare. The prompt is a field like any other, and a model doesn't need one. The image field holds upload ids from `POST /v1/uploads`, up to its `maxItems`. An unknown plugin or operation returns `404 NOT_FOUND`; a bad input returns `422 VALIDATION_FAILED` with the issues in `meta`.
+
 ## Generation flow
 
 ```
@@ -190,7 +202,7 @@ client                API                         Cloud Tasks        worker     
   | POST /v1/uploads   |                               |               |                         |
   |------------------->| signed upload URL             |               |                         |
   | PUT file to Storage (inputs bucket)                |               |                         |
-  | POST /v1/jobs      |                               |               |                         |
+  | POST /v1/jobs/...  |                               |               |                         |
   |------------------->| reserve credits, insert job   |               |                         |
   |                    | (queued) ---- generate -----> |-------------->| POST /tasks/generate    |
   |                    |                               |               | submit (with webhook) ->|
@@ -258,7 +270,7 @@ The worker service request timeout is 15 minutes (finalize copies files). Task n
 
 ## Milestone 2 acceptance check
 
-Backend spec section 12. In a dev GCP/Supabase project, run one real image job and one real video job end to end (upload if the model needs one, `POST /v1/jobs`, wait for `completed`, read `outputs[0].url` from the job, open the URL). Afterwards available credits have dropped by the cost and nothing is left reserved (check `GET /v1/me` and the job's rows in `app.credit_*`).
+Backend spec section 12. In a dev GCP/Supabase project, run one real image job and one real video job end to end (upload if the model needs one, `POST /v1/jobs/:plugin/:operation`, wait for `completed`, read `outputs[0].url` from the job, open the URL). Afterwards available credits have dropped by the cost and nothing is left reserved (check `GET /v1/me` and the job's rows in `app.credit_*`).
 
 Also confirm against the real services, because these could not be tested locally:
 
@@ -267,7 +279,7 @@ Also confirm against the real services, because these could not be tested locall
 - fal re-signs a retried webhook with a fresh `X-Fal-Webhook-Timestamp`. Signatures more than 300 s from our clock are rejected, so a retry that kept the first timestamp would fail.
 - Supabase Storage `info()` on a missing object reports "not found" (not an error).
 - A streamed upload without `Content-Length` works.
-- fal's real input and output shapes match the model files in `src/models/`.
+- fal's real input and output shapes match the model files in `src/models/plugins/`.
 
 ### Counting orphan fal requests
 

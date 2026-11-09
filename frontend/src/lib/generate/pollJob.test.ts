@@ -45,8 +45,8 @@ describe("pollJob", () => {
   });
 
   it("picks the interval from the first job once it arrives", async () => {
-    const t = setup([jobView("queued", { model: "kling21" }), jobView("completed")]);
-    await pollJob("job-1", { ...t.base, intervalFor: (job) => (job.model === "kling21" ? 8000 : 4000) });
+    const t = setup([jobView("queued", { model: "kling21_generate" }), jobView("completed")]);
+    await pollJob("job-1", { ...t.base, intervalFor: (job) => (job.model === "kling21_generate" ? 8000 : 4000) });
     expect(t.sleeps).toEqual([8000]);
   });
 

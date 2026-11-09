@@ -19,7 +19,7 @@ const PUBLIC: [Method, string][] = [
   ["get", "/v1/plans"],
   ["get", "/v1/addons"],
   ["get", "/v1/models"],
-  ["post", "/v1/credits/estimate"],
+  ["post", "/v1/credits/estimate/kling21/generate"],
   ["post", "/webhooks/paddle"],
   ["post", "/webhooks/fal"],
 ];
@@ -31,7 +31,7 @@ const PANEL: [Method, string][] = [
   ["delete", "/v1/billing/subscription/scheduled-change"],
   ["get", "/v1/billing/invoices"],
   ["post", "/v1/uploads"],
-  ["post", "/v1/jobs"],
+  ["post", "/v1/jobs/fluxSchnell/generate"],
   ["get", "/v1/jobs"],
   ["get", `/v1/jobs/${id}`],
 ];

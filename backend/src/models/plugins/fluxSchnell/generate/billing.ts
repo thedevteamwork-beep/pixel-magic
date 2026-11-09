@@ -1,4 +1,4 @@
-import type { ModelDefinition } from "../types.js";
+import type { ModelDefinition } from "../../../types.js";
 
 type FluxOptions = { image_size: string; num_images: number };
 

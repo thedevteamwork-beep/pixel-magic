@@ -4,7 +4,9 @@ import type { JobView, PublicModel } from "@/lib/api/types";
 // backend's model schemas and `publicModel` (credits are the default ranges).
 
 export const kling21: PublicModel = {
-  key: "kling21",
+  key: "kling21_generate",
+  plugin: "kling21",
+  operation: "generate",
   name: "Kling 2.1 Master",
   kind: "video",
   category: ["image-to-video", "text-to-video"],
@@ -41,7 +43,9 @@ export const kling21: PublicModel = {
 };
 
 export const fluxSchnell: PublicModel = {
-  key: "flux-schnell",
+  key: "fluxSchnell_generate",
+  plugin: "fluxSchnell",
+  operation: "generate",
   name: "FLUX Schnell",
   kind: "image",
   category: ["text-to-image"],
@@ -74,7 +78,7 @@ export function jobView(status: JobView["status"], extra: Partial<JobView> = {})
   return {
     jobId: "job-1",
     status,
-    model: "flux-schnell",
+    model: "fluxSchnell_generate",
     creditCost: 2,
     createdAt: "2026-11-07T10:00:00.000Z",
     completedAt: null,

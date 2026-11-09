@@ -8,7 +8,7 @@ import {
 } from "../../db/repositories/jobs.repo.js";
 import { getUserUploads } from "../../db/repositories/uploads.repo.js";
 import type { JobRow } from "../../db/rows.js";
-import type { ModelDefinition } from "../../models/types.js";
+import type { ModelDefinition, PredictionInput } from "../../models/types.js";
 import { getModel } from "../../models/registry.js";
 import { failJob } from "./jobs.js";
 
@@ -156,10 +156,11 @@ export async function runGenerate(
         ),
       );
     }
-    const { prompt, options } = job.input as {
-      prompt: string;
-      options: Record<string, unknown>;
+    // The model gets the job's input with its uploads as a signed URL.
+    const input: PredictionInput = {
+      ...(job.input as Record<string, unknown>),
     };
+    if (model.uploads.field) input[model.uploads.field] = inputUrls[0];
     const leaseEnd = job.lease_expires_at?.getTime() ?? 0;
     if (deps.clock.now().getTime() >= leaseEnd - SUBMIT_LEASE_MARGIN_MS) {
       deps.logger.warn("Lease nearly expired; not submitting", {
@@ -170,7 +171,7 @@ export async function runGenerate(
     }
     ({ requestId } = await model.requestPrediction({
       fal: deps.fal,
-      input: { prompt, ...options, image: inputUrls[0] },
+      input,
       webhook: falWebhookUrl(deps.config, jobId),
     }));
   } catch (err) {

@@ -1,5 +1,6 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
+import { jobBody } from "../../helpers/jobs.js";
 import { FalError } from "../../../src/clients/fal.js";
 import { T } from "../../../src/db/tables.js";
 import { runFinalize } from "../../../src/services/jobs/finalize.js";
@@ -30,8 +31,8 @@ describe("runReconcile", () => {
   });
 
   async function newJob(
-    model = "flux-schnell",
-    withImage = model === "kling21",
+    model = "fluxSchnell_generate",
+    withImage = model === "kling21_generate",
   ): Promise<string> {
     const uploadIds: string[] = [];
     if (withImage) {
@@ -50,15 +51,15 @@ describe("runReconcile", () => {
     const { job } = await createJob(
       h.deps,
       userId,
-      { model, prompt: "a cat", uploadIds, options: {} },
+      jobBody(model, { prompt: "a cat", uploadIds, options: {} }),
       `k${n}`,
     );
     h.queue.tasks.length = 0; // only reconciler enqueues count
     return job.jobId;
   }
   async function submittedJob(
-    model = "flux-schnell",
-    withImage = model === "kling21",
+    model = "fluxSchnell_generate",
+    withImage = model === "kling21_generate",
   ): Promise<string> {
     const id = await newJob(model, withImage);
     await runGenerate(h.deps, id);
@@ -226,7 +227,7 @@ describe("runReconcile", () => {
   });
 
   it("times out a job past its model timeout, cancels at fal and releases once", async () => {
-    const id = await submittedJob("kling21");
+    const id = await submittedJob("kling21_generate");
     h.clock.advance(61 * MIN);
     const counts = await runReconcile(h.deps);
     expect(counts.timedOut).toBe(1);
@@ -244,7 +245,7 @@ describe("runReconcile", () => {
   });
 
   it("polls and cancels a text-to-video job on the text-to-video endpoint", async () => {
-    await submittedJob("kling21", false);
+    await submittedJob("kling21_generate", false);
     h.fal.calls.length = 0;
     h.clock.advance(61 * MIN);
     expect((await runReconcile(h.deps)).timedOut).toBe(1);
@@ -255,7 +256,7 @@ describe("runReconcile", () => {
   });
 
   it("polls and cancels an image-to-video job on the image-to-video endpoint", async () => {
-    await submittedJob("kling21");
+    await submittedJob("kling21_generate");
     h.fal.calls.length = 0;
     h.clock.advance(61 * MIN);
     expect((await runReconcile(h.deps)).timedOut).toBe(1);
@@ -392,7 +393,7 @@ describe("runReconcile", () => {
   async function bulkSubmitted(
     count: number,
     over: (i: number) => Record<string, unknown>,
-    model = "flux-schnell",
+    model = "fluxSchnell_generate",
   ): Promise<void> {
     await testDb(T.jobs).insert(
       Array.from({ length: count }, (_, i) => ({
@@ -418,7 +419,7 @@ describe("runReconcile", () => {
         submitted_at: new Date(now.getTime() - 30 * MIN),
         updated_at: new Date(now.getTime() - (40 + i / 100) * MIN),
       }),
-      "kling21",
+      "kling21_generate",
     );
     await bulkSubmitted(
       1,
@@ -427,7 +428,7 @@ describe("runReconcile", () => {
         submitted_at: new Date(now.getTime() - 61 * MIN),
         updated_at: new Date(now.getTime() - 1 * MIN),
       }),
-      "kling21",
+      "kling21_generate",
     );
     const counts = await runReconcile(h.deps);
     expect(counts.timedOut).toBe(1);
@@ -461,7 +462,7 @@ describe("runReconcile", () => {
     await testDb(T.jobs).insert(
       Array.from({ length: 101 }, (_, i) => ({
         user_id: userId,
-        model_key: "flux-schnell",
+        model_key: "fluxSchnell_generate",
         input: "{}",
         credit_cost: 0,
         status: "queued",

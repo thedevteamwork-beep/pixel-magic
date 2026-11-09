@@ -87,27 +87,23 @@ export function validateModelSchema(key: string, schema: unknown): ModelSchema {
   const parsed = result.data;
 
   // Step 2: rules the shape alone cannot express.
-  // 1. input.prompt must be a string field
-  if (parsed.input.prompt?.type !== "string") {
-    fail("input.prompt", "must exist and be a string field");
-  }
-  // 2. at most one image field
+  // 1. at most one image field
   const images = Object.values(parsed.input).filter((f) => f.type === "image");
   if (images.length > 1) {
     fail("input", "at most one image field is allowed");
   }
-  // 3. billing units are not repeated
+  // 2. billing units are not repeated
   if (new Set(parsed.billing.units).size !== parsed.billing.units.length) {
     fail("billing.units", "must not contain duplicate units");
   }
   for (const [name, f] of Object.entries(parsed.input)) {
-    // 4. an enum's default must be one of the enum values
+    // 3. an enum's default must be one of the enum values
     if (f.type === "string" && f.enum && f.default !== undefined) {
       if (!f.enum.includes(f.default)) {
         fail(`input.${name}.default`, "must be one of the enum values");
       }
     }
-    // 5. minimum <= default <= maximum
+    // 4. minimum <= default <= maximum
     if (
       f.type === "integer" &&
       !(f.minimum <= f.default && f.default <= f.maximum)

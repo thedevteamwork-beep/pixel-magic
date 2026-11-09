@@ -1,9 +1,9 @@
 import { z } from "zod";
-import type { ModelSchema } from "../types.js";
+import type { ModelSchema } from "../../../types.js";
 
 export const schema: ModelSchema = {
   info: {
-    name: "flux-schnell",
+    name: "fluxSchnell_generate",
     displayName: "FLUX Schnell",
     kind: "image",
     category: ["text-to-image"],

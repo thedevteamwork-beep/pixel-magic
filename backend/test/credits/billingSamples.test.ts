@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { billingSamples } from "../../src/credits/billingSamples.js";
-import { fluxSchnell } from "../../src/models/flux-schnell/index.js";
-import { kling21 } from "../../src/models/kling21/index.js";
+import { fluxSchnellGenerate as fluxSchnell } from "../../src/models/plugins/fluxSchnell/generate/index.js";
+import { kling21Generate as kling21 } from "../../src/models/plugins/kling21/generate/index.js";
 import {
   optionsValidator,
   uploadRule,
@@ -125,6 +125,32 @@ describe("billingSamples", () => {
         { size: "m", uploads: 0 },
       ]),
     );
+  });
+
+  it("never leaves out a required enum", () => {
+    const model = testModel({
+      style: {
+        type: "string",
+        description: "t",
+        enum: ["a", "b"],
+        required: true,
+      },
+    });
+    expect(asSet(billingSamples(model))).toEqual(
+      asSet([
+        { style: "a", uploads: 0 },
+        { style: "b", uploads: 0 },
+      ]),
+    );
+  });
+
+  it("takes a required free-text string at a sample text, never left out", () => {
+    const model = testModel({
+      negative_prompt: { type: "string", description: "n", required: true },
+    });
+    expect(billingSamples(model)).toEqual([
+      { negative_prompt: "sample", uploads: 0 },
+    ]);
   });
 
   it("takes every upload count from uploads.min to uploads.max, and never the prompt or the image field", () => {

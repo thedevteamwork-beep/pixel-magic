@@ -1,9 +1,9 @@
 import { z } from "zod";
-import type { ModelSchema } from "../types.js";
+import type { ModelSchema } from "../../../types.js";
 
 export const schema: ModelSchema = {
   info: {
-    name: "kling21",
+    name: "kling21_generate",
     displayName: "Kling 2.1 Master",
     kind: "video",
     category: ["image-to-video", "text-to-video"],

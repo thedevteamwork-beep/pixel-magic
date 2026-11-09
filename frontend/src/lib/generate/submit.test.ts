@@ -52,22 +52,28 @@ describe("submitGeneration", () => {
       body: { filename: "cat.png", mimeType: "image/png", sizeBytes: 1 },
     });
     expect(t.calls[1]).toEqual({
-      path: "/v1/jobs",
+      path: "/v1/jobs/kling21/generate",
       idempotencyKey: "key-1",
       body: {
-        model: "kling21",
-        prompt: "a cat",
-        uploadIds: ["up-1"],
-        options: { duration: "10", aspect_ratio: "16:9" },
+        input: { prompt: "a cat", duration: "10", aspect_ratio: "16:9", image: ["up-1"] },
       },
     });
   });
 
-  it("sends no uploadIds without a file", async () => {
+  it("sends no image without a file", async () => {
     const t = setup();
     await submitGeneration(t.base);
     expect(t.calls).toHaveLength(1);
-    expect(t.calls[0].body).not.toHaveProperty("uploadIds");
+    expect(t.calls[0].body).toEqual({
+      input: { prompt: "a cat", duration: "10", aspect_ratio: "16:9" },
+    });
+  });
+
+  it("leaves the prompt out for a model with no prompt field", async () => {
+    const t = setup();
+    const input = Object.fromEntries(Object.entries(kling21.input).filter(([name]) => name !== "prompt"));
+    await submitGeneration({ ...t.base, model: { ...kling21, input } });
+    expect(t.calls[0].body).toEqual({ input: { duration: "10", aspect_ratio: "16:9" } });
   });
 
   it("a retry with the same key sends the same body", async () => {
@@ -86,9 +92,9 @@ describe("submitGeneration", () => {
     await attempt();
     await attempt();
     expect(t.uploaded).toEqual(["cat.png"]);
-    const jobCalls = t.calls.filter((c) => c.path === "/v1/jobs");
+    const jobCalls = t.calls.filter((c) => c.path === "/v1/jobs/kling21/generate");
     expect(jobCalls).toHaveLength(2);
     expect(jobCalls[1]).toEqual(jobCalls[0]);
-    expect(jobCalls[1].body).toMatchObject({ uploadIds: ["up-1"] });
+    expect(jobCalls[1].body).toMatchObject({ input: { image: ["up-1"] } });
   });
 });

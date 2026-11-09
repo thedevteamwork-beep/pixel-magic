@@ -1,4 +1,4 @@
-import { OutputInvalidError, type ModelDefinition } from "../types.js";
+import { OutputInvalidError, type ModelDefinition } from "../../../types.js";
 import { falResponse } from "./schema.js";
 
 export const BASE_ENDPOINT = "fal-ai/kling-video/v2.1/master";

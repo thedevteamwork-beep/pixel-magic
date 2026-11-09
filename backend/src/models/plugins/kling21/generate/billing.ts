@@ -1,4 +1,4 @@
-import type { ModelDefinition } from "../types.js";
+import type { ModelDefinition } from "../../../types.js";
 
 type Kling21Options = { duration: string; aspect_ratio: string };
 
