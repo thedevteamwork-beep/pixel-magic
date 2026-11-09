@@ -37,7 +37,26 @@ check_targets_exist() {
 
 build_image() {
   step "2. Build and push $IMAGE"
-  gcloud builds submit "$ROOT/backend" --tag "$IMAGE"
+  # Source goes to the build bucket setup.sh created (deployer-sa has no
+  # project-level storage rights, so gcloud must not look for a bucket). The
+  # build runs async and is polled: streaming its logs needs rights deployer-sa
+  # does not have.
+  local id status log_url
+  id="$(gcloud builds submit "$ROOT/backend" --tag "$IMAGE" --async \
+    --gcs-source-staging-dir "gs://${GCP_PROJECT_ID}_cloudbuild/source" \
+    --format='value(id)')"
+  [ -n "$id" ] || fail "could not start the build"
+  log_url="$(gcloud builds describe "$id" --format='value(logUrl)')"
+  echo "Build $id: $log_url"
+  while true; do
+    status="$(gcloud builds describe "$id" --format='value(status)')"
+    case "$status" in
+      SUCCESS | FAILURE | INTERNAL_ERROR | TIMEOUT | CANCELLED | EXPIRED) break ;;
+    esac
+    sleep 10
+  done
+  [ "$status" = SUCCESS ] || fail "build $id ended with status $status (logs: $log_url)"
+  echo "Build $id succeeded"
 }
 
 run_migrations() {

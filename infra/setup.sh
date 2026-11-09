@@ -391,7 +391,7 @@ setup_github_deploy() {
 
   local role
   for role in roles/run.developer roles/cloudbuild.builds.editor \
-    roles/serviceusage.serviceUsageConsumer roles/logging.viewer; do
+    roles/serviceusage.serviceUsageConsumer; do
     retry gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
       --member "serviceAccount:$deployer" --role "$role" --condition=None >/dev/null
   done
