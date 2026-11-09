@@ -21,6 +21,7 @@ export const headerContent: { links: NavLink[]; cta: ActionLink } = {
 /** Links shown in the header once the user is signed in. */
 export const signedInLinks: NavLink[] = [
   { label: "Create", href: "/generate" },
+  { label: "My creations", href: "/creations" },
   { label: "Pricing", href: "/pricing" },
 ];
 
