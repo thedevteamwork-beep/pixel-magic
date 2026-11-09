@@ -7,7 +7,14 @@ function setHeaders(response: NextResponse, headers: Record<string, string>) {
   for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
 }
 
-/** Refreshes the Supabase session cookie and keeps signed-out users off /generate. */
+/** Pages that need a signed-in user. */
+const PROTECTED_PREFIXES = ["/generate", "/account", "/checkout", "/creations"];
+
+function isProtected(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+}
+
+/** Refreshes the Supabase session cookie and keeps signed-out users off the protected pages. */
 export async function proxy(request: NextRequest) {
   const env = publicEnv();
   let response = NextResponse.next({ request });
@@ -31,7 +38,7 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith("/generate")) {
+  if (!user && isProtected(request.nextUrl.pathname)) {
     const next = request.nextUrl.pathname + request.nextUrl.search;
     const redirect = NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, request.url));
     // Carry over any cookies Supabase just cleared or refreshed.

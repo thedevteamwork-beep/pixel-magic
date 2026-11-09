@@ -91,4 +91,16 @@ describe("api client", () => {
       .catch((e) => e);
     expect(error).toBe(abort);
   });
+
+  it("sends DELETE with the bearer token and parses the JSON", async () => {
+    const fetchFn = vi.fn(async () => jsonResponse({ action: "reverted" }));
+    const result = await makeClient(fetchFn as unknown as typeof fetch).delete(
+      "/v1/billing/subscription/change",
+    );
+    expect(result).toEqual({ action: "reverted" });
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://api.test/v1/billing/subscription/change");
+    expect(init.method).toBe("DELETE");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+  });
 });

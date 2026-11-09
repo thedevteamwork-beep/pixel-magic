@@ -28,3 +28,24 @@ export function publicEnv(): {
     ),
   };
 }
+
+/**
+ * Separate from publicEnv() so pages that don't use Paddle don't need the token.
+ * The client-side token is public by design; it is never the API key.
+ */
+export function paddleEnv(): {
+  clientToken: string;
+  environment: "sandbox" | "production";
+} {
+  const clientToken = required(
+    "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN",
+    process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+  );
+  const environment = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
+  if (environment !== "sandbox" && environment !== "production") {
+    throw new Error(
+      `NEXT_PUBLIC_PADDLE_ENV must be "sandbox" or "production", got "${environment}"`,
+    );
+  }
+  return { clientToken, environment };
+}
