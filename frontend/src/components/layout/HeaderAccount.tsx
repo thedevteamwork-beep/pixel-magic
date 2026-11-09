@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
@@ -8,10 +9,12 @@ import { onCreditsChanged } from "@/lib/balance";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button, ButtonWithLink } from "@/ui/Button";
 
+type NavLinks = { label: string; href: string }[];
+
 /** `undefined` while we don't know yet, `null` when signed out. */
 type Email = string | null | undefined;
 
-export function HeaderAccount() {
+export function HeaderAccount({ links, signedInLinks }: { links: NavLinks; signedInLinks: NavLinks }) {
   const [email, setEmail] = useState<Email>(undefined);
   const [credits, setCredits] = useState<number | null>(null);
   const [signOutFailed, setSignOutFailed] = useState(false);
@@ -45,24 +48,56 @@ export function HeaderAccount() {
     if (!error) router.refresh();
   }
 
-  if (email === undefined) return <div className="ml-auto" />;
+  // Until we know, show the public links so the header doesn't jump.
+  const nav = (
+    <nav aria-label="Main">
+      <ul className="flex items-center gap-5 text-sm">
+        {(email ? signedInLinks : links).map((link) => (
+          <li key={link.label}>
+            <Link href={link.href} className="text-subtle transition-colors hover:text-foreground">
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+
+  if (email === undefined) {
+    return (
+      <>
+        {nav}
+        <div className="ml-auto" />
+      </>
+    );
+  }
 
   if (email === null) {
     return (
-      <ButtonWithLink href="/sign-in" size="sm" className="ml-auto">
-        Get started
-      </ButtonWithLink>
+      <>
+        {nav}
+        <ButtonWithLink href="/sign-in" size="sm" className="ml-auto">
+          Get started
+        </ButtonWithLink>
+      </>
     );
   }
 
   return (
-    <div className="ml-auto flex items-center gap-4 text-sm">
-      <span className="text-subtle">{email}</span>
-      <span className="font-medium">{credits === null ? "—" : credits} credits</span>
-      {signOutFailed && <span className="text-xs text-subtle">Sign-out failed — try again</span>}
-      <Button variant="outline" size="sm" onClick={signOut}>
-        Sign out
-      </Button>
-    </div>
+    <>
+      {nav}
+      <div className="ml-auto flex items-center gap-4 text-sm">
+        <Link href="/account" className="text-subtle transition-colors hover:text-foreground">
+          {email}
+        </Link>
+        <Link href="/account" className="font-medium">
+          {credits === null ? "—" : credits} credits
+        </Link>
+        {signOutFailed && <span className="text-xs text-subtle">Sign-out failed — try again</span>}
+        <Button variant="outline" size="sm" onClick={signOut}>
+          Sign out
+        </Button>
+      </div>
+    </>
   );
 }

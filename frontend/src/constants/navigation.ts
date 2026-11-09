@@ -13,10 +13,16 @@ type FooterColumn = {
 export const headerContent: { links: NavLink[]; cta: ActionLink } = {
   links: [
     { label: "Explore", href: "/" },
-    { label: "Pricing", href: "#pricing" },
+    { label: "Pricing", href: "/pricing" },
   ],
   cta: { label: "Get started", href: "/generate" },
 };
+
+/** Links shown in the header once the user is signed in. */
+export const signedInLinks: NavLink[] = [
+  { label: "Create", href: "/generate" },
+  { label: "Pricing", href: "/pricing" },
+];
 
 export const footerContent: {
   tagline: string;
@@ -68,7 +74,7 @@ export const footerContent: {
       title: "Company",
       links: [
         { label: "About", href: "#about" },
-        { label: "Pricing", href: "#pricing" },
+        { label: "Pricing", href: "/pricing" },
         { label: "Careers", href: "#careers" },
         { label: "Contact", href: "#contact" },
       ],
