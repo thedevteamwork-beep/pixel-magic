@@ -1,5 +1,5 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { publicEnv } from "@/lib/env";
+import { isSupabaseEnabled, publicEnv } from "@/lib/env";
 
 export class ApiError extends Error {
   status: number;
@@ -101,6 +101,8 @@ function defaultClient(): ApiClient {
   return createApiClient({
     baseUrl: publicEnv().apiUrl,
     getAccessToken: async () => {
+      // Supabase is off: there is no session, so no Authorization header.
+      if (!isSupabaseEnabled()) return null;
       const { data } = await createSupabaseBrowserClient().auth.getSession();
       return data.session?.access_token ?? null;
     },

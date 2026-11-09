@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { publicEnv } from "@/lib/env";
+import { isSupabaseEnabled, publicEnv } from "@/lib/env";
 
 /** Supabase requires no-cache headers on any response that sets auth cookies. */
 function setHeaders(response: NextResponse, headers: Record<string, string>) {
@@ -9,6 +9,9 @@ function setHeaders(response: NextResponse, headers: Record<string, string>) {
 
 /** Refreshes the Supabase session cookie and keeps signed-out users off /generate. */
 export async function proxy(request: NextRequest) {
+  // Supabase is off: there is no session to refresh and nobody to keep out.
+  if (!isSupabaseEnabled()) return NextResponse.next();
+
   const env = publicEnv();
   let response = NextResponse.next({ request });
   let latestCacheHeaders: Record<string, string> = {};

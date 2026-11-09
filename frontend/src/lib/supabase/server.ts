@@ -9,6 +9,9 @@ import { publicEnv } from "@/lib/env";
  */
 export async function createSupabaseServerClient(onCacheHeaders?: (headers: Record<string, string>) => void) {
   const env = publicEnv();
+  if (!env.supabaseEnabled) {
+    throw new Error("Supabase is turned off (NEXT_PUBLIC_SUPABASE_ENABLED=false)");
+  }
   const cookieStore = await cookies();
   return createServerClient(env.supabaseUrl, env.supabasePublishableKey, {
     cookies: {
