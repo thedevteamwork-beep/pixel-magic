@@ -184,6 +184,7 @@ describe("billing add-ons and invoices API", () => {
         currency: "USD",
         status: "paid",
         paidAt: "2026-03-05T00:00:00.000Z",
+        transactionId: null,
       },
       {
         id: expect.any(String),
@@ -193,7 +194,30 @@ describe("billing add-ons and invoices API", () => {
         currency: "USD",
         status: "paid",
         paidAt: "2026-03-01T00:00:00.000Z",
+        transactionId: null,
       },
     ]);
+  });
+
+  it("lists paid invoices with their Paddle transaction id", async () => {
+    await post("/v1/billing/addons", { addon: "credits_1000" });
+    const addon = await testDb(T.addons).where("name", "credits_1000").first();
+    await testDb(T.invoices).insert({
+      user_id: userId,
+      item_type: "addon",
+      item_id: addon.id,
+      status: "paid",
+      amount: "20.00",
+      paid_at: new Date("2026-03-01T00:00:00Z"),
+      paddle_transaction_id: "txn_paid_1",
+    });
+    const res = await request(app)
+      .get("/v1/billing/invoices")
+      .set(await authHeader(userId));
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({
+      transactionId: "txn_paid_1",
+      status: "paid",
+    });
   });
 });

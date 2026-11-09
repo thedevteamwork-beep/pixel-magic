@@ -65,6 +65,7 @@ export function billingRoutes(deps: Deps): Router {
         currency: r.currency,
         status: r.status,
         paidAt: r.paid_at,
+        transactionId: r.paddle_transaction_id,
       })),
     );
   });
