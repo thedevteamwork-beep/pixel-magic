@@ -49,6 +49,8 @@ load_settings() {
   FREE_PLAN_NAME="${FREE_PLAN_NAME:-free}"
   FAL_WEBHOOK_USER_ID="${FAL_WEBHOOK_USER_ID:-}"
   TIERED_CREDIT_MAPPING="${TIERED_CREDIT_MAPPING:-}"
+  # Optional: owner/name of the GitHub repository allowed to deploy from main.
+  GITHUB_REPO="${GITHUB_REPO:-}"
 }
 
 require_settings() {
@@ -58,6 +60,10 @@ require_settings() {
     PADDLE_WEBHOOK_SECRET; do
     [ -n "${!name:-}" ] || fail "required value is empty: $name (set it in $ENV_FILE)"
   done
+  case "$GITHUB_REPO" in
+    "" | */*) ;;
+    *) fail "GITHUB_REPO must look like owner/name (set it in $ENV_FILE)" ;;
+  esac
 }
 
 # ---- Small helpers ----------------------------------------------------------
@@ -144,12 +150,19 @@ create_artifact_repo() {
       --location "$GCP_REGION" --description="Pixel Magic images"
 }
 
-# Newer projects give the default build identity no roles; grant what a build needs.
-grant_build_identity() {
-  local build_sa bucket="${GCP_PROJECT_ID}_cloudbuild"
+# The identity `gcloud builds submit` runs builds as.
+build_identity_email() {
+  local build_sa
   build_sa="$(gcloud builds get-default-service-account --format='value(serviceAccountEmail)')"
   build_sa="${build_sa##*/}"
   [ -n "$build_sa" ] || fail "could not find the default Cloud Build service account"
+  printf '%s' "$build_sa"
+}
+
+# Newer projects give the default build identity no roles; grant what a build needs.
+grant_build_identity() {
+  local build_sa bucket="${GCP_PROJECT_ID}_cloudbuild"
+  build_sa="$(build_identity_email)"
   # The Compute Engine default account only exists once compute.googleapis.com is on.
   case "$build_sa" in
     *-compute@developer.gserviceaccount.com)
@@ -345,8 +358,59 @@ create_scheduler_jobs() {
   upsert_scheduler_job pixel-magic-billing-sweep "0 * * * *" /tasks/billing-sweep
 }
 
+# Lets GitHub Actions in $GITHUB_REPO (main branch only) deploy as deployer-sa,
+# with no stored key: Workload Identity Federation.
+setup_github_deploy() {
+  step "11. GitHub Actions deploy access (Workload Identity Federation)"
+  local pool=github provider=github-actions deployer pool_name build_sa sa bucket
+  deployer="$(sa_email deployer-sa)"
+  bucket="${GCP_PROJECT_ID}_cloudbuild"
+  gcloud services enable iamcredentials.googleapis.com sts.googleapis.com \
+    --project "$GCP_PROJECT_ID"
+
+  quiet gcloud iam workload-identity-pools describe "$pool" --location global ||
+    gcloud iam workload-identity-pools create "$pool" --location global \
+      --display-name "GitHub"
+  # The condition is kept in sync on every run, so changing GITHUB_REPO applies.
+  local provider_verb=create-oidc
+  quiet gcloud iam workload-identity-pools providers describe "$provider" \
+    --workload-identity-pool "$pool" --location global && provider_verb=update-oidc
+  gcloud iam workload-identity-pools providers "$provider_verb" "$provider" \
+    --workload-identity-pool "$pool" --location global \
+    --issuer-uri "https://token.actions.githubusercontent.com" \
+    --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
+    --attribute-condition "assertion.repository=='${GITHUB_REPO}' && assertion.ref=='refs/heads/main'"
+  GCP_WIF_PROVIDER="$(gcloud iam workload-identity-pools providers describe "$provider" \
+    --workload-identity-pool "$pool" --location global --format='value(name)')"
+
+  create_service_account deployer-sa
+  pool_name="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${pool}"
+  retry gcloud iam service-accounts add-iam-policy-binding "$deployer" \
+    --member "principalSet://iam.googleapis.com/${pool_name}/attribute.repository/${GITHUB_REPO}" \
+    --role roles/iam.workloadIdentityUser >/dev/null
+
+  local role
+  for role in roles/run.developer roles/cloudbuild.builds.editor \
+    roles/serviceusage.serviceUsageConsumer roles/logging.viewer; do
+    retry gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+      --member "serviceAccount:$deployer" --role "$role" --condition=None >/dev/null
+  done
+  # Uploads the build source; this bucket only.
+  retry gcloud storage buckets add-iam-policy-binding "gs://$bucket" \
+    --member "serviceAccount:$deployer" --role roles/storage.admin >/dev/null
+  # Deploying a revision acts as the runtime accounts; these only.
+  for sa in api-sa worker-sa; do
+    retry gcloud iam service-accounts add-iam-policy-binding "$(sa_email "$sa")" \
+      --member "serviceAccount:$deployer" --role roles/iam.serviceAccountUser >/dev/null
+  done
+  # `gcloud builds submit` acts as the Cloud Build default identity.
+  build_sa="$(build_identity_email)"
+  retry gcloud iam service-accounts add-iam-policy-binding "$build_sa" \
+    --member "serviceAccount:$deployer" --role roles/iam.serviceAccountUser >/dev/null
+}
+
 print_summary() {
-  step "11. Done"
+  step "12. Done"
   cat <<EOT
 API URL:         $API_URL
 Worker URL:      $WORKER_URL (private)
@@ -365,6 +429,18 @@ Left to do by hand:
       (wildcards are required: the app sends /auth/callback?next=..., and
       exact entries never match the query string).
 EOT
+  if [ -n "$GITHUB_REPO" ]; then
+    cat <<EOT
+
+GitHub: set these repository variables (Settings > Secrets and variables >
+Actions > Variables, not secrets) in $GITHUB_REPO. Pushes to main that change
+backend/ or infra/ then deploy through .github/workflows/deploy.yml.
+  GCP_PROJECT_ID    $GCP_PROJECT_ID
+  GCP_REGION        $GCP_REGION
+  GCP_WIF_PROVIDER  $GCP_WIF_PROVIDER
+  GCP_DEPLOY_SA     $(sa_email deployer-sa)
+EOT
+  fi
   if [ "$PADDLE_WEBHOOK_SECRET" = pending ]; then
     echo
     echo "WARNING: PADDLE_WEBHOOK_SECRET is the placeholder 'pending', so Paddle webhooks are rejected until you replace it."
@@ -388,6 +464,7 @@ main() {
   deploy_api
   confirm_urls
   create_scheduler_jobs
+  [ -z "$GITHUB_REPO" ] || setup_github_deploy
   print_summary
 }
 
