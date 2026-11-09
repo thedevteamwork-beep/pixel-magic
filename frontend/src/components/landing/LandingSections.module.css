@@ -1,0 +1,57 @@
+.shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.shortcuts a { display: flex; align-items: center; gap: 14px; padding: 19px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); transition: border-color .2s, background .2s; }
+.shortcuts a:hover { background: var(--surface-raised); border-color: var(--primary); }
+.shortcuts strong { display: block; font-size: 12px; font-weight: 500; }
+.shortcuts small { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
+.shortcutIcon { color: var(--primary); flex-shrink: 0; }
+.shortcutNumber { display: none; }
+.shortcutArrow { color: var(--muted); margin-left: auto; flex-shrink: 0; }
+.collections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.collection { position: relative; isolation: isolate; min-height: 370px; overflow: hidden; border-radius: var(--radius-panel); background: var(--art-plum); color: var(--on-media); }
+.collection::after { position: absolute; z-index: 0; inset: 0; content: ""; pointer-events: none; background: linear-gradient(90deg, color-mix(in srgb, var(--media-ink) 86%, transparent), transparent 100%), linear-gradient(0deg, color-mix(in srgb, var(--media-ink) 40%, transparent), transparent 80%); }
+.collectionCopy { position: relative; z-index: 1; padding: 34px; }
+.collectionEyebrow { margin: 0 0 20px; font-size: 9px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--on-media-muted); }
+.collection h2 { margin: 0 0 26px; font-size: clamp(32px, 3.4vw, 51px); font-family: var(--font-space-grotesk), sans-serif; font-weight: 500; line-height: 1.06; letter-spacing: -.06em; }
+.collection h2 em { font-family: var(--font-editorial); font-weight: 400; }
+.collection a { display: inline-flex; align-items: center; gap: 22px; font-size: 11px; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--on-media) 48%, transparent); }
+.collection a:hover { color: var(--primary); border-color: var(--primary); }
+.collectionIndex { position: absolute; z-index: 1; right: 24px; top: 28px; font-size: 9px; color: var(--on-media-muted); writing-mode: vertical-rl; letter-spacing: .05em; }
+.travel { background: var(--art-forest); }
+.sectionHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
+.directoryNote { color: var(--muted); font-size: 10px; padding-bottom: 5px; }
+.directoryNote span { margin-left: 14px; font-size: 20px; color: var(--primary); }
+.modelGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
+.modelGrid a { height: 100%; min-height: 87px; display: flex; align-items: center; gap: 14px; padding: 20px 16px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); transition: border-color .2s, background .2s; }
+.modelGrid a:hover { border-color: var(--primary); background: var(--surface-raised); }
+.modelSymbol { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; color: var(--primary); font-size: 26px; line-height: 1; }
+.modelGrid strong { display: block; font-size: 12px; font-weight: 500; }
+.modelGrid small { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
+.modelGrid svg { flex-shrink: 0; margin-left: auto; color: var(--muted); }
+.finalBanner { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: clamp(26px, 4vw, 58px); overflow: hidden; border-radius: var(--radius-panel); background: var(--primary); color: var(--primary-foreground); }
+.finalBanner::after { position: absolute; z-index: -1; right: -60px; top: -140px; content: "✳"; color: color-mix(in srgb, var(--primary-foreground) 6%, transparent); font-size: 600px; line-height: 1; pointer-events: none; }
+.finalBanner h2 { margin: 0; font-family: var(--font-space-grotesk), sans-serif; font-size: clamp(28px, 3vw, 45px); font-weight: 500; line-height: 1.12; letter-spacing: -.06em; }
+.finalBanner h2 em { font-family: var(--font-editorial); font-weight: 400; }
+.finalBanner p:not(.finalEyebrow) { margin: 15px 0 0; font-size: 12px; }
+.finalEyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 22px; font-size: 9px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.finalBanner a { display: inline-flex; flex-shrink: 0; align-items: center; gap: 28px; min-height: 48px; padding: 14px 20px; border-radius: var(--radius-sm); background: var(--primary-foreground); color: var(--primary); font-size: 12px; font-weight: 500; transition: transform .2s; }
+.finalBanner a:hover { transform: translateY(-3px); }
+@media (max-width: 1100px) { .modelGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .shortcuts a { padding: 16px 13px; gap: 10px; } .shortcutArrow { display: none; } .directoryNote { display: none; } }
+@media (max-width: 760px) { .shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .modelGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .collection { min-height: 325px; } .collectionCopy { padding: 25px; } .finalBanner { align-items: flex-start; flex-direction: column; gap: 24px; } }
+@media (max-width: 600px) {
+  .shortcuts a { padding: 14px 11px; }
+  .shortcuts strong { font-size: 11px; }
+  .shortcuts small { font-size: 9px; line-height: 1.5; }
+  .shortcutIcon { width: 17px; }
+  .collections { grid-template-columns: 1fr; gap: 14px; }
+  .collection { min-height: 320px; }
+  .collection h2 { font-size: 40px; }
+  .collectionCopy { padding: 27px; }
+  .modelGrid { gap: 8px; }
+  .modelGrid a { min-height: 84px; gap: 8px; padding: 15px 10px; }
+  .modelGrid strong { font-size: 11px; }
+  .modelGrid small { font-size: 9px; line-height: 1.5; }
+  .modelSymbol { width: 25px; font-size: 23px; }
+  .modelGrid svg { display: none; }
+  .finalEyebrow { line-height: 1.6; font-size: 8px; gap: 8px; }
+  .finalBanner h2 { font-size: 31px; }
+}

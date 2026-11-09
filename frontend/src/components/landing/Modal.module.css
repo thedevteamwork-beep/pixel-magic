@@ -1,0 +1,7 @@
+.dialog { position: fixed; inset: 0; margin: auto; width: min(960px, calc(100% - 32px)); max-height: 90dvh; padding: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border-strong); border-radius: var(--radius-panel); background: var(--surface); color: var(--foreground); box-shadow: 0 30px 100px color-mix(in srgb, var(--shadow-color) 45%, transparent); }
+.dialog::backdrop { background: color-mix(in srgb, var(--media-ink) 88%, transparent); backdrop-filter: blur(10px); }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 17px 20px; border-bottom: 1px solid var(--border); }
+.header h2 { margin: 0; font-size: 13px; font-weight: 500; }
+.close { display: grid; flex-shrink: 0; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--foreground); background: var(--surface-raised); }
+.close:hover { color: var(--primary); border-color: var(--primary); }
+@media (max-width: 600px) { .dialog { width: calc(100% - 24px); border-radius: var(--radius-card); } .header { padding: 12px 14px; } }

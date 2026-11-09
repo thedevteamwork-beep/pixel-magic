@@ -96,3 +96,11 @@ export const footerContent: {
   // Fixed string: reading the date at render time would make the page dynamic.
   copyright: "© 2026 Pixel Magic. All rights reserved.",
 };
+
+/** In-page anchors for the landing page; the footer uses them too. */
+export const navigationLinks = [
+  { label: "Explore", href: "#top" },
+  { label: "Templates", href: "#templates" },
+  { label: "Models", href: "#models" },
+  { label: "Collections", href: "#collections" },
+] as const;

@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
-    // Placeholder media is linked from Higgsfield until Pixel Magic has its own assets.
+    // Retained for reusable legacy widgets; the landing page uses local media.
     remotePatterns: [
       new URL("https://static.higgsfield.ai/**"),
       new URL("https://static-public-media.higgsfield.ai/**"),
@@ -16,7 +16,9 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     rules: {
-      "*.css": {
+      // Only the Tailwind entry needs this loader. Rewriting *.module.css
+      // as plain CSS would remove its scoped class-name exports.
+      "globals.css": {
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },

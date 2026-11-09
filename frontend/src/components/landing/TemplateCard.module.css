@@ -1,0 +1,119 @@
+.card {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--on-media);
+  cursor: pointer;
+  text-align: left;
+  isolation: isolate;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  z-index: 2;
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 550ms cubic-bezier(.2,.8,.2,1);
+}
+
+.card:hover .media, .card:focus-visible .media { transform: scale(1.035); }
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--media-ink) 40%, transparent), transparent 38%, color-mix(in srgb, var(--media-ink) 84%, transparent));
+  opacity: 0;
+  transition: opacity 220ms;
+}
+
+.meta {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 220ms;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--on-media) 22%, transparent);
+  border-radius: 100px;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--media-ink) 35%, transparent);
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.copy {
+  position: absolute;
+  left: 17px;
+  right: 43px;
+  bottom: 17px;
+  display: grid;
+  gap: 5px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 220ms, transform 220ms;
+}
+
+.title { font-size: clamp(13px, 1.35vw, 20px); font-weight: 600; letter-spacing: -.035em; line-height: 1.15; }
+.description { color: var(--on-media-muted); font-size: 11px; line-height: 1.4; }
+
+.previewIcon {
+  position: absolute;
+  right: 12px;
+  bottom: 13px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--on-media) 40%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 220ms;
+}
+
+.card:is(:hover, :focus-visible) :is(.shade, .meta, .copy, .previewIcon) { opacity: 1; }
+.card:is(:hover, :focus-visible) .copy { transform: translateY(0); }
+
+@media (hover: none) {
+  .shade, .copy, .previewIcon { opacity: 1; }
+  .copy { transform: none; }
+}
+
+@media (max-width: 600px) {
+  .card { border-radius: 9px; }
+  .shade, .copy, .previewIcon { opacity: 1; }
+  .meta, .description { display: none; }
+  .copy { left: 9px; right: 31px; bottom: 9px; transform: none; }
+  .title { font-size: 11px; letter-spacing: -.015em; }
+  .previewIcon { width: 21px; height: 21px; right: 6px; bottom: 6px; }
+  .previewIcon svg { width: 12px; height: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media, .shade, .meta, .copy, .previewIcon { transition: none; }
+  .card:hover .media, .card:focus-visible .media { transform: none; }
+}

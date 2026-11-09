@@ -1,0 +1,24 @@
+.section { margin-top: 65px; padding-top: 38px; border-top: 1px solid var(--border); }
+.heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.titleRow { display: flex; align-items: center; gap: 14px; }
+.badge { margin-top: 3px; padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 100px; color: var(--muted); font-size: 9px; line-height: 1.2; white-space: nowrap; }
+.navigation { display: flex; gap: 8px; padding-bottom: 3px; }
+.navigation button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border-strong); border-radius: 50%; background: transparent; color: var(--foreground); cursor: pointer; transition: color 180ms, background 180ms; }
+.navigation button:hover:enabled { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+.navigation button:disabled { opacity: .3; cursor: default; }
+.note { margin: 12px 0 0; color: var(--subtle); font-size: 10px; }
+
+@media (max-width: 600px) {
+  .section { margin-top: 38px; padding-top: 26px; }
+  .heading { gap: 12px; margin-bottom: 20px; }
+  .titleRow { flex-wrap: wrap; gap: 8px; }
+  .badge { margin-top: 0; font-size: 8px; }
+  .navigation { gap: 5px; }
+  .navigation button { width: 29px; height: 29px; }
+  .navigation button svg { width: 14px; }
+  .note { max-width: 250px; font-size: 9px; line-height: 1.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation button { transition: none; }
+}

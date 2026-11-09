@@ -1,15 +1,17 @@
 import { headerContent, signedInLinks } from "@/constants/navigation";
 import { HeaderAccount } from "@/components/layout/HeaderAccount";
-import { Logo } from "@/components/layout/Logo";
-import { Container } from "@/ui/Container";
+import { MotionToggle } from "@/components/landing/MotionToggle";
+import { Logo } from "./Logo";
+import styles from "./Layout.module.css";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 h-(--header-height) border-b border-border bg-background/85 backdrop-blur">
-      <Container className="flex h-full items-center gap-6">
+    <header className={styles.header}>
+      <div className={`page-container ${styles.headerInner}`}>
         <Logo />
         <HeaderAccount links={headerContent.links} signedInLinks={signedInLinks} />
-      </Container>
+        <MotionToggle />
+      </div>
     </header>
   );
 }
