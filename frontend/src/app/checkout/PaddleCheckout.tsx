@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { InvalidLink } from "@/app/checkout/InvalidLink";
 import { finishPath, parseTransactionId } from "@/lib/billing/purchase";
 import { loadPaddle, PaddleUnavailableError } from "@/lib/billing/paddle";
-import { Button } from "@/ui/Button";
+import { Button, ButtonWithLink } from "@/ui/Button";
 
-type Status = "loading" | "ready" | "unavailable" | "error";
+type Status = "loading" | "ready" | "unavailable" | "unconfigured" | "error";
 
 export function PaddleCheckout() {
   const transactionId = parseTransactionId(useSearchParams().get("_ptxn"));
@@ -60,7 +60,11 @@ function CheckoutFrame({ transactionId }: { transactionId: string }) {
       },
       (error) => {
         if (!current) return;
-        setStatus(error instanceof PaddleUnavailableError ? "unavailable" : "error");
+        if (error instanceof PaddleUnavailableError) {
+          setStatus(error.reason === "config" ? "unconfigured" : "unavailable");
+        } else {
+          setStatus("error");
+        }
       },
     );
     return () => {
@@ -71,6 +75,16 @@ function CheckoutFrame({ transactionId }: { transactionId: string }) {
   return (
     <div>
       {status === "loading" && <p className="text-center text-subtle">Loading checkout…</p>}
+      {status === "unconfigured" && (
+        <div className="text-center">
+          <p>Checkout isn&apos;t set up yet. Please try again later.</p>
+          <div className="mt-4 flex justify-center gap-3">
+            <ButtonWithLink href="/pricing" variant="outline">
+              See plans
+            </ButtonWithLink>
+          </div>
+        </div>
+      )}
       {(status === "unavailable" || status === "error") && (
         <div className="text-center">
           <p>
@@ -78,12 +92,19 @@ function CheckoutFrame({ transactionId }: { transactionId: string }) {
               ? "Checkout couldn't load. If you use an ad blocker, turn it off for this site and try again."
               : "Something went wrong with the payment form."}
           </p>
-          <Button className="mt-4" onClick={() => {
-              setStatus("loading");
-              setAttempt((n) => n + 1);
-            }}>
-            Try again
-          </Button>
+          <div className="mt-4 flex justify-center gap-3">
+            <Button
+              onClick={() => {
+                setStatus("loading");
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Try again
+            </Button>
+            <ButtonWithLink href="/pricing" variant="outline">
+              See plans
+            </ButtonWithLink>
+          </div>
         </div>
       )}
       <div className={status === "ready" ? "paddle-checkout" : "paddle-checkout hidden"} />

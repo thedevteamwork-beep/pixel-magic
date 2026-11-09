@@ -2,8 +2,12 @@ import { initializePaddle, type Paddle, type PaddleEventData } from "@paddle/pad
 import { paddleEnv } from "@/lib/env";
 
 export class PaddleUnavailableError extends Error {
-  constructor(message: string) {
+  /** "config": token or environment missing/invalid. "load": Paddle.js failed to load. */
+  readonly reason: "config" | "load";
+
+  constructor(message: string, reason: "config" | "load" = "load") {
     super(message);
+    this.reason = reason;
     this.name = "PaddleUnavailableError";
   }
 }
@@ -21,7 +25,7 @@ export async function loadPaddle(
   try {
     env = paddleEnv();
   } catch {
-    throw new PaddleUnavailableError("Paddle is not configured");
+    throw new PaddleUnavailableError("Paddle is not configured", "config");
   }
 
   let paddle: Paddle | undefined;

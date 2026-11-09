@@ -8,7 +8,7 @@ describe("loadPaddle", () => {
   it("rejects when the token is missing", async () => {
     vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "");
     const init = vi.fn();
-    await expect(loadPaddle({ init })).rejects.toBeInstanceOf(PaddleUnavailableError);
+    await expect(loadPaddle({ init })).rejects.toMatchObject({ reason: "config" });
     expect(init).not.toHaveBeenCalled();
   });
 
@@ -16,6 +16,7 @@ describe("loadPaddle", () => {
     vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_abc");
     const init = vi.fn().mockRejectedValue(new Error("blocked"));
     await expect(loadPaddle({ init })).rejects.toBeInstanceOf(PaddleUnavailableError);
+    await expect(loadPaddle({ init })).rejects.toMatchObject({ reason: "load" });
   });
 
   it("rejects when init resolves undefined", async () => {
