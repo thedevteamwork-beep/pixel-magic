@@ -26,6 +26,7 @@ type ApiClient = {
     body: unknown,
     opts?: { idempotencyKey?: string; signal?: AbortSignal },
   ): Promise<T>;
+  delete<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T>;
 };
 
 function isAbort(error: unknown): boolean {
@@ -76,6 +77,8 @@ export function createApiClient(p: {
   return {
     get: (path, opts) =>
       request(path, { method: "GET", signal: opts?.signal }, {}),
+    delete: (path, opts) =>
+      request(path, { method: "DELETE", signal: opts?.signal }, {}),
     post: (path, body, opts) => {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -95,6 +98,7 @@ export function createApiClient(p: {
 export const api: ApiClient = {
   get: (path, opts) => defaultClient().get(path, opts),
   post: (path, body, opts) => defaultClient().post(path, body, opts),
+  delete: (path, opts) => defaultClient().delete(path, opts),
 };
 
 function defaultClient(): ApiClient {
