@@ -7,9 +7,9 @@ describe("safeNext", () => {
   });
 
   it.each(["//evil.com", "/\\evil.com", "https://evil.com", "/a?u=http://evil.com", "/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/\t\\evil.com", "", null, undefined])(
-    "falls back to /generate for %s",
+    "falls back to the landing page for %s",
     (value) => {
-      expect(safeNext(value)).toBe("/generate");
+      expect(safeNext(value)).toBe("/");
     },
   );
 });

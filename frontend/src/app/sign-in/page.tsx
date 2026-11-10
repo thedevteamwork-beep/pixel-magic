@@ -1,29 +1,8 @@
-import { Suspense } from "react";
-import { SignInForm } from "@/app/sign-in/SignInForm";
-import { isSupabaseEnabled } from "@/lib/env";
-import { Container } from "@/ui/Container";
+import type { Metadata } from "next";
+import { AuthPage, type AuthSearchParams } from "@/components/auth/AuthPage";
 
-export const metadata = { title: "Sign in — Pixel Magic" };
+export const metadata: Metadata = { title: "Log in — Pixel Magic", description: "Welcome back to your creative space. Log in to Pixel Magic and pick up where inspiration left off." };
 
-export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
-  if (!isSupabaseEnabled()) {
-    return (
-      <Container className="flex justify-center py-16">
-        <p className="text-sm text-subtle">Sign-in is turned off for now.</p>
-      </Container>
-    );
-  }
-  return (
-    <Container className="flex justify-center py-16">
-      <Suspense>
-        <SignInFormFromQuery searchParams={searchParams} />
-      </Suspense>
-    </Container>
-  );
-}
-
-// Reading the query is request-time data, so it sits inside <Suspense>.
-async function SignInFormFromQuery({ searchParams }: Pick<PageProps<"/sign-in">, "searchParams">) {
-  const { next, error } = await searchParams;
-  return <SignInForm next={typeof next === "string" ? next : null} failed={error === "1"} />;
+export default function SignInPage({ searchParams }: { searchParams: AuthSearchParams }) {
+  return <AuthPage mode="sign-in" searchParams={searchParams} />;
 }

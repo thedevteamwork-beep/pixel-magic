@@ -19,7 +19,7 @@ export function Modal({ open, onClose, title, children, className = "" }: ModalP
   }, [open]);
 
   return <dialog ref={dialogRef} className={`${styles.dialog} ${className}`} aria-labelledby={titleId}
-    onCancel={(event) => { event.preventDefault(); onClose(); }}
+    onCancel={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
     onClick={(event) => {
       if (event.target !== event.currentTarget) return;
       const bounds = event.currentTarget.getBoundingClientRect();

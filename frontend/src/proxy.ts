@@ -16,6 +16,8 @@ function isProtected(pathname: string): boolean {
 
 /** Refreshes the Supabase session cookie and keeps signed-out users off the protected pages. */
 export async function proxy(request: NextRequest) {
+  // The stateless UI preview never needs a session or a real provider connection.
+  if (request.nextUrl.pathname === "/api/demo/image-generation") return NextResponse.next();
   // Supabase is off: there is no session to refresh and nobody to keep out.
   if (!isSupabaseEnabled()) return NextResponse.next();
 
@@ -44,6 +46,7 @@ export async function proxy(request: NextRequest) {
   if (!user && isProtected(request.nextUrl.pathname)) {
     const next = request.nextUrl.pathname + request.nextUrl.search;
     const redirect = NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, request.url));
+    redirect.headers.set("Cache-Control", "private, no-store");
     // Carry over any cookies Supabase just cleared or refreshed.
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
     setHeaders(redirect, latestCacheHeaders);
@@ -54,5 +57,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm)$).*)"],
 };

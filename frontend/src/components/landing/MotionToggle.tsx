@@ -6,9 +6,10 @@ import styles from "./MotionToggle.module.css";
 
 export function MotionToggle() {
   const { motionEnabled, toggleMotion } = useLandingMotion();
+  const label = motionEnabled ? "Pause animations" : "Enable animations";
   return <button type="button" className={styles.toggle} onClick={toggleMotion}
-    aria-label={motionEnabled ? "Pause all motion previews" : "Enable motion previews"} aria-pressed={motionEnabled}>
-    {motionEnabled ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
-    <span>{motionEnabled ? "Motion on" : "Motion off"}</span>
+    aria-label={label} aria-pressed={motionEnabled} title={label}>
+    {motionEnabled ? <Pause size={17} strokeWidth={1.75} aria-hidden="true" /> : <Play size={17} strokeWidth={1.75} aria-hidden="true" />}
+    {motionEnabled && <span className={styles.status} aria-hidden="true" />}
   </button>;
 }
