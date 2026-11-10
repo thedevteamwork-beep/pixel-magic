@@ -1,0 +1,20 @@
+{
+  "images": [
+    {
+      "url": "https://fal.media/files/a.jpg",
+      "width": 1024,
+      "height": 768,
+      "content_type": "image/jpeg"
+    },
+    {
+      "url": "https://fal.media/files/b.jpg",
+      "width": 1024,
+      "height": 768,
+      "content_type": "image/jpeg"
+    }
+  ],
+  "timings": { "inference": 0.4 },
+  "seed": 42,
+  "has_nsfw_concepts": [false, true],
+  "prompt": "a cat"
+}

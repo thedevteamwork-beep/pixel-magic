@@ -1,0 +1,18 @@
+export const T = {
+  profiles: "app.profiles",
+  paymentEvents: "app.payment_events",
+  features: "app.features",
+  plans: "app.plans",
+  planFeatures: "app.plan_features",
+  addons: "app.addons",
+  addonFeatures: "app.addon_features",
+  invoices: "app.invoices",
+  subscriptions: "app.subscriptions",
+  customerAddons: "app.customer_addons",
+  uploads: "app.uploads",
+  jobs: "app.jobs",
+  providerEvents: "app.provider_events",
+  creditGrants: "app.credit_grants",
+  creditAllocations: "app.credit_allocations",
+  creditLedger: "app.credit_ledger",
+} as const;

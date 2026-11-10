@@ -1,0 +1,13 @@
+# Files that gcloud builds submit must never upload (secrets, build output, tests).
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+test
+docker
+docker-compose.yml
+*.md

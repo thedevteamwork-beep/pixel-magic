@@ -1,0 +1,18 @@
+{
+  "event_id": "evt_sub_01",
+  "event_type": "subscription.updated",
+  "occurred_at": "2026-03-15T09:00:00Z",
+  "notification_id": "ntf_02",
+  "data": {
+    "id": "sub_01",
+    "status": "active",
+    "customer_id": "ctm_01",
+    "canceled_at": null,
+    "items": [{ "price": { "id": "pri_01" }, "quantity": 1 }],
+    "scheduled_change": {
+      "action": "cancel",
+      "effective_at": "2026-04-10T12:00:00Z",
+      "resume_at": null
+    }
+  }
+}
