@@ -8,7 +8,7 @@ function setHeaders(response: NextResponse, headers: Record<string, string>) {
 }
 
 /** Pages that need a signed-in user. */
-const PROTECTED_PREFIXES = ["/generate", "/account", "/checkout", "/creations"];
+const PROTECTED_PREFIXES = ["/generate", "/account", "/checkout", "/creations", "/test"];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));

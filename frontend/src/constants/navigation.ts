@@ -14,6 +14,7 @@ export const headerContent: { links: NavLink[]; cta: ActionLink } = {
   links: [
     { label: "Explore", href: "/" },
     { label: "Pricing", href: "/pricing" },
+    { label: "Test", href: "/test" },
   ],
   cta: { label: "Get started", href: "/generate" },
 };
@@ -23,6 +24,7 @@ export const signedInLinks: NavLink[] = [
   { label: "Create", href: "/generate" },
   { label: "My creations", href: "/creations" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Test", href: "/test" },
 ];
 
 export const footerContent: {
