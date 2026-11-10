@@ -41,12 +41,15 @@
   --art-peach: #f1c7b5;
   --art-sage: #d5dfca;
   --shadow-color: #000000;
+  --danger: #ffaaa0;
+  --danger-surface: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  --success: var(--primary);
 
   --font-editorial: Georgia, "Times New Roman", serif;
   --font-display: var(--font-space-grotesk);
   --page-max-width: 1580px;
   --page-gutter: clamp(16px, 2.65vw, 42px);
-  --header-height: 80px;
+  --header-height: 56px;
   --radius-sm: 8px;
   --radius-card: 12px;
   --radius-panel: 20px;

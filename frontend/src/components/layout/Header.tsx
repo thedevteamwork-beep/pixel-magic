@@ -9,8 +9,9 @@ export function Header() {
     <header className={styles.header}>
       <div className={`page-container ${styles.headerInner}`}>
         <Logo />
-        <HeaderAccount links={headerContent.links} signedInLinks={signedInLinks} />
-        <MotionToggle />
+        <HeaderAccount links={headerContent.links} signedInLinks={signedInLinks}>
+          <div className={styles.motion}><MotionToggle /></div>
+        </HeaderAccount>
       </div>
     </header>
   );

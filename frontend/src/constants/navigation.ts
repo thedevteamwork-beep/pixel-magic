@@ -1,6 +1,4 @@
-import type { ActionLink } from "@/ui/Button";
-
-type NavLink = {
+export type NavLink = {
   label: string;
   href: string;
 };
@@ -10,21 +8,22 @@ type FooterColumn = {
   links: NavLink[];
 };
 
-export const headerContent: { links: NavLink[]; cta: ActionLink } = {
+export const headerContent: { links: NavLink[] } = {
   links: [
-    { label: "Explore", href: "/" },
+    { label: "Explore", href: "/#top" },
+    { label: "Image", href: "/image?model=gpt_image_2" },
+    { label: "Templates", href: "/#templates" },
+    { label: "Models", href: "/#models" },
     { label: "Pricing", href: "/pricing" },
-    { label: "Test", href: "/test" },
   ],
-  cta: { label: "Get started", href: "/generate" },
 };
 
 /** Links shown in the header once the user is signed in. */
 export const signedInLinks: NavLink[] = [
-  { label: "Create", href: "/generate" },
+  { label: "Explore", href: "/#top" },
+  { label: "Image", href: "/image?model=gpt_image_2" },
   { label: "My creations", href: "/creations" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Test", href: "/test" },
 ];
 
 export const footerContent: {
@@ -101,8 +100,8 @@ export const footerContent: {
 
 /** In-page anchors for the landing page; the footer uses them too. */
 export const navigationLinks = [
-  { label: "Explore", href: "#top" },
-  { label: "Templates", href: "#templates" },
-  { label: "Models", href: "#models" },
-  { label: "Collections", href: "#collections" },
+  { label: "Explore", href: "/#top" },
+  { label: "Templates", href: "/#templates" },
+  { label: "Models", href: "/#models" },
+  { label: "Collections", href: "/#collections" },
 ] as const;

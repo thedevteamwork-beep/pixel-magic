@@ -54,8 +54,10 @@ a, button { touch-action: manipulation; }
 .skip-link { position: fixed; z-index: 100; top: 12px; left: 12px; padding: 12px 18px; transform: translateY(-160%); border-radius: var(--radius-sm); background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; }
 .skip-link:focus { transform: translateY(0); }
 
+@media (max-width: 760px) {
+  :root { --header-height: 88px; }
+}
 @media (max-width: 600px) {
-  :root { --header-height: 113px; }
   .section-description { font-size: 12px; }
   .button-primary, .button-secondary { gap: 14px; }
 }

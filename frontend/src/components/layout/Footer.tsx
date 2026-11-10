@@ -18,7 +18,7 @@ export function Footer() {
           <summary>Preview imagery credits</summary>
           <p>Curated sample photography and films from <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a> by Kelly, cottonbro studio, Mikhail Nilov, Lucius Crick, Natalie Bond, Nenyasha Manzvera, and Wayne Lee.</p>
         </details>
-        <a href="#top">Back to top ↑</a>
+        <a href="/#top">Back to top ↑</a>
       </div>
     </footer>
   );

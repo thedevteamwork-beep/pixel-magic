@@ -9,7 +9,7 @@ export type CreativeTool = {
   artwork: "collage" | "motion" | "product" | "character";
   tone: "paper" | "forest" | "dark" | "plum" | "peach" | "sage";
   assets: readonly MediaId[];
-  href: "#templates" | "#gpt-image-2" | "#marketing";
+  href: "#templates" | "#gpt-image-2" | "#marketing" | "/image?model=gpt_image_2";
   filters?: TemplateFilters;
 };
 
@@ -23,7 +23,7 @@ export const creativeTools = [
     artwork: "collage",
     tone: "paper",
     assets: ["architecture", "flowers", "product"],
-    href: "#gpt-image-2",
+    href: "/image?model=gpt_image_2",
   },
   {
     id: "video",
@@ -93,6 +93,6 @@ export const creativeTools = [
     artwork: "collage",
     tone: "sage",
     assets: ["sneakers", "architecture", "flowers"],
-    href: "#gpt-image-2",
+    href: "/image?model=gpt_image_2",
   },
 ] as const satisfies readonly CreativeTool[];

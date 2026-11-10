@@ -1,6 +1,6 @@
-const DEFAULT_NEXT = "/generate";
+const DEFAULT_NEXT = "/";
 
-/** A same-site path to go to after sign-in; anything else becomes `/generate`. */
+/** A same-site path to return to after authentication; otherwise go to the landing page. */
 export function safeNext(next: string | null | undefined): string {
   if (!next) return DEFAULT_NEXT;
   if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return DEFAULT_NEXT;

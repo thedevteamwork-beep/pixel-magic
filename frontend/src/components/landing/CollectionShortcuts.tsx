@@ -5,7 +5,7 @@ const shortcuts = [
   { title: "Video templates", description: "A scene worth imagining", href: "#templates", icon: Clapperboard },
   { title: "Marketing Studio", description: "Made to stop the scroll", href: "#marketing", icon: Megaphone },
   { title: "Seedance 2.5", description: "Find a little more motion", href: "#seedance", icon: Waves },
-  { title: "GPT Image 2", description: "From thought to frame", href: "#gpt-image-2", icon: Sparkles },
+  { title: "GPT Image 2", description: "From thought to frame", href: "/image?model=gpt_image_2", icon: Sparkles },
 ] as const;
 
 export function CollectionShortcuts() {

@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { LandingProvider } from "@/components/landing/LandingProvider";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,9 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col font-sans">
         <LandingProvider>
           <a className="skip-link" href="#main-content">Skip to content</a>
-          <Header />
-          {children}
-          <Footer />
+          <SiteChrome header={<Header />} footer={<Footer />}>
+            {children}
+          </SiteChrome>
         </LandingProvider>
       </body>
     </html>
