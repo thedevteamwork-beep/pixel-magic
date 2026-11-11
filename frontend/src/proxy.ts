@@ -17,7 +17,7 @@ function isProtected(pathname: string): boolean {
 /** Refreshes the Supabase session cookie and keeps signed-out users off the protected pages. */
 export async function proxy(request: NextRequest) {
   // The stateless UI preview never needs a session or a real provider connection.
-  if (request.nextUrl.pathname === "/api/demo/image-generation") return NextResponse.next();
+  if (request.nextUrl.pathname === "/api/demo/image-generation" || request.nextUrl.pathname === "/api/demo/image-upscale") return NextResponse.next();
   // Supabase is off: there is no session to refresh and nobody to keep out.
   if (!isSupabaseEnabled()) return NextResponse.next();
 
