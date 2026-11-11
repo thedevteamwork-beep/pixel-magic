@@ -12,6 +12,7 @@ export const headerContent: { links: NavLink[] } = {
   links: [
     { label: "Explore", href: "/#top" },
     { label: "Image", href: "/image?model=gpt_image_2" },
+    { label: "Upscale", href: "/upscale" },
     { label: "Templates", href: "/#templates" },
     { label: "Models", href: "/#models" },
     { label: "Pricing", href: "/pricing" },
@@ -22,6 +23,7 @@ export const headerContent: { links: NavLink[] } = {
 export const signedInLinks: NavLink[] = [
   { label: "Explore", href: "/#top" },
   { label: "Image", href: "/image?model=gpt_image_2" },
+  { label: "Upscale", href: "/upscale" },
   { label: "My creations", href: "/creations" },
   { label: "Pricing", href: "/pricing" },
 ];
@@ -41,7 +43,7 @@ export const footerContent: {
         { label: "AI Video", href: "#ai-video" },
         { label: "AI Image", href: "#ai-image" },
         { label: "Image to Video", href: "#image-to-video" },
-        { label: "Upscale", href: "#upscale" },
+        { label: "Upscale", href: "/upscale" },
         { label: "Lip Sync", href: "#lip-sync" },
         { label: "AI Avatars", href: "#ai-avatars" },
       ],

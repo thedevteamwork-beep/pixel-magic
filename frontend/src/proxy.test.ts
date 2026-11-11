@@ -32,8 +32,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("auth proxy", () => {
-  it("keeps the sample image API independent of authentication", async () => {
-    const response = await proxy(new NextRequest("http://localhost:3000/api/demo/image-generation", { method: "POST" }));
+  it.each(["/api/demo/image-generation", "/api/demo/image-upscale"])("keeps %s independent of authentication", async (path) => {
+    const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));
     expect(response.status).toBe(200);
     expect(mocks.createServerClient).not.toHaveBeenCalled();
     expect(mocks.getUser).not.toHaveBeenCalled();
