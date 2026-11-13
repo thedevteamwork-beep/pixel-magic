@@ -9,7 +9,7 @@ export type CreativeTool = {
   artwork: "collage" | "motion" | "product" | "character";
   tone: "paper" | "forest" | "dark" | "plum" | "peach" | "sage";
   assets: readonly MediaId[];
-  href: "#templates" | "#gpt-image-2" | "#marketing" | "/image?model=gpt_image_2";
+  href: "#templates" | "#gpt-image-2" | "#marketing" | "/image?model=gpt_image_2" | "/video";
   filters?: TemplateFilters;
 };
 
@@ -34,8 +34,7 @@ export const creativeTools = [
     artwork: "motion",
     tone: "forest",
     assets: ["desert"],
-    href: "#templates",
-    filters: { category: "video", model: "all" },
+    href: "/video",
   },
   {
     id: "seedance",

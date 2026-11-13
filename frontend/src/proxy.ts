@@ -7,6 +7,9 @@ function setHeaders(response: NextResponse, headers: Record<string, string>) {
   for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
 }
 
+/** Stateless UI previews that never need a session or a real provider connection. */
+const DEMO_API_PATHS = new Set(["/api/demo/image-generation", "/api/demo/video-generation", "/api/demo/image-upscale"]);
+
 /** Pages that need a signed-in user. */
 const PROTECTED_PREFIXES = ["/generate", "/account", "/checkout", "/creations", "/test"];
 
@@ -17,11 +20,7 @@ function isProtected(pathname: string): boolean {
 /** Refreshes the Supabase session cookie and keeps signed-out users off the protected pages. */
 export async function proxy(request: NextRequest) {
   // The stateless UI preview never needs a session or a real provider connection.
-  if (
-    request.nextUrl.pathname === "/api/demo/image-generation" ||
-    request.nextUrl.pathname === "/api/demo/image-upscale"
-  )
-    return NextResponse.next();
+  if (DEMO_API_PATHS.has(request.nextUrl.pathname)) return NextResponse.next();
   // Supabase is off: there is no session to refresh and nobody to keep out.
   if (!isSupabaseEnabled()) return NextResponse.next();
 

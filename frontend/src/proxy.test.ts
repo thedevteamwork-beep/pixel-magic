@@ -32,15 +32,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("auth proxy", () => {
-  it.each(["/api/demo/image-generation", "/api/demo/image-upscale"])(
-    "keeps %s independent of authentication",
-    async (path) => {
-      const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));
-      expect(response.status).toBe(200);
-      expect(mocks.createServerClient).not.toHaveBeenCalled();
-      expect(mocks.getUser).not.toHaveBeenCalled();
-    },
-  );
+  it.each(["/api/demo/image-generation", "/api/demo/video-generation", "/api/demo/image-upscale"])("keeps %s independent of authentication", async (path) => {
+    const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));
+    expect(response.status).toBe(200);
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
 
   it("allows access without clients or environment reads when Supabase is disabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ENABLED", "false");

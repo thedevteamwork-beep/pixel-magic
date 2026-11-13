@@ -17,18 +17,6 @@ export function SiteChrome({
 }) {
   const pathname = usePathname();
   if (authRoutes.has(pathname)) return children;
-  if (pathname === "/image" || pathname === "/upscale" || pathname === "/influencer")
-    return (
-      <>
-        {header}
-        {children}
-      </>
-    );
-  return (
-    <>
-      {header}
-      {children}
-      {footer}
-    </>
-  );
+  if (pathname === "/image" || pathname === "/video" || pathname === "/upscale") return <>{header}{children}</>;
+  return <>{header}{children}{footer}</>;
 }
