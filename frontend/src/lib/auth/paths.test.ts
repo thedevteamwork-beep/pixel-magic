@@ -33,17 +33,22 @@ describe("auth paths", () => {
     expect([...recovery.searchParams.keys()]).toEqual(["next", "flow"]);
   });
 
-  it.each(["https://outside.example", "//outside.example", "/\\outside.example", "/\n/outside.example", "", null, undefined])(
-    "falls back safely in both auth links and callbacks for %j",
-    (unsafeNext) => {
-      const auth = new URL(authPath("sign-in", unsafeNext), origin);
-      const callback = new URL(authCallbackUrl(origin, unsafeNext, true));
+  it.each([
+    "https://outside.example",
+    "//outside.example",
+    "/\\outside.example",
+    "/\n/outside.example",
+    "",
+    null,
+    undefined,
+  ])("falls back safely in both auth links and callbacks for %j", (unsafeNext) => {
+    const auth = new URL(authPath("sign-in", unsafeNext), origin);
+    const callback = new URL(authCallbackUrl(origin, unsafeNext, true));
 
-      expect(auth.origin).toBe(origin);
-      expect(auth.searchParams.get("next")).toBe("/");
-      expect(callback.origin).toBe(origin);
-      expect(callback.searchParams.get("next")).toBe("/");
-      expect(callback.searchParams.get("flow")).toBe("recovery");
-    },
-  );
+    expect(auth.origin).toBe(origin);
+    expect(auth.searchParams.get("next")).toBe("/");
+    expect(callback.origin).toBe(origin);
+    expect(callback.searchParams.get("next")).toBe("/");
+    expect(callback.searchParams.get("flow")).toBe("recovery");
+  });
 });

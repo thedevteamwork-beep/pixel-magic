@@ -1,33 +1,162 @@
-.controls { display: flex; align-items: center; flex: 1 1 auto; flex-wrap: wrap; gap: 4px; width: 100%; min-width: 0; max-width: 100%; }
-.selectControl { position: relative; display: flex; align-items: center; flex: none; height: 38px; color: var(--muted); }
-.selectControl select { appearance: none; width: 100%; height: 38px; min-width: 0; padding: 7px 22px 7px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--subtle); font-size: 12px; line-height: 1.4; cursor: pointer; }
-.selectControl select:hover:enabled { background: var(--overlay-hover); color: var(--foreground); }
-.selectControl select:disabled { opacity: .5; cursor: default; }
-.ratio { width: 78px; }
-.ratio select { padding-left: 25px; }
-.quality { width: 94px; }
-.resolution { width: 75px; }
-.controlIcon { position: absolute; z-index: 1; left: 7px; pointer-events: none; }
-.selectChevron { position: absolute; right: 6px; color: var(--muted); pointer-events: none; }
-.count { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: 38px; border: 1px solid transparent; border-radius: 8px; }
-.count button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 36px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--subtle); }
-.count button:hover:enabled { background: var(--overlay-hover); color: var(--foreground); }
-.count button:disabled { opacity: .35; cursor: default; }
-.count output { min-width: 31px; color: var(--foreground); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
-.count output span { color: var(--muted); }
-.selectControl select:focus-visible, .count button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.controls {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.selectControl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 38px;
+  color: var(--muted);
+}
+
+.selectControl select {
+  appearance: none;
+  width: 100%;
+  height: 38px;
+  min-width: 0;
+  padding: 7px 22px 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.selectControl select:hover:enabled {
+  background: var(--overlay-hover);
+  color: var(--foreground);
+}
+
+.selectControl select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ratio {
+  width: 78px;
+}
+
+.ratio select {
+  padding-left: 25px;
+}
+
+.quality {
+  width: 94px;
+}
+
+.resolution {
+  width: 75px;
+}
+
+.controlIcon {
+  position: absolute;
+  z-index: 1;
+  left: 7px;
+  pointer-events: none;
+}
+
+.selectChevron {
+  position: absolute;
+  right: 6px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.count button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--subtle);
+}
+
+.count button:hover:enabled {
+  background: var(--overlay-hover);
+  color: var(--foreground);
+}
+
+.count button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.count output {
+  min-width: 31px;
+  color: var(--foreground);
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.count output span {
+  color: var(--muted);
+}
+
+.selectControl select:focus-visible,
+.count button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 @media (max-width: 600px) {
-  .selectControl, .selectControl select { min-height: 44px; height: 44px; }
-  .selectControl select { font-size: 16px; }
-  .ratio { width: 89px; }
-  .quality { width: 104px; }
-  .resolution { width: 77px; }
-  .count { min-height: 44px; }
-  .count button { width: 44px; height: 44px; }
-  .count output { font-size: 13px; }
+  .selectControl,
+  .selectControl select {
+    min-height: 44px;
+    height: 44px;
+  }
+  .selectControl select {
+    font-size: 16px;
+  }
+  .ratio {
+    width: 89px;
+  }
+  .quality {
+    width: 104px;
+  }
+  .resolution {
+    width: 77px;
+  }
+  .count {
+    min-height: 44px;
+  }
+  .count button {
+    width: 44px;
+    height: 44px;
+  }
+  .count output {
+    font-size: 13px;
+  }
 }
 
 @container (max-width: 480px) {
-  .count button { width: 36px; }
+  .count button {
+    width: 36px;
+  }
 }

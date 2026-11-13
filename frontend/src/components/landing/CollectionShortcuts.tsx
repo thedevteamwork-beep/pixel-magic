@@ -9,14 +9,21 @@ const shortcuts = [
 ] as const;
 
 export function CollectionShortcuts() {
-  return <nav className={styles.shortcuts} aria-label="Template collections">
-    {shortcuts.map(({ title, description, href, icon: Icon }, index) => (
-      <a href={href} key={href}>
-        <Icon size={20} className={styles.shortcutIcon} aria-hidden="true" />
-        <span><strong>{title}</strong><small>{description}</small></span>
-        <span className={styles.shortcutNumber} aria-hidden="true">0{index + 1}</span>
-        <ArrowUpRight className={styles.shortcutArrow} size={16} aria-hidden="true" />
-      </a>
-    ))}
-  </nav>;
+  return (
+    <nav className={styles.shortcuts} aria-label="Template collections">
+      {shortcuts.map(({ title, description, href, icon: Icon }, index) => (
+        <a href={href} key={href}>
+          <Icon size={20} className={styles.shortcutIcon} aria-hidden="true" />
+          <span>
+            <strong>{title}</strong>
+            <small>{description}</small>
+          </span>
+          <span className={styles.shortcutNumber} aria-hidden="true">
+            0{index + 1}
+          </span>
+          <ArrowUpRight className={styles.shortcutArrow} size={16} aria-hidden="true" />
+        </a>
+      ))}
+    </nav>
+  );
 }

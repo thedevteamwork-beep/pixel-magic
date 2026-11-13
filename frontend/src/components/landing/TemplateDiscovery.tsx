@@ -19,10 +19,15 @@ const categories: readonly { key: TemplateCategory; label: string }[] = [
 export function DiscoveryGallery() {
   const { filters, setFilters } = useTemplateFilters();
   const [expanded, setExpanded] = useState(false);
-  const filtered = useMemo(() => discoveryTemplates.filter((item) => (
-    (filters.category === "all" || item.categories.includes(filters.category))
-    && (filters.model === "all" || item.model === filters.model)
-  )), [filters.category, filters.model]);
+  const filtered = useMemo(
+    () =>
+      discoveryTemplates.filter(
+        (item) =>
+          (filters.category === "all" || item.categories.includes(filters.category)) &&
+          (filters.model === "all" || item.model === filters.model),
+      ),
+    [filters.category, filters.model],
+  );
   const shown = expanded ? filtered : filtered.slice(0, 10);
 
   function showAll() {
@@ -35,10 +40,14 @@ export function DiscoveryGallery() {
       <div className={styles.heading}>
         <div>
           <p className="section-eyebrow">Trending video templates</p>
-          <h2 className="section-title" id="templates-heading">Start with a spark.</h2>
+          <h2 className="section-title" id="templates-heading">
+            Start with a spark.
+          </h2>
           <p className="section-description">A look you love. Your face, your product, your story.</p>
         </div>
-        <button className={styles.textButton} type="button" onClick={showAll}>Explore all templates <ArrowUpRight size={16} /></button>
+        <button className={styles.textButton} type="button" onClick={showAll}>
+          Explore all templates <ArrowUpRight size={16} />
+        </button>
       </div>
 
       <div className={styles.filters}>
@@ -48,15 +57,30 @@ export function DiscoveryGallery() {
               type="button"
               key={key}
               aria-pressed={filters.category === key}
-              onClick={() => { setFilters({ ...filters, category: key }); setExpanded(false); }}
-            >{label}</button>
+              onClick={() => {
+                setFilters({ ...filters, category: key });
+                setExpanded(false);
+              }}
+            >
+              {label}
+            </button>
           ))}
         </div>
         <label className={styles.modelFilter}>
           <span className={styles.srOnly}>Filter templates by model</span>
-          <select value={filters.model} onChange={(event) => { setFilters({ ...filters, model: event.target.value }); setExpanded(false); }}>
+          <select
+            value={filters.model}
+            onChange={(event) => {
+              setFilters({ ...filters, model: event.target.value });
+              setExpanded(false);
+            }}
+          >
             <option value="all">All models</option>
-            {templateModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
+            {templateModels.map((model) => (
+              <option key={model.name} value={model.name}>
+                {model.name}
+              </option>
+            ))}
           </select>
           <ChevronDown size={14} aria-hidden="true" />
         </label>
@@ -69,16 +93,22 @@ export function DiscoveryGallery() {
           <SearchX size={28} aria-hidden="true" />
           <h3>A different direction?</h3>
           <p>There are no looks in this combination yet. Explore another model or the full collection.</p>
-          <button className="button-secondary" type="button" onClick={showAll}>Show all templates <ArrowUpRight size={15} /></button>
+          <button className="button-secondary" type="button" onClick={showAll}>
+            Show all templates <ArrowUpRight size={15} />
+          </button>
         </div>
       )}
 
       <div className={styles.footer}>
         <p className={styles.count} aria-live="polite" aria-atomic="true">
-          {shown.length === filtered.length ? `${filtered.length} curated ${filtered.length === 1 ? "look" : "looks"}` : `${shown.length} of ${filtered.length} curated looks`}
+          {shown.length === filtered.length
+            ? `${filtered.length} curated ${filtered.length === 1 ? "look" : "looks"}`
+            : `${shown.length} of ${filtered.length} curated looks`}
         </p>
         {!expanded && filtered.length > shown.length && (
-          <button className={styles.textButton} type="button" onClick={() => setExpanded(true)}>Keep exploring <ArrowDown size={14} /></button>
+          <button className={styles.textButton} type="button" onClick={() => setExpanded(true)}>
+            Keep exploring <ArrowDown size={14} />
+          </button>
         )}
       </div>
     </section>

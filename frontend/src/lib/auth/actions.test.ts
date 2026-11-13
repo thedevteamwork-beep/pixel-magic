@@ -39,23 +39,31 @@ describe("createAuthActions", () => {
 
     await actions.signIn(credentials);
 
-    expect(provider.signInWithPassword).toHaveBeenCalledWith({ email: "creator@example.com", password: credentials.password });
+    expect(provider.signInWithPassword).toHaveBeenCalledWith({
+      email: "creator@example.com",
+      password: credentials.password,
+    });
   });
 
   it.each([
     { session, expected: "signed-in" },
     { session: null, expected: "confirmation" },
-  ] as const)("returns $expected according to the actual signup session", async ({ session: returnedSession, expected }) => {
-    const { provider, actions } = setup();
-    provider.signUp.mockResolvedValue({ data: { user, session: returnedSession }, error: null });
+  ] as const)(
+    "returns $expected according to the actual signup session",
+    async ({ session: returnedSession, expected }) => {
+      const { provider, actions } = setup();
+      provider.signUp.mockResolvedValue({ data: { user, session: returnedSession }, error: null });
 
-    await expect(actions.signUp({ ...credentials, ...destination })).resolves.toBe(expected);
-    expect(provider.signUp).toHaveBeenCalledWith({
-      email: "creator@example.com",
-      password: credentials.password,
-      options: { emailRedirectTo: "https://pixel.example/auth/callback?next=%2Fcreations%3Fkind%3Dvideo%26sort%3Dnewest" },
-    });
-  });
+      await expect(actions.signUp({ ...credentials, ...destination })).resolves.toBe(expected);
+      expect(provider.signUp).toHaveBeenCalledWith({
+        email: "creator@example.com",
+        password: credentials.password,
+        options: {
+          emailRedirectTo: "https://pixel.example/auth/callback?next=%2Fcreations%3Fkind%3Dvideo%26sort%3Dnewest",
+        },
+      });
+    },
+  );
 
   it("does not turn a signup provider error into confirmation success", async () => {
     const { provider, actions } = setup();

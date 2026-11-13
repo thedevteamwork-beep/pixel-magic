@@ -71,10 +71,15 @@ export function PricingView() {
     return (
       <div className="rounded-2xl border border-border bg-surface p-6 text-sm">
         <p>Couldn&apos;t load prices.</p>
-        <Button className="mt-4" size="sm" variant="outline" onClick={() => {
+        <Button
+          className="mt-4"
+          size="sm"
+          variant="outline"
+          onClick={() => {
             setLoadFailed(false);
             setAttempt((n) => n + 1);
-          }}>
+          }}
+        >
           Try again
         </Button>
       </div>

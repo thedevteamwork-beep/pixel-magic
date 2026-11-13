@@ -24,7 +24,11 @@ export function ConfirmChange({ preview, pending, error, onConfirm, onBack }: Co
           Back
         </Button>
       </div>
-      {error && <p role="alert" className="mt-3 text-xs text-subtle">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 text-xs text-subtle">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

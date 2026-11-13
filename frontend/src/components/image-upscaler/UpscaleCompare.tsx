@@ -17,7 +17,14 @@ export type UpscaleCompareProps = {
 type CompareView = "compare" | "original" | "upscaled";
 
 /** Both files share the source image's contained bounds; neither is filtered. */
-export function UpscaleCompare({ originalUrl, resultUrl, width, height, originalLabel = "Original", resultLabel = "Upscaled preview" }: UpscaleCompareProps) {
+export function UpscaleCompare({
+  originalUrl,
+  resultUrl,
+  width,
+  height,
+  originalLabel = "Original",
+  resultLabel = "Upscaled preview",
+}: UpscaleCompareProps) {
   const [position, setPosition] = useState(50);
   const [view, setView] = useState<CompareView>("compare");
   const hintId = useId();
@@ -28,7 +35,7 @@ export function UpscaleCompare({ originalUrl, resultUrl, width, height, original
   function updatePointer(event: PointerEvent<HTMLInputElement>) {
     const bounds = event.currentTarget.getBoundingClientRect();
     if (!bounds.width) return;
-    setPosition(Math.round(Math.min(100, Math.max(0, (event.clientX - bounds.left) / bounds.width * 100))));
+    setPosition(Math.round(Math.min(100, Math.max(0, ((event.clientX - bounds.left) / bounds.width) * 100))));
   }
 
   function startDrag(event: PointerEvent<HTMLInputElement>) {
@@ -40,7 +47,8 @@ export function UpscaleCompare({ originalUrl, resultUrl, width, height, original
   }
 
   function endDrag(event: PointerEvent<HTMLInputElement>) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
   function showCompare() {
@@ -56,42 +64,64 @@ export function UpscaleCompare({ originalUrl, resultUrl, width, height, original
           {view !== "original" && <span className={styles.resultLabel}>{resultLabel}</span>}
         </div>
         <div className={styles.imageBounds} style={boundsStyle}>
-          <div className={styles.imageLayer} style={{ clipPath: `inset(0 0 0 ${originalPercent}%)` }} aria-hidden={view === "original"}>
+          <div
+            className={styles.imageLayer}
+            style={{ clipPath: `inset(0 0 0 ${originalPercent}%)` }}
+            aria-hidden={view === "original"}
+          >
             <Image src={resultUrl} alt={resultLabel} fill unoptimized className={styles.image} />
           </div>
-          <div className={styles.imageLayer} style={{ clipPath: `inset(0 ${100 - originalPercent}% 0 0)` }} aria-hidden={view === "upscaled"}>
+          <div
+            className={styles.imageLayer}
+            style={{ clipPath: `inset(0 ${100 - originalPercent}% 0 0)` }}
+            aria-hidden={view === "upscaled"}
+          >
             <Image src={originalUrl} alt={originalLabel} fill unoptimized className={styles.image} />
           </div>
-          {view === "compare" && <>
-            <input
-              className={styles.range}
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={position}
-              onChange={(event) => setPosition(Number(event.target.value))}
-              onPointerDown={startDrag}
-              onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updatePointer(event); }}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-              aria-label="Compare original and upscaled image"
-              aria-describedby={hintId}
-              aria-valuetext={`${position}% original, ${100 - position}% upscaled`}
-            />
-            <span className={styles.divider} style={{ left: `${position}%` }} aria-hidden="true">
-              <span className={styles.handle}><ChevronsLeftRight size={18} strokeWidth={1.8} /></span>
-            </span>
-          </>}
+          {view === "compare" && (
+            <>
+              <input
+                className={styles.range}
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={position}
+                onChange={(event) => setPosition(Number(event.target.value))}
+                onPointerDown={startDrag}
+                onPointerMove={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) updatePointer(event);
+                }}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                aria-label="Compare original and upscaled image"
+                aria-describedby={hintId}
+                aria-valuetext={`${position}% original, ${100 - position}% upscaled`}
+              />
+              <span className={styles.divider} style={{ left: `${position}%` }} aria-hidden="true">
+                <span className={styles.handle}>
+                  <ChevronsLeftRight size={18} strokeWidth={1.8} />
+                </span>
+              </span>
+            </>
+          )}
         </div>
       </div>
       <div className={styles.controls}>
         <div className={styles.viewOptions} role="group" aria-label="Comparison view">
-          <button type="button" aria-pressed={view === "compare"} onClick={showCompare}>Compare</button>
-          <button type="button" aria-pressed={view === "original"} onClick={() => setView("original")}>Original</button>
-          <button type="button" aria-pressed={view === "upscaled"} onClick={() => setView("upscaled")}>Upscaled</button>
+          <button type="button" aria-pressed={view === "compare"} onClick={showCompare}>
+            Compare
+          </button>
+          <button type="button" aria-pressed={view === "original"} onClick={() => setView("original")}>
+            Original
+          </button>
+          <button type="button" aria-pressed={view === "upscaled"} onClick={() => setView("upscaled")}>
+            Upscaled
+          </button>
         </div>
-        <span className={styles.hint} id={hintId}>Drag or use arrow keys to compare.</span>
+        <span className={styles.hint} id={hintId}>
+          Drag or use arrow keys to compare.
+        </span>
       </div>
     </div>
   );

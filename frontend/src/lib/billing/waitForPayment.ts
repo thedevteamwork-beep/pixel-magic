@@ -28,9 +28,7 @@ export async function waitForPayment(
   while (now() <= deadline) {
     try {
       const invoices = await p.listInvoices();
-      const paid = invoices.find(
-        (invoice) => invoice.transactionId === transactionId && invoice.status === "paid",
-      );
+      const paid = invoices.find((invoice) => invoice.transactionId === transactionId && invoice.status === "paid");
       if (paid) return { kind: "paid", invoice: paid };
     } catch {
       // Not there yet; try again.

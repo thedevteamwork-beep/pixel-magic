@@ -47,9 +47,7 @@ export function AccountView() {
   }, [attempt]);
 
   const onSubscriptionChanged = useCallback((subscription: Subscription) => {
-    setData((previous) =>
-      previous && { ...previous, account: { ...previous.account, subscription } },
-    );
+    setData((previous) => previous && { ...previous, account: { ...previous.account, subscription } });
   }, []);
 
   if (error) {

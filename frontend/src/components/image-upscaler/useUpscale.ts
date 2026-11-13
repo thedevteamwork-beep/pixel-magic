@@ -19,11 +19,14 @@ export function useUpscale() {
   const resultRef = useRef<UpscaleResult | null>(null);
   const operationRef = useRef<AbortController | null>(null);
 
-  useEffect(() => () => {
-    operationRef.current?.abort();
-    if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
-    if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
-  }, []);
+  useEffect(
+    () => () => {
+      operationRef.current?.abort();
+      if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
+      if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
+    },
+    [],
+  );
 
   const begin = useCallback((nextStage: UpscaleStage) => {
     operationRef.current?.abort();
@@ -48,40 +51,48 @@ export function useUpscale() {
     setResult(null);
   }, []);
 
-  const loadFile = useCallback(async (file: File) => {
-    const controller = begin("loading");
-    try {
-      await acceptFile(file, controller);
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "This image couldn’t be opened. Try another file.");
-    } finally {
-      if (!controller.signal.aborted) setStage("idle");
-    }
-  }, [acceptFile, begin]);
+  const loadFile = useCallback(
+    async (file: File) => {
+      const controller = begin("loading");
+      try {
+        await acceptFile(file, controller);
+      } catch (cause) {
+        if (!controller.signal.aborted)
+          setError(cause instanceof Error ? cause.message : "This image couldn’t be opened. Try another file.");
+      } finally {
+        if (!controller.signal.aborted) setStage("idle");
+      }
+    },
+    [acceptFile, begin],
+  );
 
-  const upscale = useCallback(async (settings: UpscaleSettings) => {
-    const image = sourceRef.current;
-    if (!image) return;
-    const controller = begin("preparing");
-    try {
-      const input = { width: image.width, height: image.height, contentType: image.file.type, size: image.file.size };
-      // Check before the request as well as on the server; pixels stay in the browser.
-      calculateUpscaleOutput(input, settings.upscale_factor, "png");
-      const plan = await requestUpscalePreview({ source: input, ...settings }, controller.signal);
-      if (controller.signal.aborted) return;
-      setStage("resizing");
-      const blob = await resizeUpscaleImage(image.url, plan.output, controller.signal);
-      if (controller.signal.aborted) return;
-      const next = { url: URL.createObjectURL(blob), output: plan.output, settings: plan.settings };
-      if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
-      resultRef.current = next;
-      setResult(next);
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "The preview couldn’t be created. Please try again.");
-    } finally {
-      if (!controller.signal.aborted) setStage("idle");
-    }
-  }, [begin]);
+  const upscale = useCallback(
+    async (settings: UpscaleSettings) => {
+      const image = sourceRef.current;
+      if (!image) return;
+      const controller = begin("preparing");
+      try {
+        const input = { width: image.width, height: image.height, contentType: image.file.type, size: image.file.size };
+        // Check before the request as well as on the server; pixels stay in the browser.
+        calculateUpscaleOutput(input, settings.upscale_factor, "png");
+        const plan = await requestUpscalePreview({ source: input, ...settings }, controller.signal);
+        if (controller.signal.aborted) return;
+        setStage("resizing");
+        const blob = await resizeUpscaleImage(image.url, plan.output, controller.signal);
+        if (controller.signal.aborted) return;
+        const next = { url: URL.createObjectURL(blob), output: plan.output, settings: plan.settings };
+        if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
+        resultRef.current = next;
+        setResult(next);
+      } catch (cause) {
+        if (!controller.signal.aborted)
+          setError(cause instanceof Error ? cause.message : "The preview couldn’t be created. Please try again.");
+      } finally {
+        if (!controller.signal.aborted) setStage("idle");
+      }
+    },
+    [begin],
+  );
 
   const cancel = useCallback(() => {
     operationRef.current?.abort();

@@ -17,7 +17,11 @@ export function CommunityGallery({ title, description, actions, items }: Communi
         title={title}
         description={description}
         actions={actions.map((action, index) => (
-          <ButtonWithLink key={action.label} href={action.href} variant={action.variant ?? (index === 0 ? "primary" : "secondary")}>
+          <ButtonWithLink
+            key={action.label}
+            href={action.href}
+            variant={action.variant ?? (index === 0 ? "primary" : "secondary")}
+          >
             {action.label}
           </ButtonWithLink>
         ))}

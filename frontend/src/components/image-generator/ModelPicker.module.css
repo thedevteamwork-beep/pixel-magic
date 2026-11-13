@@ -1,48 +1,292 @@
-.modelTrigger { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 65px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-card); background: var(--surface-raised); color: var(--foreground); text-align: left; transition: border-color .2s, background .2s; }
-.modelTrigger:hover:not(:disabled) { border-color: var(--primary); background: var(--overlay-hover); }
-.modelTrigger > svg { margin-left: auto; color: var(--muted); flex: none; }
-.modelSymbol { display: grid; flex: none; place-items: center; width: 35px; height: 35px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--primary); font-size: 25px; line-height: 1; }
-.modelIdentity { display: grid; min-width: 0; gap: 3px; }
-.modelIdentity strong { font-size: 13px; font-weight: 500; }
-.modelIdentity small { color: var(--muted); font-size: 10px; }
-.compactModel { width: 150px; max-width: 100%; flex: 0 1 150px; min-height: 38px; height: 38px; gap: 6px; padding: 7px 8px; border-color: transparent; border-radius: 8px; background: transparent; }
-.compactModel:hover:not(:disabled) { border-color: transparent; background: var(--overlay-hover); }
-.compactModel:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.compactModel .modelSymbol { width: 16px; height: 16px; border: 0; border-radius: 0; background: transparent; font-size: 17px; }
-.compactModel .modelIdentity { display: block; min-width: 0; overflow: hidden; }
-.compactModel .modelIdentity strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.compactModel .modelIdentity small { display: none; }
-.compactModel > svg { width: 12px; height: 12px; }
-.modelDialog { max-width: 730px; }
-.modelDialogBody { padding: 22px; }
-.search { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--background); color: var(--muted); }
-.search:focus-within { border-color: var(--primary); }
-.search input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--foreground); font-size: 12px; }
-.search input::placeholder { color: var(--muted); }
-.makers { display: flex; flex-wrap: wrap; gap: 7px; margin: 15px 0 19px; }
-.makers button { padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: transparent; font-size: 10px; white-space: nowrap; }
-.makers button:hover { border-color: var(--border-strong); color: var(--foreground); }
-.makers button[aria-pressed="true"] { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); background: color-mix(in srgb, var(--primary) 7%, transparent); }
-.modelGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.modelCard { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--background); color: var(--foreground); text-align: left; }
-.modelCard:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-raised); }
-.modelCard[aria-pressed="true"] { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 4%, var(--background)); }
-.modelCardTop { display: flex; align-items: center; gap: 9px; min-height: 36px; margin-bottom: 14px; }
-.modelTag { border-radius: 4px; padding: 4px 6px; color: var(--primary); background: color-mix(in srgb, var(--primary) 9%, transparent); font-size: 8px; }
-.selectedCheck { flex: none; margin-left: auto; color: var(--primary); }
-.modelCard > strong { display: block; font-family: var(--font-display), sans-serif; font-size: 15px; font-weight: 500; letter-spacing: -.025em; }
-.makerName { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
-.modelCard p { margin: 11px 0 0; color: var(--subtle); font-size: 11px; line-height: 1.65; }
-.dialogNote { margin: 18px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
-.empty { padding: 36px 10px; color: var(--muted); font-size: 12px; text-align: center; }
-
-.modelTrigger:disabled { opacity: .55; cursor: default; }
-@media (max-width: 540px) {
-  .modelDialogBody { padding: 15px; }
-  .modelGrid { grid-template-columns: 1fr; }
-  .modelCard { padding: 14px; }
+.modelTrigger {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 65px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
+
+.modelTrigger:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--overlay-hover);
+}
+
+.modelTrigger > svg {
+  margin-left: auto;
+  color: var(--muted);
+  flex: none;
+}
+
+.modelSymbol {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--background);
+  color: var(--primary);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.modelIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.modelIdentity strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.modelIdentity small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.compactModel {
+  width: 150px;
+  max-width: 100%;
+  flex: 0 1 150px;
+  min-height: 38px;
+  height: 38px;
+  gap: 6px;
+  padding: 7px 8px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.compactModel:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--overlay-hover);
+}
+
+.compactModel:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.compactModel .modelSymbol {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 17px;
+}
+
+.compactModel .modelIdentity {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.compactModel .modelIdentity strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.compactModel .modelIdentity small {
+  display: none;
+}
+
+.compactModel > svg {
+  width: 12px;
+  height: 12px;
+}
+
+.modelDialog {
+  max-width: 730px;
+}
+
+.modelDialogBody {
+  padding: 22px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--muted);
+}
+
+.search:focus-within {
+  border-color: var(--primary);
+}
+
+.search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.search input::placeholder {
+  color: var(--muted);
+}
+
+.makers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 15px 0 19px;
+}
+
+.makers button {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.makers button:hover {
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.makers button[aria-pressed="true"] {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+
+.modelGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.modelCard {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--background);
+  color: var(--foreground);
+  text-align: left;
+}
+
+.modelCard:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.modelCard[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 4%, var(--background));
+}
+
+.modelCardTop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  margin-bottom: 14px;
+}
+
+.modelTag {
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  font-size: 8px;
+}
+
+.selectedCheck {
+  flex: none;
+  margin-left: auto;
+  color: var(--primary);
+}
+
+.modelCard > strong {
+  display: block;
+  font-family: var(--font-display), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.makerName {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.modelCard p {
+  margin: 11px 0 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.dialogNote {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.empty {
+  padding: 36px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.modelTrigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 540px) {
+  .modelDialogBody {
+    padding: 15px;
+  }
+  .modelGrid {
+    grid-template-columns: 1fr;
+  }
+  .modelCard {
+    padding: 14px;
+  }
+}
+
 @media (max-width: 600px) {
-  .search input { font-size: 16px; }
-  .compactModel { width: 136px; flex-basis: 136px; min-width: 0; min-height: 44px; height: 44px; }
+  .search input {
+    font-size: 16px;
+  }
+  .compactModel {
+    width: 136px;
+    flex-basis: 136px;
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+  }
 }

@@ -57,7 +57,10 @@ export function HeaderAccount({ links, signedInLinks, children }: HeaderAccountP
     observer.observe(list);
     observer.observe(navigation);
     void document.fonts.ready.then(measure);
-    return () => { disposed = true; observer.disconnect(); };
+    return () => {
+      disposed = true;
+      observer.disconnect();
+    };
   }, [pathname, userId]);
 
   const loadCredits = useCallback(async () => {
@@ -91,7 +94,10 @@ export function HeaderAccount({ links, signedInLinks, children }: HeaderAccountP
     if (!userId) return;
     void loadCredits();
     const unsubscribe = onCreditsChanged(() => void loadCredits());
-    return () => { unsubscribe(); creditsRequest.current?.abort(); };
+    return () => {
+      unsubscribe();
+      creditsRequest.current?.abort();
+    };
   }, [userId, loadCredits]);
 
   useEffect(() => {
@@ -127,46 +133,88 @@ export function HeaderAccount({ links, signedInLinks, children }: HeaderAccountP
 
   const accountName = user?.email?.split("@")[0] || "Your account";
   const creditLabel = credits === null ? "Balance unavailable" : `${credits.toLocaleString()} credits`;
-  const closeAccountMenu = () => { if (detailsRef.current) detailsRef.current.open = false; };
+  const closeAccountMenu = () => {
+    if (detailsRef.current) detailsRef.current.open = false;
+  };
 
-  return <>
-    <nav ref={navigationRef} className={styles.navigation} aria-label="Main navigation">
-      <ul ref={navigationListRef}>{(user ? signedInLinks : links).map((link) => (
-        <li key={link.href}>
-          <Link href={link.href} aria-current={isActiveLink(pathname, link.href) ? "page" : undefined}>{link.label}</Link>
-        </li>
-      ))}</ul>
-    </nav>
-    {children}
-    <div className={accountStyles.actions}>
-      {user ? <details ref={detailsRef} className={accountStyles.account} onKeyDown={(event) => {
-        if (event.key === "Escape" && detailsRef.current?.open) {
-          event.preventDefault();
-          detailsRef.current.open = false;
-          detailsRef.current.querySelector("summary")?.focus();
-        }
-      }}>
-        <summary aria-label={`Open account menu for ${accountName}`} className={accountStyles.accountTrigger}>
-          <span className={accountStyles.avatar} aria-hidden="true">{accountName.charAt(0).toUpperCase()}</span>
-          <ChevronDown className={accountStyles.chevron} size={11} aria-hidden="true" />
-        </summary>
-        <div className={accountStyles.menu}>
-          <div className={accountStyles.identity}><strong>{accountName}</strong><span>{user.email || "Signed in"}</span></div>
-          <Link href="/account" onClick={closeAccountMenu} className={accountStyles.balance}><Coins size={15} aria-hidden="true" /><span>{creditLabel}</span></Link>
-          <nav aria-label="Account navigation" className={accountStyles.menuNavigation}>
-            <Link href="/account" onClick={closeAccountMenu}><UserRound size={15} aria-hidden="true" />Account</Link>
-            <Link href="/creations" onClick={closeAccountMenu}><Images size={15} aria-hidden="true" />My creations</Link>
-          </nav>
-          <button type="button" onClick={signOut} disabled={signingOut} className={accountStyles.signOut}>
-            {signingOut ? <LoaderCircle className={accountStyles.spinner} size={15} aria-hidden="true" /> : <LogOut size={15} aria-hidden="true" />}
-            {signingOut ? "Signing out…" : "Sign out"}
-          </button>
-          {signOutError && <p className={accountStyles.error} role="alert">{signOutError}</p>}
-        </div>
-      </details> : <>
-        <Link href="/sign-in" className={accountStyles.login}>Log in</Link>
-        <Link href="/sign-up" className={accountStyles.signup}>Sign up</Link>
-      </>}
-    </div>
-  </>;
+  return (
+    <>
+      <nav ref={navigationRef} className={styles.navigation} aria-label="Main navigation">
+        <ul ref={navigationListRef}>
+          {(user ? signedInLinks : links).map((link) => (
+            <li key={link.href}>
+              <Link href={link.href} aria-current={isActiveLink(pathname, link.href) ? "page" : undefined}>
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {children}
+      <div className={accountStyles.actions}>
+        {user ? (
+          <details
+            ref={detailsRef}
+            className={accountStyles.account}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && detailsRef.current?.open) {
+                event.preventDefault();
+                detailsRef.current.open = false;
+                detailsRef.current.querySelector("summary")?.focus();
+              }
+            }}
+          >
+            <summary aria-label={`Open account menu for ${accountName}`} className={accountStyles.accountTrigger}>
+              <span className={accountStyles.avatar} aria-hidden="true">
+                {accountName.charAt(0).toUpperCase()}
+              </span>
+              <ChevronDown className={accountStyles.chevron} size={11} aria-hidden="true" />
+            </summary>
+            <div className={accountStyles.menu}>
+              <div className={accountStyles.identity}>
+                <strong>{accountName}</strong>
+                <span>{user.email || "Signed in"}</span>
+              </div>
+              <Link href="/account" onClick={closeAccountMenu} className={accountStyles.balance}>
+                <Coins size={15} aria-hidden="true" />
+                <span>{creditLabel}</span>
+              </Link>
+              <nav aria-label="Account navigation" className={accountStyles.menuNavigation}>
+                <Link href="/account" onClick={closeAccountMenu}>
+                  <UserRound size={15} aria-hidden="true" />
+                  Account
+                </Link>
+                <Link href="/creations" onClick={closeAccountMenu}>
+                  <Images size={15} aria-hidden="true" />
+                  My creations
+                </Link>
+              </nav>
+              <button type="button" onClick={signOut} disabled={signingOut} className={accountStyles.signOut}>
+                {signingOut ? (
+                  <LoaderCircle className={accountStyles.spinner} size={15} aria-hidden="true" />
+                ) : (
+                  <LogOut size={15} aria-hidden="true" />
+                )}
+                {signingOut ? "Signing out…" : "Sign out"}
+              </button>
+              {signOutError && (
+                <p className={accountStyles.error} role="alert">
+                  {signOutError}
+                </p>
+              )}
+            </div>
+          </details>
+        ) : (
+          <>
+            <Link href="/sign-in" className={accountStyles.login}>
+              Log in
+            </Link>
+            <Link href="/sign-up" className={accountStyles.signup}>
+              Sign up
+            </Link>
+          </>
+        )}
+      </div>
+    </>
+  );
 }

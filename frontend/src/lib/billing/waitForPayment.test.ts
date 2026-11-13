@@ -76,9 +76,9 @@ describe("waitForPayment", () => {
         throw error;
       }
     };
-    await expect(
-      waitForPayment("txn_1", { listInvoices, sleep, signal: controller.signal }),
-    ).rejects.toMatchObject({ name: "AbortError" });
+    await expect(waitForPayment("txn_1", { listInvoices, sleep, signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
   });
 
   it("ignores a draft invoice for the same transaction", async () => {

@@ -25,10 +25,7 @@ describe("api client", () => {
       { idempotencyKey: "key-1" },
     );
     expect(result).toEqual({ ok: true });
-    const [url, init] = fetchFn.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://api.test/v1/jobs");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(JSON.stringify({ a: 1 }));
@@ -54,8 +51,7 @@ describe("api client", () => {
   });
 
   it("maps a non-JSON 502 to HTTP_ERROR", async () => {
-    const fetchFn = async () =>
-      new Response("<html>Bad Gateway</html>", { status: 502 });
+    const fetchFn = async () => new Response("<html>Bad Gateway</html>", { status: 502 });
     const error = await makeClient(fetchFn)
       .get("/x")
       .catch((e) => e);
@@ -94,9 +90,7 @@ describe("api client", () => {
 
   it("sends DELETE with the bearer token and parses the JSON", async () => {
     const fetchFn = vi.fn(async () => jsonResponse({ action: "reverted" }));
-    const result = await makeClient(fetchFn as unknown as typeof fetch).delete(
-      "/v1/billing/subscription/change",
-    );
+    const result = await makeClient(fetchFn as unknown as typeof fetch).delete("/v1/billing/subscription/change");
     expect(result).toEqual({ action: "reverted" });
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://api.test/v1/billing/subscription/change");

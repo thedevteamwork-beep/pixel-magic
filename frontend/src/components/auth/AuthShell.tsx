@@ -54,7 +54,10 @@ export function AuthShell({ mode, children }: AuthShellProps) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <Logo />
-        <Link className={styles.backLink} href="/"><ArrowLeft size={15} aria-hidden="true" />Back to explore</Link>
+        <Link className={styles.backLink} href="/">
+          <ArrowLeft size={15} aria-hidden="true" />
+          Back to explore
+        </Link>
       </header>
 
       <main className={styles.main} id="main-content" tabIndex={-1}>
@@ -64,8 +67,15 @@ export function AuthShell({ mode, children }: AuthShellProps) {
 
         <aside className={styles.artPanel} aria-labelledby="auth-artwork-heading">
           <div className={styles.artCopy}>
-            <p className={styles.eyebrow}><span aria-hidden="true" />{copy.eyebrow}</p>
-            <h2 id="auth-artwork-heading">{copy.heading}<br /><em>{copy.accent}</em></h2>
+            <p className={styles.eyebrow}>
+              <span aria-hidden="true" />
+              {copy.eyebrow}
+            </p>
+            <h2 id="auth-artwork-heading">
+              {copy.heading}
+              <br />
+              <em>{copy.accent}</em>
+            </h2>
             <p className={styles.description}>{copy.description}</p>
           </div>
 
@@ -81,20 +91,39 @@ export function AuthShell({ mode, children }: AuthShellProps) {
                     src={`/media/landing/${asset}.jpg`}
                     alt=""
                     fill
-                    sizes={asset === "portrait" ? "(min-width: 1600px) 225px, (min-width: 901px) 17vw, 1px" : "(min-width: 1600px) 250px, (min-width: 901px) 20vw, 1px"}
+                    sizes={
+                      asset === "portrait"
+                        ? "(min-width: 1600px) 225px, (min-width: 901px) 17vw, 1px"
+                        : "(min-width: 1600px) 250px, (min-width: 901px) 20vw, 1px"
+                    }
                   />
                 </div>
-                <span className={styles.photoLabel}><span>{String(index + 1).padStart(2, "0")}</span>{label}</span>
+                <span className={styles.photoLabel}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  {label}
+                </span>
               </div>
             ))}
-            <div className={styles.sparkle}><Sparkle size={30} strokeWidth={1.2} /></div>
+            <div className={styles.sparkle}>
+              <Sparkle size={30} strokeWidth={1.2} />
+            </div>
             <span className={styles.marginNote}>A NEW POINT OF VIEW</span>
           </div>
 
           <div className={styles.artFooter}>
-            <span className={styles.footerMark} aria-hidden="true">✳</span>
-            <p>Images. Films.<br />Everything in between.</p>
-            <span className={styles.edition}>THE PIXEL MAGIC EDIT<br /><span>Made for your imagination.</span></span>
+            <span className={styles.footerMark} aria-hidden="true">
+              ✳
+            </span>
+            <p>
+              Images. Films.
+              <br />
+              Everything in between.
+            </p>
+            <span className={styles.edition}>
+              THE PIXEL MAGIC EDIT
+              <br />
+              <span>Made for your imagination.</span>
+            </span>
           </div>
         </aside>
       </main>

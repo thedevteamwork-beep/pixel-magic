@@ -16,18 +16,37 @@ type CollectionBannerProps = {
   marketing?: boolean;
 };
 
-function CollectionBanner({ asset, eyebrow, title, description, target, headingId, action, marketing = false }: CollectionBannerProps) {
+function CollectionBanner({
+  asset,
+  eyebrow,
+  title,
+  description,
+  target,
+  headingId,
+  action,
+  marketing = false,
+}: CollectionBannerProps) {
   return (
     <div className={`${styles.banner} ${marketing ? styles.marketing : ""}`}>
-      <LandingMedia asset={asset} alt={`${title} collection preview`} behavior="ambient" className={styles.media} sizes="(max-width: 600px) 100vw, 65vw" />
+      <LandingMedia
+        asset={asset}
+        alt={`${title} collection preview`}
+        behavior="ambient"
+        className={styles.media}
+        sizes="(max-width: 600px) 100vw, 65vw"
+      />
       <div className={styles.shade} aria-hidden="true" />
       <div className={styles.content}>
         <p className="section-eyebrow">{eyebrow}</p>
         <h2 id={headingId}>{title}</h2>
         <p className={styles.description}>{description}</p>
-        <a href={target}>{action} <ArrowUpRight size={16} /></a>
+        <a href={target}>
+          {action} <ArrowUpRight size={16} />
+        </a>
       </div>
-      <span className={styles.volume} aria-hidden="true">THE PIXEL MAGIC COLLECTION</span>
+      <span className={styles.volume} aria-hidden="true">
+        THE PIXEL MAGIC COLLECTION
+      </span>
     </div>
   );
 }

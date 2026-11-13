@@ -32,7 +32,7 @@ afterEach(() => {
 describe("public image generation demo API", () => {
   it("returns the requested quantity of explicitly labeled, free local samples", async () => {
     const response = await POST(request({ count: 4, seed: 0, resolution: "4K", quality: "High", format: "webp" }));
-    const body = await response.json() as ImageGenerationResponse;
+    const body = (await response.json()) as ImageGenerationResponse;
     const allowedImages = new Set(Object.values(landingAssets).map((asset) => asset.image));
 
     expect(response.status).toBe(200);
@@ -44,7 +44,14 @@ describe("public image generation demo API", () => {
     for (const image of body.images) {
       expect(allowedImages.has(image.url)).toBe(true);
       expect(image.url).toMatch(/^\/media\/landing\/[a-z]+\.jpg$/);
-      expect(image).toMatchObject({ demo: true, seed: 0, resolution: "4K", quality: "High", format: "jpeg", favorite: false });
+      expect(image).toMatchObject({
+        demo: true,
+        seed: 0,
+        resolution: "4K",
+        quality: "High",
+        format: "jpeg",
+        favorite: false,
+      });
       expect(image.alt).toContain("Sample preview");
       expect(Number.isNaN(Date.parse(image.createdAt))).toBe(false);
     }
@@ -52,7 +59,7 @@ describe("public image generation demo API", () => {
 
   it("matches a prompt category while generating bounded random seed metadata", async () => {
     const response = await POST(request({ prompt: "Soft pink roses and delicate petals", seed: null }));
-    const body = await response.json() as ImageGenerationResponse;
+    const body = (await response.json()) as ImageGenerationResponse;
 
     expect(body.images[0].url).toBe(landingAssets.flowers.image);
     expect(Number.isInteger(body.images[0].seed)).toBe(true);
@@ -61,11 +68,16 @@ describe("public image generation demo API", () => {
   });
 
   it("uses style as a sample-selection hint and accepts reference metadata without uploads", async () => {
-    const response = await POST(request({
-      prompt: "An expressive arrangement", style: "Product", mode: "edit", queue: "unlimited",
-      references: [{ id: "reference-1", mimeType: "image/png", size: 1024 }],
-    }));
-    const body = await response.json() as ImageGenerationResponse;
+    const response = await POST(
+      request({
+        prompt: "An expressive arrangement",
+        style: "Product",
+        mode: "edit",
+        queue: "unlimited",
+        references: [{ id: "reference-1", mimeType: "image/png", size: 1024 }],
+      }),
+    );
+    const body = (await response.json()) as ImageGenerationResponse;
 
     expect(response.status).toBe(200);
     expect(body.images[0].url).toBe(landingAssets.product.image);
@@ -74,11 +86,11 @@ describe("public image generation demo API", () => {
 
   it("uses non-keyword styles as hints while keeping prompt subjects first", async () => {
     const analog = await POST(request({ prompt: "An expressive arrangement", style: "Analog" }));
-    const analogBody = await analog.json() as ImageGenerationResponse;
+    const analogBody = (await analog.json()) as ImageGenerationResponse;
     expect(analogBody.images[0].url).toBe(landingAssets.portrait.image);
 
     const botanical = await POST(request({ prompt: "Soft pink roses and delicate petals", style: "Analog" }));
-    const botanicalBody = await botanical.json() as ImageGenerationResponse;
+    const botanicalBody = (await botanical.json()) as ImageGenerationResponse;
     expect(botanicalBody.images[0].url).toBe(landingAssets.flowers.image);
   });
 
@@ -90,8 +102,14 @@ describe("public image generation demo API", () => {
   });
 
   it.each([
-    { model: "unknown-model" }, { prompt: " " }, { count: 5 }, { count: 1.5 },
-    { seed: -1 }, { private: "true" }, { format: "svg" }, { mode: "edit" },
+    { model: "unknown-model" },
+    { prompt: " " },
+    { count: 5 },
+    { count: 1.5 },
+    { seed: -1 },
+    { private: "true" },
+    { format: "svg" },
+    { mode: "edit" },
     { references: [{ id: "reference-1", mimeType: "image/png", size: 10, url: "https://example.com/photo.png" }] },
   ])("rejects invalid generation settings without provider work: %j", async (patch) => {
     const response = await POST(request(patch));
@@ -100,17 +118,25 @@ describe("public image generation demo API", () => {
   });
 
   it("rejects oversized declared bodies before reading them", async () => {
-    const response = await POST(new Request(endpoint, {
-      method: "POST", headers: { "Content-Length": String(128 * 1024 + 1) }, body: "{}",
-    }));
+    const response = await POST(
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "Content-Length": String(128 * 1024 + 1) },
+        body: "{}",
+      }),
+    );
     expect(response.status).toBe(413);
     expect(await response.json()).toMatchObject({ ok: false, error: { code: "PAYLOAD_TOO_LARGE" } });
   });
 
   it("bounds actual bytes despite an inaccurate length header", async () => {
-    const response = await POST(new Request(endpoint, {
-      method: "POST", headers: { "Content-Length": "1" }, body: JSON.stringify({ prompt: "é".repeat(70_000) }),
-    }));
+    const response = await POST(
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "Content-Length": "1" },
+        body: JSON.stringify({ prompt: "é".repeat(70_000) }),
+      }),
+    );
     expect(response.status).toBe(413);
     expect(await response.json()).toMatchObject({ ok: false, error: { code: "PAYLOAD_TOO_LARGE" } });
     expect(response.headers.get("Cache-Control")).toBe("no-store");

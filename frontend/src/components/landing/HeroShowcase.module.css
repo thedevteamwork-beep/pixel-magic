@@ -112,7 +112,9 @@
   font-size: 12px;
   font-weight: 500;
   backdrop-filter: blur(10px);
-  transition: background 180ms ease, border-color 180ms ease;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease;
 }
 
 .reelTrigger:hover {
@@ -148,7 +150,9 @@
   padding: 8px 12px;
   color: var(--on-media);
   font-size: 11px;
-  transition: background 180ms ease, color 180ms ease;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
 }
 
 .chapters button:hover {

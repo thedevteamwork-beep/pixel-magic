@@ -16,9 +16,13 @@ describe("messageForError", () => {
   });
 
   it("shows the validation message with the field from meta", () => {
-    const withKey = new ApiError(422, "VALIDATION_FAILED", "Bad options", [{ code: "unrecognized_keys", keys: ["durations"], path: ["options"], message: "Unrecognized key" }]);
+    const withKey = new ApiError(422, "VALIDATION_FAILED", "Bad options", [
+      { code: "unrecognized_keys", keys: ["durations"], path: ["options"], message: "Unrecognized key" },
+    ]);
     expect(messageForError(withKey)).toBe("Bad options (durations)");
-    const withPath = new ApiError(422, "VALIDATION_FAILED", "Bad input", [{ code: "invalid_value", path: ["options", "duration"], message: "Invalid" }]);
+    const withPath = new ApiError(422, "VALIDATION_FAILED", "Bad input", [
+      { code: "invalid_value", path: ["options", "duration"], message: "Invalid" },
+    ]);
     expect(messageForError(withPath)).toBe("Bad input (options.duration)");
     expect(messageForError(new ApiError(422, "VALIDATION_FAILED", "Bad input"))).toBe("Bad input");
   });

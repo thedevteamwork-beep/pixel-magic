@@ -15,16 +15,15 @@ function ToolCard({ tool, index }: { tool: CreativeTool; index: number }) {
     <a
       href={tool.href}
       className={styles.card}
-      onClick={() => { if (tool.filters) setFilters(tool.filters); }}
+      onClick={() => {
+        if (tool.filters) setFilters(tool.filters);
+      }}
       onPointerEnter={() => setActive(true)}
       onPointerLeave={() => setActive(false)}
       onFocus={() => setActive(true)}
       onBlur={() => setActive(false)}
     >
-      <span
-        className={`${styles.artwork} ${styles[tool.tone]} ${styles[tool.artwork]}`}
-        aria-hidden="true"
-      >
+      <span className={`${styles.artwork} ${styles[tool.tone]} ${styles[tool.artwork]}`} aria-hidden="true">
         {tool.artwork === "motion" ? (
           <LandingMedia
             asset={tool.assets[0]}
@@ -53,15 +52,22 @@ function ToolCard({ tool, index }: { tool: CreativeTool; index: number }) {
         )}
         <span className={styles.label}>{tool.label}</span>
         {tool.artwork === "motion" && (
-          <span className={styles.play}><Play size={12} fill="currentColor" /></span>
+          <span className={styles.play}>
+            <Play size={12} fill="currentColor" />
+          </span>
         )}
-        <span className={styles.headline}>{tool.headline[0]}<br />{tool.headline[1]}</span>
-        {tool.artwork === "product" && (
-          <span className={styles.sticker}>Your next big drop</span>
-        )}
+        <span className={styles.headline}>
+          {tool.headline[0]}
+          <br />
+          {tool.headline[1]}
+        </span>
+        {tool.artwork === "product" && <span className={styles.sticker}>Your next big drop</span>}
       </span>
       <span className={styles.caption}>
-        <span><strong>{tool.name}</strong><span className={styles.description}>{tool.description}</span></span>
+        <span>
+          <strong>{tool.name}</strong>
+          <span className={styles.description}>{tool.description}</span>
+        </span>
         <ArrowUpRight size={17} aria-hidden="true" />
       </span>
     </a>
@@ -82,13 +88,15 @@ export function ToolCarousel() {
     let frame = 0;
 
     const updateActivePage = () => {
-      const nearest = offsetsRef.current.reduce((best, offset, index, offsets) => (
-        Math.abs(offset - rail.scrollLeft) < Math.abs(offsets[best] - rail.scrollLeft) ? index : best
-      ), 0);
+      const nearest = offsetsRef.current.reduce(
+        (best, offset, index, offsets) =>
+          Math.abs(offset - rail.scrollLeft) < Math.abs(offsets[best] - rail.scrollLeft) ? index : best,
+        0,
+      );
       setActivePage(nearest);
       const start = rail.scrollLeft < 2;
       const end = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 2;
-      setScrollEdges((current) => current.start === start && current.end === end ? current : { start, end });
+      setScrollEdges((current) => (current.start === start && current.end === end ? current : { start, end }));
     };
 
     const measure = () => {
@@ -145,19 +153,59 @@ export function ToolCarousel() {
           tabIndex={0}
           onKeyDown={(event) => {
             if (event.target !== event.currentTarget) return;
-            const nextPage = event.key === "ArrowRight" ? activePage + 1 : event.key === "ArrowLeft" ? activePage - 1 : event.key === "Home" ? 0 : event.key === "End" ? pageCount - 1 : null;
-            if (nextPage !== null) { event.preventDefault(); goToPage(nextPage); }
+            const nextPage =
+              event.key === "ArrowRight"
+                ? activePage + 1
+                : event.key === "ArrowLeft"
+                  ? activePage - 1
+                  : event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? pageCount - 1
+                      : null;
+            if (nextPage !== null) {
+              event.preventDefault();
+              goToPage(nextPage);
+            }
           }}
         >
-          {creativeTools.map((tool, index) => <li className={styles.slide} key={tool.id}><ToolCard tool={tool} index={index} /></li>)}
+          {creativeTools.map((tool, index) => (
+            <li className={styles.slide} key={tool.id}>
+              <ToolCard tool={tool} index={index} />
+            </li>
+          ))}
         </ul>
-        <button className={`${styles.arrow} ${styles.previous}`} type="button" onClick={() => goToPage(activePage - 1)} disabled={scrollEdges.start} aria-label="Previous tools"><ChevronLeft size={21} /></button>
-        <button className={`${styles.arrow} ${styles.next}`} type="button" onClick={() => goToPage(activePage + 1)} disabled={scrollEdges.end} aria-label="Next tools"><ChevronRight size={21} /></button>
+        <button
+          className={`${styles.arrow} ${styles.previous}`}
+          type="button"
+          onClick={() => goToPage(activePage - 1)}
+          disabled={scrollEdges.start}
+          aria-label="Previous tools"
+        >
+          <ChevronLeft size={21} />
+        </button>
+        <button
+          className={`${styles.arrow} ${styles.next}`}
+          type="button"
+          onClick={() => goToPage(activePage + 1)}
+          disabled={scrollEdges.end}
+          aria-label="Next tools"
+        >
+          <ChevronRight size={21} />
+        </button>
       </div>
       <div className={styles.bottom}>
         <p>Find your creative starting point. Make it your own.</p>
         <div className={styles.pages} role="group" aria-label="Tool carousel pages">
-          {Array.from({ length: pageCount }, (_, index) => <button type="button" key={index} onClick={() => goToPage(index)} aria-label={`Show tools page ${index + 1}`} aria-current={activePage === index ? "true" : undefined} />)}
+          {Array.from({ length: pageCount }, (_, index) => (
+            <button
+              type="button"
+              key={index}
+              onClick={() => goToPage(index)}
+              aria-label={`Show tools page ${index + 1}`}
+              aria-current={activePage === index ? "true" : undefined}
+            />
+          ))}
         </div>
       </div>
     </section>

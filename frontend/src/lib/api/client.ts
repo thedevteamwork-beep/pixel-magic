@@ -21,11 +21,7 @@ export function newIdempotencyKey(): string {
 
 type ApiClient = {
   get<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T>;
-  post<T>(
-    path: string,
-    body: unknown,
-    opts?: { idempotencyKey?: string; signal?: AbortSignal },
-  ): Promise<T>;
+  post<T>(path: string, body: unknown, opts?: { idempotencyKey?: string; signal?: AbortSignal }): Promise<T>;
   delete<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T>;
 };
 
@@ -34,11 +30,7 @@ function isAbort(error: unknown): boolean {
 }
 
 async function readError(response: Response): Promise<ApiError> {
-  const fallback = new ApiError(
-    response.status,
-    "HTTP_ERROR",
-    `Request failed (${response.status})`,
-  );
+  const fallback = new ApiError(response.status, "HTTP_ERROR", `Request failed (${response.status})`);
   try {
     const body = await response.json();
     if (typeof body?.code !== "string") return fallback;
@@ -53,11 +45,7 @@ export function createApiClient(p: {
   getAccessToken: () => Promise<string | null>;
   fetchFn?: typeof fetch;
 }): ApiClient {
-  async function request<T>(
-    path: string,
-    init: RequestInit,
-    headers: Record<string, string>,
-  ): Promise<T> {
+  async function request<T>(path: string, init: RequestInit, headers: Record<string, string>): Promise<T> {
     const token = await p.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
     const fetchFn = p.fetchFn ?? fetch;
@@ -75,21 +63,14 @@ export function createApiClient(p: {
   }
 
   return {
-    get: (path, opts) =>
-      request(path, { method: "GET", signal: opts?.signal }, {}),
-    delete: (path, opts) =>
-      request(path, { method: "DELETE", signal: opts?.signal }, {}),
+    get: (path, opts) => request(path, { method: "GET", signal: opts?.signal }, {}),
+    delete: (path, opts) => request(path, { method: "DELETE", signal: opts?.signal }, {}),
     post: (path, body, opts) => {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (opts?.idempotencyKey)
-        headers["Idempotency-Key"] = opts.idempotencyKey;
-      return request(
-        path,
-        { method: "POST", body: JSON.stringify(body), signal: opts?.signal },
-        headers,
-      );
+      if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+      return request(path, { method: "POST", body: JSON.stringify(body), signal: opts?.signal }, headers);
     },
   };
 }

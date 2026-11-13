@@ -21,9 +21,7 @@ export function InvoicesSection({ invoices }: { invoices: Invoice[] }) {
             {invoices.map((invoice) => (
               <tr key={invoice.id} className="border-t border-border">
                 <td className="py-2 pr-4">
-                  {invoice.paidAt
-                    ? new Date(invoice.paidAt).toLocaleDateString("en-US", { dateStyle: "medium" })
-                    : "—"}
+                  {invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString("en-US", { dateStyle: "medium" }) : "—"}
                 </td>
                 <td className="py-2 pr-4">{invoice.item ?? "Credits"}</td>
                 <td className="py-2">

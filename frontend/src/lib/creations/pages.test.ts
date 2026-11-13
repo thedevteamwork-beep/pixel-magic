@@ -3,7 +3,15 @@ import type { JobView } from "@/lib/api/types";
 import { appendPage, replaceJob } from "@/lib/creations/pages";
 
 function job(jobId: string, status: JobView["status"] = "queued"): JobView {
-  return { jobId, status, model: "m", creditCost: 1, createdAt: "2026-01-01T00:00:00Z", completedAt: null, outputs: [] };
+  return {
+    jobId,
+    status,
+    model: "m",
+    creditCost: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    completedAt: null,
+    outputs: [],
+  };
 }
 
 describe("appendPage", () => {

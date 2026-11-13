@@ -28,11 +28,20 @@ export function LandingProvider({ children }: { children: ReactNode }) {
   const pageVisible = useSyncExternalStore(subscribePageVisibility, getPageVisibility, getServerPageVisibility);
   const motionEnabled = (motionOverride ?? !reducedMotion) && pageVisible;
   const [filters, setFilters] = useState<TemplateFilters>({ category: "video", model: "all" });
-  const motion = useMemo(() => ({ motionEnabled, reducedMotion,
-    toggleMotion: () => setMotionOverride((current) => !(current ?? !reducedMotion)),
-  }), [motionEnabled, reducedMotion]);
+  const motion = useMemo(
+    () => ({
+      motionEnabled,
+      reducedMotion,
+      toggleMotion: () => setMotionOverride((current) => !(current ?? !reducedMotion)),
+    }),
+    [motionEnabled, reducedMotion],
+  );
   const filtering = useMemo(() => ({ filters, setFilters }), [filters]);
-  return <MotionContext value={motion}><FilterContext value={filtering}>{children}</FilterContext></MotionContext>;
+  return (
+    <MotionContext value={motion}>
+      <FilterContext value={filtering}>{children}</FilterContext>
+    </MotionContext>
+  );
 }
 
 export function useLandingMotion() {

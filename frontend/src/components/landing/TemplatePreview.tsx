@@ -56,7 +56,14 @@ export function TemplatePreview({ item, items, onClose, onSelect }: TemplatePrev
                 aria-label={`${item.title} video preview`}
               />
             ) : (
-              <LandingMedia asset={item.asset} alt={`${item.title}: ${item.description}`} behavior="still" filter={item.filter} className={styles.image} sizes="(max-width: 800px) 90vw, 800px" />
+              <LandingMedia
+                asset={item.asset}
+                alt={`${item.title}: ${item.description}`}
+                behavior="still"
+                filter={item.filter}
+                className={styles.image}
+                sizes="(max-width: 800px) 90vw, 800px"
+              />
             )}
           </div>
           <div className={styles.details}>
@@ -69,9 +76,25 @@ export function TemplatePreview({ item, items, onClose, onSelect }: TemplatePrev
             </div>
             {items.length > 1 && (
               <div className={styles.navigation} aria-label="Browse collection previews">
-                <button type="button" onClick={() => onSelect(items[index - 1])} disabled={index <= 0} aria-label="Previous template"><ArrowLeft size={17} /></button>
-                <span>{index + 1} / {items.length}</span>
-                <button type="button" onClick={() => onSelect(items[index + 1])} disabled={index >= items.length - 1} aria-label="Next template"><ArrowRight size={17} /></button>
+                <button
+                  type="button"
+                  onClick={() => onSelect(items[index - 1])}
+                  disabled={index <= 0}
+                  aria-label="Previous template"
+                >
+                  <ArrowLeft size={17} />
+                </button>
+                <span>
+                  {index + 1} / {items.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onSelect(items[index + 1])}
+                  disabled={index >= items.length - 1}
+                  aria-label="Next template"
+                >
+                  <ArrowRight size={17} />
+                </button>
               </div>
             )}
           </div>

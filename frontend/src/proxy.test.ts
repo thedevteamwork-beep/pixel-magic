@@ -32,12 +32,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("auth proxy", () => {
-  it.each(["/api/demo/image-generation", "/api/demo/image-upscale"])("keeps %s independent of authentication", async (path) => {
-    const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));
-    expect(response.status).toBe(200);
-    expect(mocks.createServerClient).not.toHaveBeenCalled();
-    expect(mocks.getUser).not.toHaveBeenCalled();
-  });
+  it.each(["/api/demo/image-generation", "/api/demo/image-upscale"])(
+    "keeps %s independent of authentication",
+    async (path) => {
+      const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));
+      expect(response.status).toBe(200);
+      expect(mocks.createServerClient).not.toHaveBeenCalled();
+      expect(mocks.getUser).not.toHaveBeenCalled();
+    },
+  );
 
   it("allows access without clients or environment reads when Supabase is disabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ENABLED", "false");
@@ -64,10 +67,10 @@ describe("auth proxy", () => {
 
   it("carries refreshed cookies and Supabase cache headers onto login redirects", async () => {
     mocks.getUser.mockImplementation(async () => {
-      adapter.cookies.setAll(
-        [{ name: "sb-session", value: "", options: { path: "/", maxAge: 0 } }],
-        { "Cache-Control": "private, no-cache, no-store, max-age=0", Pragma: "no-cache" },
-      );
+      adapter.cookies.setAll([{ name: "sb-session", value: "", options: { path: "/", maxAge: 0 } }], {
+        "Cache-Control": "private, no-cache, no-store, max-age=0",
+        Pragma: "no-cache",
+      });
       return { data: { user: null } };
     });
 

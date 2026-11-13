@@ -87,8 +87,7 @@ describe("submitGeneration", () => {
     const t = setup();
     const file = new File(["x"], "cat.png", { type: "image/png" });
     let kept: string | undefined;
-    const attempt = () =>
-      submitGeneration({ ...t.base, file, uploadId: kept, onUploaded: (id) => (kept = id) });
+    const attempt = () => submitGeneration({ ...t.base, file, uploadId: kept, onUploaded: (id) => (kept = id) });
     await attempt();
     await attempt();
     expect(t.uploaded).toEqual(["cat.png"]);

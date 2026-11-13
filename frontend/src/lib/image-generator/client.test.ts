@@ -69,7 +69,8 @@ describe("image preview transport", () => {
     expect(options?.signal).toBe(controller.signal);
     const headers = new Headers(options?.headers);
     expect(headers.get("Content-Type")).toBe("application/json");
-    for (const name of ["Authorization", "X-API-Key", "apikey", "Idempotency-Key"]) expect(headers.has(name)).toBe(false);
+    for (const name of ["Authorization", "X-API-Key", "apikey", "Idempotency-Key"])
+      expect(headers.has(name)).toBe(false);
     const body = JSON.parse(options?.body as string);
     expect(body).toEqual(settings);
     expect(body.references).toEqual([{ id: "reference-1", mimeType: "image/png", size: 1024 }]);
@@ -81,8 +82,15 @@ describe("image preview transport", () => {
 
   it("preserves structured validation messages and field errors", async () => {
     const fields = { prompt: "Add an idea.", "references.0.size": "This reference is too large." };
-    const fetcher = fetchReturning(jsonResponse({ ok: false, error: { code: "VALIDATION_ERROR", message: "Check your image settings.", fields } }, 400));
-    const error = await requestImagePreview(settings, new AbortController().signal, fetcher).catch((caught: unknown) => caught);
+    const fetcher = fetchReturning(
+      jsonResponse(
+        { ok: false, error: { code: "VALIDATION_ERROR", message: "Check your image settings.", fields } },
+        400,
+      ),
+    );
+    const error = await requestImagePreview(settings, new AbortController().signal, fetcher).catch(
+      (caught: unknown) => caught,
+    );
 
     expect(error).toBeInstanceOf(ImagePreviewError);
     expect(error).toMatchObject({ message: "Check your image settings.", fields });
@@ -91,14 +99,17 @@ describe("image preview transport", () => {
   it("gives a useful fallback for non-JSON HTTP failures", async () => {
     const fetcher = fetchReturning(new Response("<html>Bad gateway</html>", { status: 502 }));
     await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toMatchObject({
-      name: "ImagePreviewError", message: "The preview couldn’t be created. Please try again.", fields: {},
+      name: "ImagePreviewError",
+      message: "The preview couldn’t be created. Please try again.",
+      fields: {},
     });
   });
 
   it("turns network failures into a friendly connection message", async () => {
     const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("Internal transport detail"));
     await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toMatchObject({
-      name: "ImagePreviewError", message: "We couldn’t reach the preview. Check your connection and try again.",
+      name: "ImagePreviewError",
+      message: "We couldn’t reach the preview. Check your connection and try again.",
     });
   });
 
@@ -112,13 +123,20 @@ describe("image preview transport", () => {
     const abort = new DOMException("Aborted", "AbortError");
     const response = jsonResponse(preview());
     vi.spyOn(response, "json").mockRejectedValue(abort);
-    await expect(requestImagePreview(settings, new AbortController().signal, fetchReturning(response))).rejects.toBe(abort);
+    await expect(requestImagePreview(settings, new AbortController().signal, fetchReturning(response))).rejects.toBe(
+      abort,
+    );
   });
 
-  it.each([1, -1, "0", null])("rejects responses that do not explicitly charge zero credits: %j", async (creditsCharged) => {
-    const fetcher = fetchReturning(jsonResponse({ ...preview(), creditsCharged }));
-    await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toBeInstanceOf(ImagePreviewError);
-  });
+  it.each([1, -1, "0", null])(
+    "rejects responses that do not explicitly charge zero credits: %j",
+    async (creditsCharged) => {
+      const fetcher = fetchReturning(jsonResponse({ ...preview(), creditsCharged }));
+      await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toBeInstanceOf(
+        ImagePreviewError,
+      );
+    },
+  );
 
   it.each([
     null,
@@ -131,7 +149,9 @@ describe("image preview transport", () => {
     { ...preview(), images: [image(1), image(2), image(3)] },
     { ...preview(), images: [{}, {}] },
   ])("rejects a malformed success body", async (body) => {
-    await expect(requestImagePreview(settings, new AbortController().signal, fetchReturning(jsonResponse(body)))).rejects.toBeInstanceOf(ImagePreviewError);
+    await expect(
+      requestImagePreview(settings, new AbortController().signal, fetchReturning(jsonResponse(body))),
+    ).rejects.toBeInstanceOf(ImagePreviewError);
   });
 
   it.each([
@@ -145,18 +165,29 @@ describe("image preview transport", () => {
     { favorite: "false" },
   ])("rejects malformed image metadata or untrusted sample URLs: %j", async (patch) => {
     const body = { ...preview(), images: [{ ...image(1), ...patch }, image(2)] };
-    await expect(requestImagePreview(settings, new AbortController().signal, fetchReturning(jsonResponse(body)))).rejects.toBeInstanceOf(ImagePreviewError);
+    await expect(
+      requestImagePreview(settings, new AbortController().signal, fetchReturning(jsonResponse(body))),
+    ).rejects.toBeInstanceOf(ImagePreviewError);
   });
 
   it("rejects an invalid JSON success response", async () => {
     const fetcher = fetchReturning(new Response("{broken", { status: 200 }));
-    await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toBeInstanceOf(ImagePreviewError);
+    await expect(requestImagePreview(settings, new AbortController().signal, fetcher)).rejects.toBeInstanceOf(
+      ImagePreviewError,
+    );
   });
 
   it("sanitizes malformed error fields before exposing them to the UI", async () => {
-    const response = jsonResponse({ error: { message: 7, fields: { prompt: { detail: "Invalid" }, queue: "Choose a queue.", count: 4 } } }, 400);
-    await expect(requestImagePreview(settings, new AbortController().signal, fetchReturning(response))).rejects.toMatchObject({
-      name: "ImagePreviewError", message: "The preview couldn’t be created. Please try again.", fields: { queue: "Choose a queue." },
+    const response = jsonResponse(
+      { error: { message: 7, fields: { prompt: { detail: "Invalid" }, queue: "Choose a queue.", count: 4 } } },
+      400,
+    );
+    await expect(
+      requestImagePreview(settings, new AbortController().signal, fetchReturning(response)),
+    ).rejects.toMatchObject({
+      name: "ImagePreviewError",
+      message: "The preview couldn’t be created. Please try again.",
+      fields: { queue: "Choose a queue." },
     });
   });
 });

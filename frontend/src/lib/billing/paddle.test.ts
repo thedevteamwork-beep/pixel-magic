@@ -31,8 +31,6 @@ describe("loadPaddle", () => {
     const instance = {} as Paddle;
     const init = vi.fn().mockResolvedValue(instance);
     await expect(loadPaddle({ init })).resolves.toBe(instance);
-    expect(init).toHaveBeenCalledWith(
-      expect.objectContaining({ environment: "sandbox", token: "test_abc" }),
-    );
+    expect(init).toHaveBeenCalledWith(expect.objectContaining({ environment: "sandbox", token: "test_abc" }));
   });
 });

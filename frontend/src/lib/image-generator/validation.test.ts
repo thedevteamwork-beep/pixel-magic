@@ -27,7 +27,11 @@ function invalidField(patch: Record<string, unknown>, field: string) {
 
 describe("image demo request validation", () => {
   it("normalizes prompt whitespace and returns a complete settings whitelist", () => {
-    const result = validateImageGenerationRequest({ ...validRequest(), prompt: "  A pink rose  ", negativePrompt: "  blurry  " });
+    const result = validateImageGenerationRequest({
+      ...validRequest(),
+      prompt: "  A pink rose  ",
+      negativePrompt: "  blurry  ",
+    });
     expect(result).toEqual({ ok: true, data: { ...validRequest(), prompt: "A pink rose", negativePrompt: "blurry" } });
   });
 
@@ -55,19 +59,35 @@ describe("image demo request validation", () => {
   });
 
   it.each([
-    ["model", "unknown-model"], ["mode", "inpaint"], ["aspectRatio", "37:1"], ["resolution", "8K"],
-    ["quality", "unsupported-quality"], ["quality", "Extra High"], ["quality", "Max"], ["queue", "priority"], ["style", "unsupported-style"],
-    ["format", "svg"], ["background", "checkerboard"], ["enhancePrompt", "true"], ["private", 1],
+    ["model", "unknown-model"],
+    ["mode", "inpaint"],
+    ["aspectRatio", "37:1"],
+    ["resolution", "8K"],
+    ["quality", "unsupported-quality"],
+    ["quality", "Extra High"],
+    ["quality", "Max"],
+    ["queue", "priority"],
+    ["style", "unsupported-style"],
+    ["format", "svg"],
+    ["background", "checkerboard"],
+    ["enhancePrompt", "true"],
+    ["private", 1],
   ])("rejects unsupported %s", (field, value) => invalidField({ [field as string]: value }, field as string));
 
   it("tracks the shared option catalog", () => {
     const catalogs = {
-      model: imageModels.map((model) => model.id), aspectRatio: aspectRatios, resolution: resolutions,
-      quality: qualities, style: imageStyles, queue: ["credits", "unlimited"],
-      format: ["png", "jpeg", "webp"], background: ["auto", "opaque", "transparent"],
+      model: imageModels.map((model) => model.id),
+      aspectRatio: aspectRatios,
+      resolution: resolutions,
+      quality: qualities,
+      style: imageStyles,
+      queue: ["credits", "unlimited"],
+      format: ["png", "jpeg", "webp"],
+      background: ["auto", "opaque", "transparent"],
     };
     for (const [field, options] of Object.entries(catalogs)) {
-      for (const value of options) expect(validateImageGenerationRequest({ ...validRequest(), [field]: value }).ok).toBe(true);
+      for (const value of options)
+        expect(validateImageGenerationRequest({ ...validRequest(), [field]: value }).ok).toBe(true);
     }
   });
 
@@ -81,14 +101,23 @@ describe("image demo request validation", () => {
 
   it("limits negative prompts and keeps strict boolean settings", () => {
     invalidField({ negativePrompt: "a".repeat(1001) }, "negativePrompt");
-    expect(validateImageGenerationRequest({ ...validRequest(), negativePrompt: "a".repeat(1000), enhancePrompt: true, private: false }).ok).toBe(true);
+    expect(
+      validateImageGenerationRequest({
+        ...validRequest(),
+        negativePrompt: "a".repeat(1000),
+        enhancePrompt: true,
+        private: false,
+      }).ok,
+    ).toBe(true);
   });
 
   it("requires a reference for edit mode", () => invalidField({ mode: "edit" }, "references"));
 
   it("accepts supported metadata at reference count and size boundaries", () => {
     const references = Array.from({ length: MAX_REFERENCE_IMAGES }, (_, index) => ({
-      id: `reference-${index}`, mimeType: REFERENCE_MIME_TYPES[index % REFERENCE_MIME_TYPES.length], size: MAX_REFERENCE_BYTES,
+      id: `reference-${index}`,
+      mimeType: REFERENCE_MIME_TYPES[index % REFERENCE_MIME_TYPES.length],
+      size: MAX_REFERENCE_BYTES,
     }));
     expect(validateImageGenerationRequest({ ...validRequest(), mode: "edit", references }).ok).toBe(true);
     invalidField({ references: [...references, { id: "extra", mimeType: "image/png", size: 10 }] }, "references");

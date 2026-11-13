@@ -8,7 +8,11 @@ describe("creative guidance composition", () => {
   });
 
   it("uses ordered image numbers and distinguishes subject from style", () => {
-    const additions = composeImageGuidance("None", defaultCreativeGuidance, [{ role: "style" }, { role: "subject" }, {}]);
+    const additions = composeImageGuidance("None", defaultCreativeGuidance, [
+      { role: "style" },
+      { role: "subject" },
+      {},
+    ]);
     expect(additions).toContain("Use image 1 as a visual style reference");
     expect(additions).toContain("Use image 2 as a subject reference");
     expect(additions).toContain("Use image 3 as a subject reference");
@@ -26,7 +30,9 @@ describe("creative guidance composition", () => {
   });
 
   it("does not serialize unknown values, filenames or image URLs", () => {
-    expect(composeImageGuidance("untrusted-style", { lighting: "untrusted-light", palette: "untrusted-color" }, [])).toBe("");
+    expect(
+      composeImageGuidance("untrusted-style", { lighting: "untrusted-light", palette: "untrusted-color" }, []),
+    ).toBe("");
     const additions = composeImageGuidance("None", defaultCreativeGuidance, [{ role: "subject" }]);
     expect(additions).not.toMatch(/blob:|https?:|data:/);
   });
@@ -42,17 +48,18 @@ describe("creative guidance composition", () => {
   });
 
   it("rebinds mentions to their original image IDs after references are reordered", () => {
-    expect(rebindReferenceMentions("Place @image1 beside @image2", ["bottle", "orange"], ["orange", "bottle"]))
-      .toEqual({ prompt: "Place @image2 beside @image1", removed: false });
+    expect(rebindReferenceMentions("Place @image1 beside @image2", ["bottle", "orange"], ["orange", "bottle"])).toEqual(
+      { prompt: "Place @image2 beside @image1", removed: false },
+    );
   });
 
   it("does not silently bind missing references to newly attached images", () => {
-    expect(rebindReferenceMentions("Restyle @image1 using @image2", ["bottle", "style"], ["unrelated", "style"]))
-      .toEqual({ prompt: "Restyle  using @image2", removed: true });
+    expect(
+      rebindReferenceMentions("Restyle @image1 using @image2", ["bottle", "style"], ["unrelated", "style"]),
+    ).toEqual({ prompt: "Restyle  using @image2", removed: true });
   });
 
   it("clears unresolved mentions when their original reference set is unavailable", () => {
-    expect(rebindReferenceMentions("Edit @image1", [], ["unrelated"]))
-      .toEqual({ prompt: "Edit ", removed: true });
+    expect(rebindReferenceMentions("Edit @image1", [], ["unrelated"])).toEqual({ prompt: "Edit ", removed: true });
   });
 });

@@ -18,7 +18,8 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Pixel Magic",
-  description: "Discover cinematic videos, expressive images, and campaign inspiration. A little idea. A whole world of possibility. Pixel Magic.",
+  description:
+    "Discover cinematic videos, expressive images, and campaign inspiration. A little idea. A whole world of possibility. Pixel Magic.",
   openGraph: {
     title: "Pixel Magic — Make something worth stopping for",
     description: "Explore image, video, and marketing template collections for your next creative direction.",
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <LandingProvider>
-          <a className="skip-link" href="#main-content">Skip to content</a>
+          <a className="skip-link" href="#main-content">
+            Skip to content
+          </a>
           <SiteChrome header={<Header />} footer={<Footer />}>
             {children}
           </SiteChrome>

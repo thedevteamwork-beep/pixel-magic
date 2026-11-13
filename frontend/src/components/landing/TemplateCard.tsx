@@ -50,7 +50,9 @@ export function TemplateCard({ item, onPreview }: TemplateCardProps) {
         <span className={styles.title}>{item.title}</span>
         <span className={styles.description}>{item.description}</span>
       </span>
-      <span className={styles.previewIcon} aria-hidden="true"><ArrowUpRight size={16} /></span>
+      <span className={styles.previewIcon} aria-hidden="true">
+        <ArrowUpRight size={16} />
+      </span>
     </button>
   );
 }

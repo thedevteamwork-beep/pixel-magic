@@ -20,7 +20,7 @@ export function ImageTemplateCollection() {
     const updateEdges = () => {
       const start = viewport.scrollLeft <= 2;
       const end = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 2;
-      setEdges((previous) => previous.start === start && previous.end === end ? previous : { start, end });
+      setEdges((previous) => (previous.start === start && previous.end === end ? previous : { start, end }));
     };
 
     viewport.addEventListener("scroll", updateEdges, { passive: true });
@@ -37,7 +37,7 @@ export function ImageTemplateCollection() {
   function scroll(direction: number) {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    viewport.scrollBy({ left: direction * viewport.clientWidth * .75, behavior: motionEnabled ? "smooth" : "auto" });
+    viewport.scrollBy({ left: direction * viewport.clientWidth * 0.75, behavior: motionEnabled ? "smooth" : "auto" });
   }
 
   return (
@@ -46,17 +46,41 @@ export function ImageTemplateCollection() {
         <div>
           <p className="section-eyebrow">The image collection</p>
           <div className={styles.titleRow}>
-            <h2 className="section-title" id="image-templates-heading">GPT Image 2</h2>
+            <h2 className="section-title" id="image-templates-heading">
+              GPT Image 2
+            </h2>
             <span className={styles.badge}>Image collection</span>
           </div>
           <p className="section-description">Your next cover, campaign, or completely unexpected idea.</p>
         </div>
         <div className={styles.navigation} role="group" aria-label="Image collection navigation">
-          <button type="button" onClick={() => scroll(-1)} disabled={edges.start} aria-label="Previous image templates" aria-controls={viewportId}><ArrowLeft size={18} /></button>
-          <button type="button" onClick={() => scroll(1)} disabled={edges.end} aria-label="Next image templates" aria-controls={viewportId}><ArrowRight size={18} /></button>
+          <button
+            type="button"
+            onClick={() => scroll(-1)}
+            disabled={edges.start}
+            aria-label="Previous image templates"
+            aria-controls={viewportId}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => scroll(1)}
+            disabled={edges.end}
+            aria-label="Next image templates"
+            aria-controls={viewportId}
+          >
+            <ArrowRight size={18} />
+          </button>
         </div>
       </div>
-      <TemplateGrid items={imageTemplates} label="Scrolling GPT Image 2 template collection" horizontal viewportRef={viewportRef} viewportId={viewportId} />
+      <TemplateGrid
+        items={imageTemplates}
+        label="Scrolling GPT Image 2 template collection"
+        horizontal
+        viewportRef={viewportRef}
+        viewportId={viewportId}
+      />
       <p className={styles.note}>Swipe, scroll, or follow your curiosity. Every look is a starting point.</p>
     </section>
   );

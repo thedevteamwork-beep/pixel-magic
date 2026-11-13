@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  checkoutPath,
-  finishPath,
-  nextStep,
-  parseTransactionId,
-  runOnce,
-} from "@/lib/billing/purchase";
+import { checkoutPath, finishPath, nextStep, parseTransactionId, runOnce } from "@/lib/billing/purchase";
 
 describe("nextStep", () => {
   it("sends a checkout result to the checkout page", () => {
-    expect(
-      nextStep({ action: "checkout", transactionId: "txn_01abc", checkoutUrl: null }),
-    ).toEqual({ kind: "checkout", path: "/checkout?_ptxn=txn_01abc" });
+    expect(nextStep({ action: "checkout", transactionId: "txn_01abc", checkoutUrl: null })).toEqual({
+      kind: "checkout",
+      path: "/checkout?_ptxn=txn_01abc",
+    });
   });
 
   it("describes a scheduled change", () => {
@@ -48,12 +43,9 @@ describe("parseTransactionId", () => {
     expect(parseTransactionId("txn_01h2abc")).toBe("txn_01h2abc");
   });
 
-  it.each([null, undefined, "", "abc", "txn_", "txn_01/../x", "txn_" + "a".repeat(196)])(
-    "rejects %s",
-    (value) => {
-      expect(parseTransactionId(value)).toBeNull();
-    },
-  );
+  it.each([null, undefined, "", "abc", "txn_", "txn_01/../x", "txn_" + "a".repeat(196)])("rejects %s", (value) => {
+    expect(parseTransactionId(value)).toBeNull();
+  });
 });
 
 describe("runOnce", () => {

@@ -59,8 +59,7 @@ export type UploadResponse = {
   expiresAt: string;
 };
 
-export type JobStatus =
-  "queued" | "submitting" | "submitted" | "finalizing" | "completed" | "failed";
+export type JobStatus = "queued" | "submitting" | "submitted" | "finalizing" | "completed" | "failed";
 
 export type JobView = {
   jobId: string;

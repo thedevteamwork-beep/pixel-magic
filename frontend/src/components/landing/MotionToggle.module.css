@@ -14,11 +14,37 @@
   color: var(--muted);
 }
 
-.toggle[aria-pressed="true"] { color: var(--foreground); }
-.toggle:hover { border-color: var(--border); background: var(--surface-raised); color: var(--foreground); }
-.status { position: absolute; right: 6px; bottom: 6px; width: 4px; height: 4px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 2px var(--background); pointer-events: none; }
+.toggle[aria-pressed="true"] {
+  color: var(--foreground);
+}
+
+.toggle:hover {
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--foreground);
+}
+
+.status {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 2px var(--background);
+  pointer-events: none;
+}
 
 @media (max-width: 600px) {
-  .toggle { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
-  .status { right: 7px; bottom: 7px; }
+  .toggle {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .status {
+    right: 7px;
+    bottom: 7px;
+  }
 }

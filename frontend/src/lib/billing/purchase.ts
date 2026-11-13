@@ -1,8 +1,6 @@
 import type { CheckoutResult, PlanChangeResult } from "@/lib/api/billingTypes";
 
-export type PurchaseStep =
-  | { kind: "checkout"; path: string }
-  | { kind: "done"; message: string };
+export type PurchaseStep = { kind: "checkout"; path: string } | { kind: "done"; message: string };
 
 const TRANSACTION_ID = /^txn_[a-z0-9]{1,64}$/;
 
@@ -37,9 +35,7 @@ export function nextStep(result: PlanChangeResult | CheckoutResult): PurchaseSte
 }
 
 /** While a call is in flight, further calls resolve undefined without calling fn. */
-export function runOnce<A extends unknown[], R>(
-  fn: (...a: A) => Promise<R>,
-): (...a: A) => Promise<R | undefined> {
+export function runOnce<A extends unknown[], R>(fn: (...a: A) => Promise<R>): (...a: A) => Promise<R | undefined> {
   let running = false;
   return async (...args: A) => {
     if (running) return undefined;

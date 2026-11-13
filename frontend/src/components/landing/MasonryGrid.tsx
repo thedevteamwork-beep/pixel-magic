@@ -24,9 +24,12 @@ function getLayout(length: number, columnCount: number) {
     previous.items += 1;
   }
 
-  const height = `max(${columns.map((column) => (
-    `calc(${column.height} * var(--column-width) + ${Math.max(0, column.items - 1)} * var(--masonry-gap))`
-  )).join(", ")})`;
+  const height = `max(${columns
+    .map(
+      (column) =>
+        `calc(${column.height} * var(--column-width) + ${Math.max(0, column.items - 1)} * var(--masonry-gap))`,
+    )
+    .join(", ")})`;
 
   return { placements, height };
 }
@@ -40,7 +43,14 @@ type MasonryGridProps = {
   viewportRef?: RefObject<HTMLDivElement | null>;
 };
 
-export function MasonryGrid({ items, onPreview, label, horizontal = false, viewportId, viewportRef }: MasonryGridProps) {
+export function MasonryGrid({
+  items,
+  onPreview,
+  label,
+  horizontal = false,
+  viewportId,
+  viewportRef,
+}: MasonryGridProps) {
   const counts = horizontal ? [6] : [4, 3, 2];
   const layouts = counts.map((count) => ({ count, ...getLayout(items.length, count) }));
   const canvasStyle: MasonryStyle = {};
