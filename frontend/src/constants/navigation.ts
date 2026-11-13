@@ -12,6 +12,7 @@ export const headerContent: { links: NavLink[] } = {
   links: [
     { label: "Explore", href: "/#top" },
     { label: "Image", href: "/image?model=gpt_image_2" },
+    { label: "Video", href: "/video" },
     { label: "Upscale", href: "/upscale" },
     { label: "Templates", href: "/#templates" },
     { label: "Models", href: "/#models" },
@@ -23,6 +24,7 @@ export const headerContent: { links: NavLink[] } = {
 export const signedInLinks: NavLink[] = [
   { label: "Explore", href: "/#top" },
   { label: "Image", href: "/image?model=gpt_image_2" },
+  { label: "Video", href: "/video" },
   { label: "Upscale", href: "/upscale" },
   { label: "My creations", href: "/creations" },
   { label: "Pricing", href: "/pricing" },
@@ -40,9 +42,9 @@ export const footerContent: {
     {
       title: "Create",
       links: [
-        { label: "AI Video", href: "#ai-video" },
+        { label: "AI Video", href: "/video" },
         { label: "AI Image", href: "#ai-image" },
-        { label: "Image to Video", href: "#image-to-video" },
+        { label: "Image to Video", href: "/video" },
         { label: "Upscale", href: "/upscale" },
         { label: "Lip Sync", href: "#lip-sync" },
         { label: "AI Avatars", href: "#ai-avatars" },
@@ -52,7 +54,7 @@ export const footerContent: {
       title: "Video models",
       links: [
         { label: "Kling", href: "#kling" },
-        { label: "Seedance", href: "#seedance" },
+        { label: "Seedance", href: "/video?model=seedance_2_5" },
         { label: "Veo", href: "#veo" },
         { label: "Wan", href: "#wan" },
       ],

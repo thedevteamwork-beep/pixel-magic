@@ -1,0 +1,33 @@
+.preview { display: block; flex: none; }
+.trigger { display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px 12px 6px 6px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--background); color: var(--foreground); text-align: left; transition: border-color .2s, background .2s; }
+.trigger:hover { border-color: var(--border-strong); background: var(--surface-raised); }
+.trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.trigger .preview { width: 64px; height: 48px; border-radius: 8px; }
+.trigger > svg { flex: none; margin-left: auto; color: var(--muted); }
+.triggerCopy { display: grid; gap: 3px; min-width: 0; }
+.triggerCopy strong { font-size: 13px; font-weight: 500; }
+.triggerCopy small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.dialog { width: min(880px, calc(100% - 32px)); }
+.body { padding: 20px; }
+.intro { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.intro p { margin: 0; color: var(--subtle); font-size: 12px; }
+.groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.groups button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); font-size: 11px; }
+.groups button:hover { color: var(--foreground); border-color: var(--border-strong); }
+.groups button[aria-pressed="true"] { color: var(--primary-foreground); border-color: var(--primary); background: var(--primary); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.tile { display: grid; align-content: start; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--foreground); text-align: left; }
+.tile:focus-visible { outline: none; }
+.tileMedia { position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; margin-bottom: 6px; border: 1px solid var(--border); border-radius: var(--radius-card); transition: border-color .2s, box-shadow .2s, transform .2s; }
+.tileMedia .preview { position: absolute; inset: 0; }
+.tile:hover .tileMedia { border-color: var(--border-strong); transform: translateY(-2px); }
+.tile:focus-visible .tileMedia { outline: 2px solid var(--primary); outline-offset: 2px; }
+.tile[aria-pressed="true"] .tileMedia { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 10px 30px color-mix(in srgb, var(--primary) 18%, transparent); }
+.tile strong { font-size: 12px; font-weight: 500; }
+.tile small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.check { position: absolute; top: 7px; right: 7px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); }
+.subject { position: absolute; left: 7px; bottom: 7px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; background: color-mix(in srgb, var(--media-ink) 70%, transparent); color: var(--on-media); font-size: 9px; backdrop-filter: blur(6px); }
+.note { margin: 16px 0 0; color: var(--muted); font-size: 11px; }
+@media (max-width: 600px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .body { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { .tile:hover .tileMedia { transform: none; } }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
