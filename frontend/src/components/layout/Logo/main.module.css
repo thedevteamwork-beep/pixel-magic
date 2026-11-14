@@ -1,0 +1,22 @@
+.logo {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 11px;
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.065em;
+  text-decoration: none;
+}
+
+.logoMark {
+  width: 31px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  transform: rotate(-9deg);
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}

@@ -43,7 +43,7 @@ describe("public image generation demo API", () => {
     expect(new Set(body.images.map((image) => image.id)).size).toBe(4);
     for (const image of body.images) {
       expect(allowedImages.has(image.url)).toBe(true);
-      expect(image.url).toMatch(/^\/media\/landing\/[a-z]+\.jpg$/);
+      expect(image.url).toMatch(/^\/_next\/static\/media\/[a-z]+\.jpg$/);
       expect(image).toMatchObject({
         demo: true,
         seed: 0,

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Runs ESLint for the frontend and backend before every push. A lint error stops the push.
+# Enabled by `git config core.hooksPath .githooks` (frontend's `npm install` runs it for you).
+# Skip once, in an emergency only: git push --no-verify
+
+root="$(git rev-parse --show-toplevel)"
+
+# Use the Node version each project asks for (.nvmrc) when nvm is installed.
+[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+
+run_eslint() {
+  dir="$1"
+  echo "pre-push: ESLint in $dir"
+  (
+    cd "$root/$dir" || exit 1
+    if command -v nvm >/dev/null 2>&1 && [ -f .nvmrc ]; then nvm use >/dev/null 2>&1 || true; fi
+    npx --no-install eslint .
+  ) || {
+    echo "pre-push: ESLint failed in $dir. Fix the errors above, then push again."
+    exit 1
+  }
+}
+
+run_eslint frontend
+run_eslint backend
+echo "pre-push: ESLint passed"

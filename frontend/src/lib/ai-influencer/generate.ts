@@ -1,4 +1,4 @@
-import { sampleCrops, sampleHues, VARIATION_COUNT } from "@/constants/ai-influencer";
+import { sampleCrops, sampleHues, VARIATION_COUNT } from "@/components/ai-influencer/constants";
 import { landingAssets } from "@/constants/landing-media";
 import type { InfluencerTraits, InfluencerVariation } from "@/types/ai-influencer";
 import { composeInfluencerPrompt, seedFrom } from "./prompt";

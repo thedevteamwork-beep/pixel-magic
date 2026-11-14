@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { defaultVideoSettings, MAX_FRAME_BYTES, MAX_VIDEO_PROMPT_LENGTH } from "@/constants/video-generator";
+import { defaultVideoSettings, MAX_FRAME_BYTES, MAX_VIDEO_PROMPT_LENGTH } from "@/components/video-generator/constants";
 import { validateVideoGenerationRequest } from "./validation";
 
 const frame = (id: string) => ({ id, mimeType: "image/png", size: 2048 });
 function validRequest(patch: Record<string, unknown> = {}) {
-  return { ...defaultVideoSettings, prompt: "Waves rolling onto a sunlit shore", frames: { start: null, end: null }, ...patch };
+  return {
+    ...defaultVideoSettings,
+    prompt: "Waves rolling onto a sunlit shore",
+    frames: { start: null, end: null },
+    ...patch,
+  };
 }
 function invalidField(patch: Record<string, unknown>, field: string) {
   const result = validateVideoGenerationRequest(validRequest(patch));
@@ -24,8 +29,15 @@ describe("video demo request validation", () => {
   });
 
   it("accepts image-to-video without a prompt, and start & end frames on capable models", () => {
-    expect(validateVideoGenerationRequest(validRequest({ prompt: "", mode: "image", frames: { start: frame("a"), end: null } })).ok).toBe(true);
-    expect(validateVideoGenerationRequest(validRequest({ mode: "frames", frames: { start: frame("a"), end: frame("b") } })).ok).toBe(true);
+    expect(
+      validateVideoGenerationRequest(
+        validRequest({ prompt: "", mode: "image", frames: { start: frame("a"), end: null } }),
+      ).ok,
+    ).toBe(true);
+    expect(
+      validateVideoGenerationRequest(validRequest({ mode: "frames", frames: { start: frame("a"), end: frame("b") } }))
+        .ok,
+    ).toBe(true);
   });
 
   it.each([
@@ -48,8 +60,14 @@ describe("video demo request validation", () => {
     [{ frames: { start: frame("a"), end: null } }, "frames"],
     [{ model: "veo_3_1", duration: 8, mode: "frames", frames: { start: frame("a"), end: frame("b") } }, "mode"],
     [{ mode: "image", frames: { start: { ...frame("a"), url: "blob:x" }, end: null } }, "frames.start"],
-    [{ mode: "image", frames: { start: { ...frame("a"), size: MAX_FRAME_BYTES + 1 }, end: null } }, "frames.start.size"],
-    [{ mode: "image", frames: { start: { ...frame("a"), mimeType: "image/gif" }, end: null } }, "frames.start.mimeType"],
+    [
+      { mode: "image", frames: { start: { ...frame("a"), size: MAX_FRAME_BYTES + 1 }, end: null } },
+      "frames.start.size",
+    ],
+    [
+      { mode: "image", frames: { start: { ...frame("a"), mimeType: "image/gif" }, end: null } },
+      "frames.start.mimeType",
+    ],
     [{ mode: "image", frames: { start: frame("https://x"), end: null } }, "frames.start.id"],
   ])("rejects %j", (patch, field) => invalidField(patch, field));
 });

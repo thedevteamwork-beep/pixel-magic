@@ -1,0 +1,45 @@
+/* Helper classes shared by feature modules. Use them with:
+ *   .name { composes: helper from "../../../assets/styles/shared.module.css"; }
+ * Design tokens (colours, radii, font sizes) live in theme.css; only repeated class patterns belong here. */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.spinner {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Thin, themed scrollbar for scrollable panels. */
+.thinScroll {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* Dark gradient under text laid over a photo. Put it behind the text with z-index: -1. */
+.mediaShade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to top, color-mix(in srgb, var(--media-ink) 85%, transparent), transparent 55%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

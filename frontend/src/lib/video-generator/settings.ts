@@ -1,4 +1,4 @@
-import { defaultVideoSettings, motionPresets, videoModels } from "@/constants/video-generator";
+import { defaultVideoSettings, motionPresets, videoModels } from "@/components/video-generator/constants";
 import type { VideoModel, VideoResolution, VideoSettings } from "@/types/video-generator";
 
 export function getVideoModel(id: string): VideoModel {
@@ -6,14 +6,20 @@ export function getVideoModel(id: string): VideoModel {
 }
 
 function nearest(options: readonly number[], value: number): number {
-  return options.reduce((best, option) => Math.abs(option - value) < Math.abs(best - value) ? option : best, options[0]);
+  return options.reduce(
+    (best, option) => (Math.abs(option - value) < Math.abs(best - value) ? option : best),
+    options[0],
+  );
 }
 
 /**
  * Fit settings to what a model can do. Each adjustment is described in plain
  * language so the UI can tell people what changed instead of silently swapping.
  */
-export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = getVideoModel(settings.model)): { settings: VideoSettings; adjustments: string[] } {
+export function fitSettingsToModel(
+  settings: VideoSettings,
+  model: VideoModel = getVideoModel(settings.model),
+): { settings: VideoSettings; adjustments: string[] } {
   const next = { ...settings, model: model.id };
   const adjustments: string[] = [];
   if (!model.durations.includes(next.duration)) {
@@ -23,7 +29,10 @@ export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = 
   }
   if (!model.resolutions.includes(next.resolution)) {
     const order: readonly VideoResolution[] = ["480p", "720p", "1080p"];
-    const resolution = nearest(model.resolutions.map((value) => order.indexOf(value)), order.indexOf(next.resolution));
+    const resolution = nearest(
+      model.resolutions.map((value) => order.indexOf(value)),
+      order.indexOf(next.resolution),
+    );
     adjustments.push(`${next.resolution} → ${order[resolution]}`);
     next.resolution = order[resolution];
   }
@@ -45,9 +54,12 @@ export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = 
 const resolutionTime: Record<VideoResolution, number> = { "480p": 0.6, "720p": 1, "1080p": 1.8 };
 
 /** Indicative credits for a real render. Sound adds a quarter. */
-export function estimateCredits(settings: Pick<VideoSettings, "model" | "resolution" | "duration" | "count" | "audio">): number {
+export function estimateCredits(
+  settings: Pick<VideoSettings, "model" | "resolution" | "duration" | "count" | "audio">,
+): number {
   const model = getVideoModel(settings.model);
-  const perClip = model.creditsPerSecond[settings.resolution] * settings.duration * (settings.audio && model.audio ? 1.25 : 1);
+  const perClip =
+    model.creditsPerSecond[settings.resolution] * settings.duration * (settings.audio && model.audio ? 1.25 : 1);
   return Math.ceil(perClip) * settings.count;
 }
 
@@ -79,7 +91,11 @@ export function motionIntensity(strength: number): "subtle" | "moderate" | "stro
 }
 
 /** Keep the brief first; camera direction is appended once, in plain language. */
-export function composeVideoPrompt(prompt: string, motion: string, strength = defaultVideoSettings.motionStrength): string {
+export function composeVideoPrompt(
+  prompt: string,
+  motion: string,
+  strength = defaultVideoSettings.motionStrength,
+): string {
   const brief = prompt.trim();
   const instruction = motionPresets.find((preset) => preset.id === motion)?.instruction;
   if (!instruction) return brief;
@@ -96,5 +112,9 @@ export function ratioValue(aspectRatio: string): number {
 /** The closest supported ratio to an image's natural dimensions. */
 export function closestAspectRatio(width: number, height: number, options: readonly string[]): string {
   const target = width / height;
-  return options.reduce((best, option) => Math.abs(Math.log(ratioValue(option) / target)) < Math.abs(Math.log(ratioValue(best) / target)) ? option : best, options[0]);
+  return options.reduce(
+    (best, option) =>
+      Math.abs(Math.log(ratioValue(option) / target)) < Math.abs(Math.log(ratioValue(best) / target)) ? option : best,
+    options[0],
+  );
 }

@@ -1,24 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { defaultVideoSettings } from "@/constants/video-generator";
-import { closestAspectRatio, composeVideoPrompt, estimateCredits, estimateRenderSeconds, fitSettingsToModel, formatEta, formatTimecode, getVideoModel, previewRenderMs } from "./settings";
+import { defaultVideoSettings } from "@/components/video-generator/constants";
+import {
+  closestAspectRatio,
+  composeVideoPrompt,
+  estimateCredits,
+  estimateRenderSeconds,
+  fitSettingsToModel,
+  formatEta,
+  formatTimecode,
+  getVideoModel,
+  previewRenderMs,
+} from "./settings";
 
 describe("video settings", () => {
   it("fits settings to a model and explains every change", () => {
-    const { settings, adjustments } = fitSettingsToModel({ ...defaultVideoSettings, duration: 15, resolution: "480p", aspectRatio: "21:9", audio: true, mode: "frames" }, getVideoModel("veo_3_1"));
-    expect(settings).toMatchObject({ model: "veo_3_1", duration: 8, resolution: "720p", aspectRatio: "16:9", audio: true, mode: "image" });
+    const { settings, adjustments } = fitSettingsToModel(
+      { ...defaultVideoSettings, duration: 15, resolution: "480p", aspectRatio: "21:9", audio: true, mode: "frames" },
+      getVideoModel("veo_3_1"),
+    );
+    expect(settings).toMatchObject({
+      model: "veo_3_1",
+      duration: 8,
+      resolution: "720p",
+      aspectRatio: "16:9",
+      audio: true,
+      mode: "image",
+    });
     expect(adjustments).toEqual(["15s → 8s", "480p → 720p", "21:9 → 16:9", "end frame not supported"]);
   });
 
   it("turns sound off for silent models and leaves supported settings alone", () => {
     expect(fitSettingsToModel({ ...defaultVideoSettings, audio: true }, getVideoModel("kling_2_1"))).toEqual({
-      settings: { ...defaultVideoSettings, model: "kling_2_1", audio: false }, adjustments: ["sound off"],
+      settings: { ...defaultVideoSettings, model: "kling_2_1", audio: false },
+      adjustments: ["sound off"],
     });
     expect(fitSettingsToModel(defaultVideoSettings).adjustments).toEqual([]);
   });
 
   it("estimates credits per clip, with sound adding a quarter", () => {
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 1, audio: false })).toBe(40);
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 2, audio: true })).toBe(100);
+    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 1, audio: false })).toBe(
+      40,
+    );
+    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 2, audio: true })).toBe(
+      100,
+    );
     // A model without sound never charges for it.
     expect(estimateCredits({ model: "kling_2_1", resolution: "1080p", duration: 10, count: 1, audio: true })).toBe(200);
   });
@@ -39,8 +64,12 @@ describe("video settings", () => {
 
   it("appends camera direction once, after the brief", () => {
     expect(composeVideoPrompt("  A red kite  ", "auto")).toBe("A red kite");
-    expect(composeVideoPrompt("", "static", 10)).toBe("Camera: Static locked-off camera on a tripod; only the subject moves. Keep the movement subtle.");
-    expect(composeVideoPrompt("A red kite", "dolly-in", 90)).toBe("A red kite\n\nCamera: Slow, smooth dolly-in toward the subject. Keep the movement strong.");
+    expect(composeVideoPrompt("", "static", 10)).toBe(
+      "Camera: Static locked-off camera on a tripod; only the subject moves. Keep the movement subtle.",
+    );
+    expect(composeVideoPrompt("A red kite", "dolly-in", 90)).toBe(
+      "A red kite\n\nCamera: Slow, smooth dolly-in toward the subject. Keep the movement strong.",
+    );
   });
 
   it("matches an image to the closest supported aspect ratio", () => {

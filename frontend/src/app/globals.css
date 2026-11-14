@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@import "../styles/theme.css";
+@import "../assets/styles/theme.css";
 
 @theme inline {
   --color-primary: var(--primary);

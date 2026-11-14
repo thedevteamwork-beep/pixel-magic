@@ -1,4 +1,4 @@
-import { lightingOptions, paletteOptions, stylePresets } from "@/constants/image-guidance";
+import { lightingOptions, paletteOptions, stylePresets } from "@/components/image-generator/constants";
 import type { ReferenceImage } from "@/types/image-generator";
 
 export type CreativeGuidance = { lighting: string; palette: string };

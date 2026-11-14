@@ -1,4 +1,4 @@
-import { FRAME_MIME_TYPES, MAX_FRAME_BYTES } from "@/constants/video-generator";
+import { FRAME_MIME_TYPES, MAX_FRAME_BYTES } from "@/components/video-generator/constants";
 import type { FrameImage } from "@/types/video-generator";
 
 export class FrameError extends Error {}
@@ -13,12 +13,22 @@ async function decode(url: string): Promise<{ width: number; height: number }> {
 
 /** Decode a local file into a frame. The object URL is owned by the caller. */
 export async function loadFrameFile(file: File): Promise<FrameImage> {
-  if (!FRAME_MIME_TYPES.some((type) => type === file.type)) throw new FrameError(`${file.name}: choose a JPG, PNG, or WebP image.`);
-  if (!file.size || file.size > MAX_FRAME_BYTES) throw new FrameError(`${file.name}: choose an image smaller than 20 MB.`);
+  if (!FRAME_MIME_TYPES.some((type) => type === file.type))
+    throw new FrameError(`${file.name}: choose a JPG, PNG, or WebP image.`);
+  if (!file.size || file.size > MAX_FRAME_BYTES)
+    throw new FrameError(`${file.name}: choose an image smaller than 20 MB.`);
   const url = URL.createObjectURL(file);
   try {
     const size = await decode(url);
-    return { id: crypto.randomUUID(), url, name: file.name, mimeType: file.type, size: file.size, source: "upload", ...size };
+    return {
+      id: crypto.randomUUID(),
+      url,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+      source: "upload",
+      ...size,
+    };
   } catch {
     URL.revokeObjectURL(url);
     throw new FrameError(`${file.name} couldn’t be opened. Try another image.`);
@@ -31,7 +41,15 @@ export async function loadSampleFrame(url: string, name: string, signal?: AbortS
   if (!response.ok) throw new FrameError("That sample couldn’t be added. Please try again.");
   const blob = await response.blob();
   const size = await decode(url);
-  return { id: crypto.randomUUID(), url, name, mimeType: blob.type || "image/jpeg", size: blob.size, source: "sample", ...size };
+  return {
+    id: crypto.randomUUID(),
+    url,
+    name,
+    mimeType: blob.type || "image/jpeg",
+    size: blob.size,
+    source: "sample",
+    ...size,
+  };
 }
 
 /** Grab the frame currently shown by a same-origin video. The object URL is owned by the caller. */
@@ -45,5 +63,14 @@ export async function captureVideoFrame(video: HTMLVideoElement, name: string): 
   canvas.getContext("2d")?.drawImage(video, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
   if (!blob) throw new FrameError("That frame couldn’t be captured. Please try again.");
-  return { id: crypto.randomUUID(), url: URL.createObjectURL(blob), name, mimeType: "image/jpeg", size: blob.size, source: "capture", width, height };
+  return {
+    id: crypto.randomUUID(),
+    url: URL.createObjectURL(blob),
+    name,
+    mimeType: "image/jpeg",
+    size: blob.size,
+    source: "capture",
+    width,
+    height,
+  };
 }

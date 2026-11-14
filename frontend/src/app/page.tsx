@@ -7,7 +7,7 @@ import { ModelDirectory } from "@/components/landing/ModelDirectory";
 import { MarketingCollection, SeedanceCollection } from "@/components/landing/StudioCollection";
 import { DiscoveryGallery } from "@/components/landing/TemplateDiscovery";
 import { ToolCarousel } from "@/components/landing/ToolCarousel";
-import { templateModels } from "@/constants/landing-templates";
+import { templateModels } from "@/components/landing/constants";
 
 /** Static page composition; client boundaries are limited to interactions. */
 export default function Home() {

@@ -1,5 +1,5 @@
 import { landingAssets } from "@/constants/landing-media";
-import { videoInspirations, videoSampleAssets } from "@/constants/video-generator";
+import { videoInspirations, videoSampleAssets } from "@/components/video-generator/constants";
 import { estimateCredits } from "@/lib/video-generator/settings";
 import { validateVideoGenerationRequest } from "@/lib/video-generator/validation";
 import type { MediaId } from "@/types/landing";
@@ -10,7 +10,10 @@ const noStore = { "Cache-Control": "no-store" };
 class BodyTooLargeError extends Error {}
 
 function failure(code: string, message: string, status = 400, fields?: Record<string, string>) {
-  return Response.json({ ok: false, error: { code, message, ...(fields ? { fields } : {}) } }, { status, headers: noStore });
+  return Response.json(
+    { ok: false, error: { code, message, ...(fields ? { fields } : {}) } },
+    { status, headers: noStore },
+  );
 }
 
 /** Bound the actual stream, including requests with missing or inaccurate length headers. */
@@ -45,18 +48,24 @@ const sampleKeywords: Record<MediaId, readonly string[]> = {
   ocean: ["ocean", "sea", "wave", "beach", "coast", "water", "aerial", "drone", "surf", "tide"],
   portrait: ["portrait", "woman", "man", "person", "face", "smile", "character", "fashion", "neon", "dance"],
   product: ["product", "perfume", "bottle", "glass", "cosmetic", "fragrance", "packaging", "pedestal", "brand"],
-  flowers: [], architecture: [], sneakers: [],
+  flowers: [],
+  architecture: [],
+  sneakers: [],
 };
 
 /** Choose from a fixed local sample catalog; this does not generate or edit any footage. */
 function samplesFor(settings: VideoGenerationRequest): readonly MediaId[] {
   const words = settings.prompt.toLowerCase().match(/[a-z]+/g) ?? [];
   const motionHint = videoInspirations.find((item) => item.motion === settings.motion)?.asset;
-  const ranked = videoSampleAssets.map((asset, index) => ({
-    asset,
-    index,
-    score: sampleKeywords[asset].filter((keyword) => words.some((word) => word.startsWith(keyword))).length * 4 + (asset === motionHint ? 1 : 0),
-  })).sort((a, b) => b.score - a.score || a.index - b.index);
+  const ranked = videoSampleAssets
+    .map((asset, index) => ({
+      asset,
+      index,
+      score:
+        sampleKeywords[asset].filter((keyword) => words.some((word) => word.startsWith(keyword))).length * 4 +
+        (asset === motionHint ? 1 : 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
   return ranked.map((entry) => entry.asset);
 }
 
@@ -66,7 +75,8 @@ export async function POST(request: Request) {
   try {
     input = await readJSON(request);
   } catch (error) {
-    if (error instanceof BodyTooLargeError) return failure("PAYLOAD_TOO_LARGE", "Keep the request under 64 KiB. Send frame metadata only.", 413);
+    if (error instanceof BodyTooLargeError)
+      return failure("PAYLOAD_TOO_LARGE", "Keep the request under 64 KiB. Send frame metadata only.", 413);
     return failure("INVALID_JSON", "Send a valid JSON request.");
   }
   const result = validateVideoGenerationRequest(input);

@@ -1,0 +1,216 @@
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--subtle);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+
+.option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.option:hover {
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.option[data-selected="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  color: var(--foreground);
+}
+
+.option:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
+}
+
+.field {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.field legend {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.field legend small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+}
+
+.field:disabled {
+  opacity: 0.65;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--art-paper);
+  color: var(--art-ink);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.tile input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.tile:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.tile[data-selected="true"] {
+  border-color: var(--primary);
+}
+
+.tile:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 6px 6px 0;
+}
+
+.art svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tile[data-kind="photo"] .art {
+  padding: 0;
+}
+
+.tile[data-kind="icon"] .art {
+  color: var(--art-forest);
+}
+
+.tileLabel {
+  padding: 4px 4px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.tile[data-kind="photo"] .tileLabel {
+  padding-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}
+
+.textField {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.textField label {
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.textField input,
+.textField textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  resize: none;
+}
+
+.textField input::placeholder,
+.textField textarea::placeholder {
+  color: var(--muted);
+}
+
+.textField input:focus-visible,
+.textField textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.textField [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.fieldError {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
