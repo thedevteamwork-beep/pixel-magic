@@ -1,0 +1,543 @@
+.videoViewerDialog {
+  width: min(1240px, calc(100% - 32px));
+  max-height: 94dvh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 0;
+}
+
+.videoViewerStage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--media-ink);
+}
+
+.frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+  height: min(70dvh, 720px);
+  padding: 16px;
+  background:
+    radial-gradient(ellipse at center, color-mix(in srgb, var(--primary) 5%, transparent), transparent 70%),
+    var(--media-ink);
+}
+
+.frame video {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: var(--ratio);
+  width: auto;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--shadow-color) 60%, transparent);
+}
+
+.frame:fullscreen {
+  height: 100%;
+  padding: 0;
+}
+
+.frame:fullscreen video {
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.bigPlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding-left: 4px;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 92%, transparent);
+  color: var(--primary-foreground);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary) 30%, transparent);
+  transition: transform 0.2s;
+}
+
+.bigPlay:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.sampleTag {
+  position: absolute;
+  top: 26px;
+  left: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 60%, transparent);
+  color: var(--on-media-muted);
+  font-size: 10px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.nav {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid color-mix(in srgb, var(--white) 18%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--media-ink) 55%, transparent);
+  color: var(--on-media);
+  backdrop-filter: blur(8px);
+  opacity: 0.7;
+  transition:
+    opacity 0.2s,
+    background 0.2s;
+}
+
+.nav:hover,
+.nav:focus-visible {
+  opacity: 1;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.prev {
+  left: 22px;
+}
+
+.next {
+  right: 22px;
+}
+
+.controls {
+  display: grid;
+  gap: 6px;
+  padding: 6px 16px 14px;
+  color: var(--on-media);
+}
+
+.scrubber {
+  width: 100%;
+  height: 4px;
+  margin: 8px 0;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--primary) var(--fill),
+    color-mix(in srgb, var(--white) 20%, transparent) var(--fill)
+  );
+  cursor: pointer;
+}
+
+.scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 25%, transparent);
+  transition: transform 0.15s;
+}
+
+.scrubber:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.scrubber:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 6px;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.controlRow button {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--on-media-muted);
+}
+
+.controlRow button:hover {
+  color: var(--on-media);
+  background: color-mix(in srgb, var(--white) 10%, transparent);
+}
+
+.controlRow button[aria-pressed="true"] {
+  color: var(--primary);
+}
+
+.controlRow button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.rate {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.videoViewerTime {
+  margin-left: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.videoViewerTime span {
+  color: var(--on-media-muted);
+  opacity: 0.7;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  max-height: calc(94dvh - 72px);
+  padding: 18px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+
+.detailsTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.videoViewerIconButton {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--subtle);
+}
+
+.videoViewerIconButton:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+
+.videoViewerIsFavorite {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.primary:hover:enabled {
+  background: var(--primary-hover);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+}
+
+.hint {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.block {
+  display: grid;
+  gap: 7px;
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.blockHead h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.blockHead button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.blockHead button:hover {
+  color: var(--primary);
+  background: var(--overlay-hover);
+}
+
+.videoViewerPrompt {
+  max-height: 150px;
+  margin: 0;
+  padding: 11px 12px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.videoViewerPrompt:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.videoViewerMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--border);
+}
+
+.videoViewerMeta > div {
+  padding: 9px 11px;
+  background: var(--surface);
+}
+
+.videoViewerMeta dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.videoViewerMeta dd {
+  margin: 3px 0 0;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.videoViewerMeta .videoViewerSeed {
+  grid-column: span 2;
+}
+
+.videoViewerSeed button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.videoViewerSeed button:hover {
+  color: var(--primary);
+}
+
+.videoViewerActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.videoViewerActions > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.videoViewerActions > *:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+  background: var(--overlay-hover);
+}
+
+.videoViewerActions .videoViewerDanger {
+  color: var(--danger);
+}
+
+.videoViewerActions .videoViewerDanger:hover {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.shortcutToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.shortcutToggle:hover {
+  color: var(--foreground);
+}
+
+.shortcuts {
+  display: grid;
+  gap: 7px;
+  margin: -4px 0 0;
+}
+
+.shortcuts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.shortcuts dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.shortcuts kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 10px;
+  text-align: center;
+}
+
+.videoViewerNote {
+  margin: auto 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .frame {
+    height: auto;
+    max-height: 60dvh;
+    aspect-ratio: auto;
+    padding: 10px;
+  }
+  .frame video {
+    height: auto;
+    width: 100%;
+    max-height: calc(60dvh - 20px);
+    object-fit: contain;
+  }
+  .details {
+    max-height: none;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .nav {
+    width: 34px;
+    height: 34px;
+  }
+  .prev {
+    left: 14px;
+  }
+  .next {
+    right: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .controlRow button[aria-label="Previous frame"],
+  .controlRow button[aria-label="Next frame"] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bigPlay,
+  .nav,
+  .scrubber::-webkit-slider-thumb {
+    transition: none;
+  }
+}

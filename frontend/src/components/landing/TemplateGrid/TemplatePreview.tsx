@@ -6,7 +6,7 @@ import { landingAssets } from "@/constants/landing-media";
 import type { TemplateItem } from "@/types/landing";
 import { LandingMedia } from "../LandingMedia";
 import { useLandingMotion } from "../LandingProvider";
-import { Modal } from "../Modal";
+import { Modal } from "@/ui/Modal";
 import styles from "./main.module.css";
 
 type TemplatePreviewProps = {

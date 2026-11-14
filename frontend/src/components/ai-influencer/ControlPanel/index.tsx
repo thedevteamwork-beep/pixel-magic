@@ -11,11 +11,11 @@ import { PanelHeader } from "./PanelHeader";
 import styles from "./main.module.css";
 
 export function ControlPanel() {
-  const { state, dispatch, generate, randomize } = useInfluencer();
+  const { state, dispatch, generate, randomize, newInfluencer } = useInfluencer();
   const busy = state.status === "generating";
   return (
     <aside className={styles.panel} aria-label="Create influencer">
-      <PanelHeader disabled={busy} onReset={() => dispatch({ type: "reset" })} />
+      <PanelHeader disabled={busy} onNew={() => newInfluencer()} />
 
       <form
         className={styles.form}
@@ -32,9 +32,15 @@ export function ControlPanel() {
           </ControlSection>
           <TraitSections />
         </div>
-        <PanelFooter busy={busy} hasResult={state.variations.length > 0} onShuffle={randomize} />
+        <PanelFooter
+          busy={busy}
+          hasResult={state.variations.length > 0}
+          models={state.models}
+          modelKey={state.modelKey}
+          onModelChange={(key) => dispatch({ type: "model", key })}
+          onShuffle={randomize}
+        />
       </form>
-      <p className={styles.note}>Preview · sample portraits · no credits</p>
     </aside>
   );
 }

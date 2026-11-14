@@ -1,5 +1,5 @@
 import { defaultVideoSettings, motionPresets, videoModels } from "@/components/video-generator/constants";
-import type { VideoModel, VideoResolution, VideoSettings } from "@/types/video-generator";
+import type { VideoModel, VideoResolution, VideoResult, VideoSettings } from "@/types/video-generator";
 
 export function getVideoModel(id: string): VideoModel {
   return videoModels.find((model) => model.id === id) ?? videoModels[0];
@@ -117,4 +117,9 @@ export function closestAspectRatio(width: number, height: number, options: reado
       Math.abs(Math.log(ratioValue(option) / target)) < Math.abs(Math.log(ratioValue(best) / target)) ? option : best,
     options[0],
   );
+}
+
+/** File name for a downloaded sample clip. */
+export function downloadName(item: Pick<VideoResult, "id">) {
+  return `pixel-magic-sample-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-")}.mp4`;
 }

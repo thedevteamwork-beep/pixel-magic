@@ -6,7 +6,7 @@ import { useState } from "react";
 import { landingAssets } from "@/constants/landing-media";
 import { motionGroups, motionPresets } from "@/components/video-generator/constants";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import type { MotionPreset } from "@/types/video-generator";
 import motion from "@/assets/styles/camera-motion.module.css";
 import styles from "./main.module.css";

@@ -22,11 +22,10 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { motionPresets } from "@/components/video-generator/constants";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import { captureVideoFrame } from "@/lib/video-generator/frames";
-import { formatTimecode, getVideoModel, ratioValue } from "@/lib/video-generator/settings";
+import { downloadName, formatTimecode, getVideoModel, ratioValue } from "@/lib/video-generator/settings";
 import type { FrameImage, VideoResult } from "@/types/video-generator";
-import { downloadName } from "./FeedCards";
 import styles from "./main.module.css";
 
 const FRAME = 1 / 24;

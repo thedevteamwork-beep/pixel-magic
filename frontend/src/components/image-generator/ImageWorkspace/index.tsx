@@ -22,7 +22,7 @@ import {
 import { lightingOptions, paletteOptions } from "@/components/image-generator/constants";
 import { ImagePreviewError, requestImagePreview } from "@/lib/image-generator/client";
 import type { ImageResult, ImageSettings, ReferenceImage } from "@/types/image-generator";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import { CreativePanel } from "./CreativePanel";
 import { DockSettings } from "./DockSettings";

@@ -8,10 +8,13 @@ import type {
   TraitOption,
 } from "@/types/ai-influencer";
 
-export const MAX_ROSTER = 12;
 export const VARIATION_COUNT = 4;
 export const MAX_EXTRA_LENGTH = 500;
 export const MAX_NAME_LENGTH = 40;
+export const PROJECT_TYPE = "ai-influencer";
+export const PROJECTS_PAGE_SIZE = 50;
+export const PROJECT_JOBS_PAGE_SIZE = 20;
+export const POLL_INTERVAL_MS = 4000;
 
 /** Text fields checked on submit. Add a validator here to change what a field accepts. */
 export type TextField = "name" | "extra";
@@ -215,9 +218,6 @@ export const archetypes: readonly Archetype[] = [
     traits: { outfit: "evening-wear", setting: "rooftop-at-golden-hour", hairStyle: "bob", hairColor: "auburn" },
   },
 ];
-
-export const sampleCrops = ["50% 30%", "30% 35%", "70% 30%", "50% 45%"] as const;
-export const sampleHues = [0, -14, 16, 28] as const;
 
 export const featuredInfluencers: readonly FeaturedInfluencer[] = [
   {

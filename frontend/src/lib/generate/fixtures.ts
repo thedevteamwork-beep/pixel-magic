@@ -77,6 +77,7 @@ export const fluxSchnell: PublicModel = {
 export function jobView(status: JobView["status"], extra: Partial<JobView> = {}): JobView {
   return {
     jobId: "job-1",
+    projectId: null,
     status,
     model: "fluxSchnell_generate",
     creditCost: 2,

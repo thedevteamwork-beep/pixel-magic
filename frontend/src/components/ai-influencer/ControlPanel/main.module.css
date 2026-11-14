@@ -29,19 +29,69 @@
   padding: 0 6px 12px;
 }
 
-.note {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-  text-align: center;
-}
-
 .footer {
   display: flex;
+  flex-direction: column;
   flex-shrink: 0;
   gap: 10px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+.model {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model label {
+  flex-shrink: 0;
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.select {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.select select {
+  appearance: none;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 30px 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+}
+
+.select select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.select select:disabled {
+  opacity: 0.6;
+}
+
+.select svg {
+  position: absolute;
+  right: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
 }
 
 .shuffle {

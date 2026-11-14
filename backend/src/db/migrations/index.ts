@@ -5,6 +5,7 @@ import * as purchases from "./20261101000300_purchases.js";
 import * as generation from "./20261101000400_generation.js";
 import * as credits from "./20261101000500_credits.js";
 import * as generationConstraints from "./20261103000600_generation_constraints.js";
+import * as projects from "./20261114000700_projects.js";
 
 export interface MigrationEntry {
   name: string;
@@ -20,4 +21,5 @@ export const migrations: readonly MigrationEntry[] = [
   { name: "20261101000400_generation", ...generation },
   { name: "20261101000500_credits", ...credits },
   { name: "20261103000600_generation_constraints", ...generationConstraints },
+  { name: "20261114000700_projects", ...projects },
 ];

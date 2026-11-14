@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { landingAssets } from "@/constants/landing-media";
 import { motionPresets, videoInspirations } from "@/components/video-generator/constants";
 import type { VideoInspiration } from "@/types/video-generator";
-import { MotionPreview } from "./MotionPicker";
+import { MotionPreview } from "@/components/video-generator/MotionPicker";
 import styles from "./main.module.css";
 
 const featuredMoves = ["dolly-in", "orbit", "crane-up", "fpv", "crash-zoom", "dolly-zoom"] as const;

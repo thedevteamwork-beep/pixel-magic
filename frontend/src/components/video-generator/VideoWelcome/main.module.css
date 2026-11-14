@@ -1,0 +1,368 @@
+.welcome {
+  display: grid;
+  gap: 40px;
+  padding-bottom: 24px;
+}
+
+.hero {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  max-width: 640px;
+  padding-top: 12px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero h2 {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(34px, 4.6vw, 56px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+
+.hero h2 em {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  color: var(--primary);
+}
+
+.videoWelcomeLead {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--subtle);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.starts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.starts > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.starts > span {
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+
+.starts > span svg {
+  color: var(--primary);
+}
+
+.starts button {
+  background: transparent;
+}
+
+.starts button:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+  background: var(--overlay-hover);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 14px;
+}
+
+.sectionHead h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sectionHead span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.videoWelcomeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 200px;
+  gap: 12px;
+}
+
+.videoWelcomeTile {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--on-media);
+  text-align: left;
+  animation: videoWelcomeRise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.videoWelcomeTile:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.videoWelcomeTile:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.videoWelcomeTile:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.videoWelcomeTile:nth-child(5) {
+  animation-delay: 240ms;
+}
+
+.videoWelcomeTile:nth-child(6) {
+  animation-delay: 300ms;
+}
+
+.videoWelcomeTile[data-wide="true"] {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.videoWelcomeTile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.3s;
+}
+
+video.media {
+  opacity: 0;
+}
+
+.videoWelcomeTile[data-playing="true"] video.media {
+  opacity: 1;
+}
+
+.videoWelcomeTile:hover .media {
+  transform: scale(1.04);
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, color-mix(in srgb, var(--media-ink) 80%, transparent), transparent 55%);
+}
+
+.category {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 55%, transparent);
+  font-size: 10px;
+  backdrop-filter: blur(8px);
+}
+
+.copy {
+  position: absolute;
+  right: 50px;
+  bottom: 14px;
+  left: 14px;
+  display: grid;
+  gap: 5px;
+}
+
+.copy strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.videoWelcomeTile[data-wide="true"] .copy strong {
+  font-size: clamp(20px, 2.2vw, 28px);
+}
+
+.copy small {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--on-media-muted);
+  font-size: 11px;
+}
+
+.arrow {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  transform: scale(0.85);
+  opacity: 0;
+  transition:
+    transform 0.25s,
+    opacity 0.25s;
+}
+
+.videoWelcomeTile:hover .arrow,
+.videoWelcomeTile:focus-visible .arrow {
+  opacity: 1;
+  transform: none;
+}
+
+.moves {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.move {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+}
+
+.moveMedia {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+.moveMedia > span {
+  position: absolute;
+  inset: 0;
+}
+
+.move:hover .moveMedia {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.move:focus-visible {
+  outline: none;
+}
+
+.move:focus-visible .moveMedia {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.move strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.move small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1200px) {
+  .moves {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .videoWelcomeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 160px;
+  }
+  .videoWelcomeTile[data-wide="true"] {
+    grid-column: span 2;
+    grid-row: span 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .videoWelcomeGrid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: 190px;
+  }
+  .videoWelcomeTile[data-wide="true"] {
+    grid-column: auto;
+  }
+  .moves {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .copy small {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .arrow {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .videoWelcomeTile {
+    animation: none;
+  }
+  .media,
+  .moveMedia,
+  .arrow {
+    transition: none;
+  }
+  .videoWelcomeTile:hover .media {
+    transform: none;
+  }
+}
+
+@keyframes videoWelcomeRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}

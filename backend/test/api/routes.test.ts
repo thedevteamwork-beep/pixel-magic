@@ -8,7 +8,7 @@ import { seedTestCatalog } from "../helpers/catalog.js";
 import { resetDb, testDb } from "../helpers/db.js";
 import { createFundedUser } from "../helpers/factories.js";
 
-type Method = "get" | "post" | "delete";
+type Method = "get" | "post" | "patch" | "delete";
 const id = randomUUID();
 
 // The README's API list. Panel entries need a login: without one the guard
@@ -34,6 +34,11 @@ const PANEL: [Method, string][] = [
   ["post", "/v1/jobs/fluxSchnell/generate"],
   ["get", "/v1/jobs"],
   ["get", `/v1/jobs/${id}`],
+  ["get", "/v1/projects"],
+  ["post", "/v1/projects"],
+  ["get", `/v1/projects/${id}`],
+  ["patch", `/v1/projects/${id}`],
+  ["delete", `/v1/projects/${id}`],
 ];
 
 // The catch-all from notFound. A handler's own 404 ("Job not found") means

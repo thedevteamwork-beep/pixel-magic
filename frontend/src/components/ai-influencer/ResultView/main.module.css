@@ -62,6 +62,13 @@
   min-height: 260px;
 }
 
+.emptyNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
 .hero {
   position: relative;
   height: 100%;
@@ -74,18 +81,6 @@
   border-radius: var(--radius-panel);
   background: var(--surface-raised);
   animation: reveal 0.45s ease-out;
-}
-
-.badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 5px 9px;
-  border: 1px solid color-mix(in srgb, var(--on-media) 15%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--media-ink) 60%, transparent);
-  color: var(--on-media-muted);
-  font-size: var(--fs-2xs);
 }
 
 .busy {
@@ -170,39 +165,47 @@
   white-space: nowrap;
 }
 
-.save {
+.saved {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 7px;
   min-height: 34px;
   padding: 7px 13px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: transparent;
-  color: var(--foreground);
+  color: var(--subtle);
   font-size: var(--fs-xs);
   font-weight: 500;
 }
 
-.save:hover:enabled {
-  background: var(--overlay-hover);
-}
-
-.save:disabled {
-  opacity: 0.5;
-}
-
+/* The padding leaves room for the focus ring, which the scroll box would clip; the negative margin keeps the spacing. */
 .strip {
   display: flex;
   flex-shrink: 0;
-  justify-content: center;
   gap: 8px;
+  margin-block: -8px;
+  padding: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* Centred when they fit. Auto margins, unlike justify-content: center, keep the first ones reachable when they scroll. */
+.strip > :first-child {
+  margin-inline-start: auto;
+}
+
+.strip > :last-child {
+  margin-inline-end: auto;
 }
 
 .thumb,
 .slot {
   position: relative;
+  flex-shrink: 0;
   width: 56px;
   height: 72px;
   overflow: hidden;

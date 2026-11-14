@@ -26,11 +26,13 @@ describe("GET /v1/jobs", () => {
     owner: string,
     minutes: number,
     status: "queued" | "completed" = "queued",
+    projectId: string | null = null,
   ): Promise<string> {
     const id = randomUUID();
     await testDb(T.jobs).insert({
       id,
       user_id: owner,
+      project_id: projectId,
       model_key: "fluxSchnell_generate",
       input: {},
       credit_cost: 1,
@@ -151,6 +153,51 @@ describe("GET /v1/jobs", () => {
     const res = await list(query);
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("VALIDATION_FAILED");
+  });
+
+  describe("?projectId=", () => {
+    async function addProject(owner = userId): Promise<string> {
+      const [row] = await testDb(T.projects)
+        .insert({
+          user_id: owner,
+          type: "ai-influencer",
+          title: "Mira",
+          data: JSON.stringify({ traits: {} }),
+        })
+        .returning("*");
+      return row.id;
+    }
+
+    it("lists only that project's jobs, newest first, with paging", async () => {
+      const projectId = await addProject();
+      const a = await addJob(userId, 1, "queued", projectId);
+      await addJob(userId, 2);
+      const c = await addJob(userId, 3, "queued", projectId);
+      const d = await addJob(userId, 4, "queued", projectId);
+      const first = await list(`?projectId=${projectId}&limit=2`);
+      expect(ids(first)).toEqual([d, c]);
+      expect(first.body.jobs[0].projectId).toBe(projectId);
+      const second = await list(
+        `?projectId=${projectId}&limit=2&cursor=${first.body.nextCursor}`,
+      );
+      expect(ids(second)).toEqual([a]);
+      expect(second.body.nextCursor).toBeNull();
+    });
+
+    it("returns an empty list for another user's project", async () => {
+      const other = await insertProfile(testDb);
+      const projectId = await addProject(other);
+      await addJob(other, 1, "queued", projectId);
+      await addJob(userId, 2);
+      const res = await list(`?projectId=${projectId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.jobs).toEqual([]);
+    });
+
+    it("rejects a projectId that is not a uuid with 422", async () => {
+      const res = await list("?projectId=bad");
+      expect(res.status).toBe(422);
+    });
   });
 
   it("needs a login", async () => {

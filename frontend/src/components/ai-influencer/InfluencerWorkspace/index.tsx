@@ -5,9 +5,9 @@ import { InfluencerProvider } from "../InfluencerContext";
 import { Stage } from "../Stage";
 import styles from "./main.module.css";
 
-export function InfluencerWorkspace() {
+export function InfluencerWorkspace({ initialProjectId }: { initialProjectId: string | null }) {
   return (
-    <InfluencerProvider>
+    <InfluencerProvider initialProjectId={initialProjectId}>
       <main id="main-content" className={styles.workspace} tabIndex={-1}>
         <ControlPanel />
         <Stage />

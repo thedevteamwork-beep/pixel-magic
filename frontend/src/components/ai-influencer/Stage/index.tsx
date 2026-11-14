@@ -12,11 +12,13 @@ import styles from "./main.module.css";
 /** Right-hand stage: Explore sample looks, see the current result, or open saved influencers. */
 export function Stage() {
   const { state, dispatch } = useInfluencer();
-  const hasResult = state.variations.length > 0 || state.status === "generating";
+  // An open project keeps its Result tab even before its first portrait, and the shown view always has its tab.
+  const showResult =
+    state.variations.length > 0 || state.status === "generating" || state.projectId !== null || state.view === "result";
   const tabs: StageTab[] = [
     { id: "explore", label: "Explore", icon: Compass },
-    ...(hasResult ? [{ id: "result" as const, label: "Result", icon: Sparkles }] : []),
-    { id: "history", label: "History", icon: History, count: state.roster.length },
+    ...(showResult ? [{ id: "result" as const, label: "Result", icon: Sparkles }] : []),
+    { id: "history", label: "History", icon: History, count: state.projects.length },
   ];
 
   return (

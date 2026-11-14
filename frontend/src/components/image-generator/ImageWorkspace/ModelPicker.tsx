@@ -3,7 +3,7 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useState } from "react";
 import { imageModels } from "@/constants/image-generator";
-import { Modal } from "../../landing/Modal";
+import { Modal } from "@/ui/Modal";
 import styles from "./main.module.css";
 
 type ModelPickerProps = { value: string; onChange: (model: string) => void; disabled?: boolean; compact?: boolean };

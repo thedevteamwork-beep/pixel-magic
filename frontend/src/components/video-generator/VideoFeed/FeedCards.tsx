@@ -4,14 +4,10 @@ import { Media } from "@/ui/Media";
 import { ArrowDownToLine, AudioLines, Heart, ImagePlus, Play, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { motionPresets, renderStages } from "@/components/video-generator/constants";
-import { ratioValue } from "@/lib/video-generator/settings";
+import { downloadName, ratioValue } from "@/lib/video-generator/settings";
 import type { RenderJob, VideoResult } from "@/types/video-generator";
 import motion from "@/assets/styles/camera-motion.module.css";
 import styles from "./main.module.css";
-
-export function downloadName(item: Pick<VideoResult, "id">) {
-  return `pixel-magic-sample-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-")}.mp4`;
-}
 
 export function ratioStyle(aspectRatio: string): CSSProperties {
   return { "--ratio": ratioValue(aspectRatio) } as CSSProperties;

@@ -35,17 +35,10 @@ export type InfluencerVariation = {
   id: string;
   url: string;
   alt: string;
-  seed: number;
-  /** Visual variety for the sample portraits. */
-  hue: number;
-  position: string;
-};
-
-export type SavedInfluencer = {
-  id: string;
-  traits: InfluencerTraits;
-  cover: InfluencerVariation;
-  savedAt: string;
+  seed?: number;
+  /** Visual variety for the sample portraits. Real renders leave these out. */
+  hue?: number;
+  position?: string;
 };
 
 export type StageView = "explore" | "result" | "history";

@@ -5,6 +5,7 @@ import { appendPage, replaceJob } from "@/lib/creations/pages";
 function job(jobId: string, status: JobView["status"] = "queued"): JobView {
   return {
     jobId,
+    projectId: null,
     status,
     model: "m",
     creditCost: 1,

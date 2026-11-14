@@ -1,0 +1,218 @@
+.videoModelPickerTrigger {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 12px 9px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--background);
+  color: var(--foreground);
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.videoModelPickerTrigger:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.videoModelPickerTrigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.videoModelPickerTrigger > svg {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.symbol {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--primary);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.identity strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.identity small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.videoModelPickerDialog {
+  width: min(820px, calc(100% - 32px));
+}
+
+.videoModelPickerBody {
+  padding: 20px;
+}
+
+.lead {
+  margin: 0 0 16px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.videoModelPickerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.videoModelPickerCard {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--background);
+  color: var(--foreground);
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+
+.videoModelPickerCard:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  transform: translateY(-1px);
+}
+
+.videoModelPickerCard:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.videoModelPickerCard[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, var(--background));
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardName {
+  display: grid;
+  gap: 2px;
+}
+
+.cardName strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.cardName small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.tag {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.videoModelPickerCheck {
+  margin-left: auto;
+  color: var(--primary);
+}
+
+.videoModelPickerCard p {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.caps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+.estimate {
+  display: flex;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.estimate span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.estimate span:first-child {
+  color: var(--foreground);
+}
+
+.videoModelPickerNote {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .videoModelPickerGrid {
+    grid-template-columns: 1fr;
+  }
+  .videoModelPickerBody {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .videoModelPickerCard:hover {
+    transform: none;
+  }
+}

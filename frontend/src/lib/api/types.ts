@@ -63,6 +63,7 @@ export type JobStatus = "queued" | "submitting" | "submitted" | "finalizing" | "
 
 export type JobView = {
   jobId: string;
+  projectId: string | null;
   status: JobStatus;
   model: string;
   creditCost: number;
@@ -80,3 +81,16 @@ export type JobView = {
 
 /** `GET /v1/jobs`. */
 export type JobList = { jobs: JobView[]; nextCursor: string | null };
+
+export type ProjectView = {
+  projectId: string;
+  type: string;
+  title: string;
+  data: Record<string, unknown>;
+  cover: { mimeType: string; url: string; expiresAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** `GET /v1/projects`. */
+export type ProjectList = { projects: ProjectView[]; nextCursor: string | null };

@@ -94,6 +94,8 @@ export const videoCounts = [1, 2, 3, 4] as const;
 export const MAX_VIDEO_PROMPT_LENGTH = 2500;
 export const MAX_NEGATIVE_PROMPT_LENGTH = 500;
 export const MAX_FRAME_BYTES = 20 * 1024 * 1024;
+/** How many videos may render at the same time. */
+export const MAX_ACTIVE_RENDERS = 3;
 export const FRAME_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
 export const defaultVideoSettings: Readonly<VideoSettings> = {

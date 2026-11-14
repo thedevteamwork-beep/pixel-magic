@@ -7,9 +7,9 @@ import { AttachedPhoto } from "./AttachedPhoto";
 import { UploadDropzone } from "./UploadDropzone";
 import styles from "./main.module.css";
 
-/** Optional face photo. It stays in the browser and only changes the preview prompt. */
+/** Optional face photo. It is uploaded with the next Generate, if the selected model takes one. */
 export function ReferenceUpload() {
-  const { state, attachReference, removeReference } = useInfluencer();
+  const { state, attachReference, removeReference, selectedModel, modelTakesReference } = useInfluencer();
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const busy = state.status === "generating";
@@ -37,6 +37,9 @@ export function ReferenceUpload() {
         <AttachedPhoto photo={state.reference} disabled={busy} onRemove={removeReference} />
       ) : (
         <UploadDropzone disabled={busy} onBrowse={() => input.current?.click()} onFiles={pick} />
+      )}
+      {selectedModel && !modelTakesReference && (
+        <p className={styles.note}>{"This model doesn't use a reference photo."}</p>
       )}
       {error && (
         <p className={styles.error} role="alert">

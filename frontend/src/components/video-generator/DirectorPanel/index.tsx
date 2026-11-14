@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useId, type CSSProperties, type FormEvent, type ReactNode, type RefObject } from "react";
 import {
+  MAX_ACTIVE_RENDERS,
   MAX_NEGATIVE_PROMPT_LENGTH,
   MAX_VIDEO_PROMPT_LENGTH,
   motionPresets,
@@ -34,12 +35,10 @@ import {
   ratioValue,
 } from "@/lib/video-generator/settings";
 import type { FrameImage, FrameSlot, VideoMode, VideoSettings } from "@/types/video-generator";
-import { FrameSlots } from "./FrameSlots";
-import { MotionPicker } from "./MotionPicker";
-import { VideoModelPicker } from "./VideoModelPicker";
+import { FrameSlots } from "@/components/video-generator/FrameSlots";
+import { MotionPicker } from "@/components/video-generator/MotionPicker";
+import { VideoModelPicker } from "@/components/video-generator/VideoModelPicker";
 import styles from "./main.module.css";
-
-export const MAX_ACTIVE_RENDERS = 3;
 
 type DirectorPanelProps = {
   settings: VideoSettings;

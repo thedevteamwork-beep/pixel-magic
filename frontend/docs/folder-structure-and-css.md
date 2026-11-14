@@ -14,7 +14,7 @@ implementation: copy its layout when in doubt.
 | Helpers (pure functions) | `src/lib/<feature>/`                    | Prompt builders, API clients, validators. No React. Tests sit next to the file (`x.test.ts`).          |
 | Generic validators       | `src/lib/validation/validators.ts`      | Reusable `isNotEmpty`, `isTextLength`, `when`, `trimmed`, `validateFields`.                            |
 | Types                    | `src/types/<feature>.ts`                | Shared types. Types used by one file stay in that file.                                                |
-| Shared UI elements       | `src/ui/`                               | Button, Media, Badge, Chip, Container, Icon, SectionHeading, LazyVideo, MasonryGrid.                   |
+| Shared UI elements       | `src/ui/`                               | Button, Media, Modal, Badge, Chip, Container, Icon, SectionHeading, LazyVideo, MasonryGrid.            |
 | Design tokens            | `src/assets/styles/theme.css`           | Colours, radii, spacing, font sizes.                                                                   |
 | Shared CSS helpers       | `src/assets/styles/shared.module.css`   | Repeated class patterns, pulled in with `composes`.                                                    |
 | Bundled images           | `src/assets/images/`                    | Raster images, imported from code. Never put images in `public/`; only videos stay in `public/media/`. |
@@ -32,6 +32,7 @@ element that more than one feature could use.
 | ----------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Image or video that covers a box    | `Media` (`@/ui/Media`)                      | Wraps `next/image` and `LazyVideo`. `fill`, `sizes`, `eager`, `plain` (no placeholder background), `className`/`style` for the box, `imageProps` for the image itself. |
 | Button or link that looks like one  | `Button` / `ButtonWithLink` (`@/ui/Button`) | Variants `primary`, `secondary`, `ghost`, `outline`; sizes `sm`, `md`, `lg`; `fullWidth`.                                                                              |
+| Dialog over the page                | `Modal` (`@/ui/Modal`)                      | Native `<dialog>`: focus trap, Escape and backdrop click close it. `open`, `onClose`, `title`, `className` for a feature's own width.                                  |
 | Small label                         | `Badge` (`tone`) and `Chip` (`href`)        |                                                                                                                                                                        |
 | Page width and gutters              | `Container`                                 | `as="main" \| "section" \| …`.                                                                                                                                         |
 | Section title with optional actions | `SectionHeading`                            | `align`, `tone`, `description`, `actions`.                                                                                                                             |
@@ -75,7 +76,8 @@ Rules:
    `import { ReferenceUpload } from "../ReferenceUpload"`.
 2. **Sub-components live flat in the parent folder** (`UploadDropzone.tsx`), not in their own folders. They share the
    parent's `main.module.css`.
-3. **A component used by two or more parents gets its own folder** next to them (`landing/Modal/`, `layout/Logo/`).
+3. **A component used by two or more parents gets its own folder** next to them (`layout/Logo/`, `video-generator/MotionPicker/`). If it is generic and used across features, it
+   belongs in `src/ui/` instead (`ui/Modal`).
 4. **Only `index.tsx` talks to context, state and routing.** Sub-components get props and return JSX, which keeps them
    easy to read and reuse. Callbacks go down as props, for example `onSelect`, `onRemove`.
 5. **A hook used by one component sits in its folder** (`UpscaleWorkspace/useUpscale.ts`). A hook used by several goes

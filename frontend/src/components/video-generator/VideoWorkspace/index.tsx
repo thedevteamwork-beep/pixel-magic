@@ -4,11 +4,12 @@ import { ArrowDownLeft, CircleHelp, Heart, Info, LoaderCircle, RotateCcw, Sparkl
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
   defaultVideoSettings,
+  MAX_ACTIVE_RENDERS,
   MAX_VIDEO_PROMPT_LENGTH,
   motionPresets,
   videoInspirations,
 } from "@/components/video-generator/constants";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import { requestVideoPreview, VideoPreviewError } from "@/lib/video-generator/client";
 import { FrameError, loadFrameFile, loadSampleFrame } from "@/lib/video-generator/frames";
@@ -28,10 +29,10 @@ import type {
   VideoResult,
   VideoSettings,
 } from "@/types/video-generator";
-import { DirectorPanel, MAX_ACTIVE_RENDERS } from "./DirectorPanel";
-import { VideoFeed } from "./VideoFeed";
-import { VideoViewer } from "./VideoViewer";
-import { VideoWelcome } from "./VideoWelcome";
+import { DirectorPanel } from "@/components/video-generator/DirectorPanel";
+import { VideoFeed } from "@/components/video-generator/VideoFeed";
+import { VideoViewer } from "@/components/video-generator/VideoViewer";
+import { VideoWelcome } from "@/components/video-generator/VideoWelcome";
 import styles from "./main.module.css";
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void }; tone?: "success" | "info" };

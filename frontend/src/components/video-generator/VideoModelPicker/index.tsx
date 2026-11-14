@@ -3,7 +3,7 @@
 import { AudioLines, Check, ChevronDown, Clock, Coins, MonitorPlay, Timer, Video } from "lucide-react";
 import { useState } from "react";
 import { videoModels } from "@/components/video-generator/constants";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import { estimateCredits, estimateRenderSeconds, fitSettingsToModel, formatEta } from "@/lib/video-generator/settings";
 import type { VideoSettings } from "@/types/video-generator";
 import styles from "./main.module.css";

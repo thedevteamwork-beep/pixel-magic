@@ -8,7 +8,8 @@ import { makeDeps } from "../helpers/app.js";
 import { authHeader } from "../helpers/auth.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
 import { resetDb, testDb } from "../helpers/db.js";
-import { createFundedUser } from "../helpers/factories.js";
+import { canonicalJson, sha256Hex } from "../../src/lib/hash.js";
+import { createFundedUser, insertProfile } from "../helpers/factories.js";
 
 const FLUX = "fluxSchnell/generate";
 const KLING = "kling21/generate";
@@ -275,5 +276,106 @@ describe("POST /v1/jobs", () => {
       .get("/v1/jobs/not-a-uuid")
       .set(await authHeader(userId));
     expect(bad.status).toBe(404);
+  });
+
+  describe("inside a project", () => {
+    async function addProject(owner = userId) {
+      const [row] = await testDb(T.projects)
+        .insert({
+          user_id: owner,
+          type: "ai-influencer",
+          title: "Mira",
+          data: JSON.stringify({ traits: {} }),
+        })
+        .returning("*");
+      return row.id as string;
+    }
+    async function creditRowCount(): Promise<number> {
+      const r = await testDb(T.creditAllocations).count({ n: "*" }).first();
+      return Number(r?.n);
+    }
+
+    it("saves project_id, returns it and bumps the project's updated_at", async () => {
+      const projectId = await addProject();
+      const res = await post({ ...flux, projectId });
+      expect(res.status).toBe(202);
+      expect(res.body.projectId).toBe(projectId);
+      const row = await testDb(T.jobs).where({ id: res.body.jobId }).first();
+      expect(row.project_id).toBe(projectId);
+      const project = await testDb(T.projects).where({ id: projectId }).first();
+      expect(project.updated_at).toEqual(h.clock.now());
+      expect(await reservedFor(res.body.jobId)).toBe(1);
+    });
+
+    it("returns projectId null for a job without a project", async () => {
+      const res = await post(flux);
+      expect(res.body.projectId).toBeNull();
+    });
+
+    it.each([
+      ["an unknown project", async () => randomUUID()],
+      [
+        "another user's project",
+        async () => addProject(await insertProfile(testDb)),
+      ],
+    ])("returns 404 for %s and reserves nothing", async (_name, makeId) => {
+      const projectId = await makeId();
+      const before = await creditRowCount();
+      const res = await post({ ...flux, projectId });
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe("NOT_FOUND");
+      expect(await jobCount()).toBe(0);
+      expect(await creditRowCount()).toBe(before);
+    });
+
+    it("rejects a projectId that is not a uuid with 422 and reserves nothing", async () => {
+      const before = await creditRowCount();
+      const res = await post({ ...flux, projectId: "not-a-uuid" });
+      expect(res.status).toBe(422);
+      expect(await jobCount()).toBe(0);
+      expect(await creditRowCount()).toBe(before);
+    });
+
+    it("rejects a video model in an image-only project with 422", async () => {
+      const projectId = await addProject();
+      const res = await postTo(KLING, {
+        input: { prompt: "a cat" },
+        projectId,
+      });
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe("VALIDATION_FAILED");
+      expect(await jobCount()).toBe(0);
+    });
+
+    it("rejects the same key with a different projectId with 409", async () => {
+      const a = await addProject();
+      const b = await addProject();
+      await post({ ...flux, projectId: a });
+      const res = await post({ ...flux, projectId: b });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe("IDEMPOTENCY_KEY_REUSED");
+    });
+
+    it("replays a retry with 200 even after the project was deleted", async () => {
+      const projectId = await addProject();
+      const first = await post({ ...flux, projectId });
+      await testDb(T.jobs).where({ project_id: projectId }).update({
+        project_id: null,
+      });
+      await testDb(T.projects).where({ id: projectId }).delete();
+      const retry = await post({ ...flux, projectId });
+      expect(retry.status).toBe(200);
+      expect(retry.body.jobId).toBe(first.body.jobId);
+    });
+
+    it("keeps the request hash of a job without a project unchanged", async () => {
+      const res = await post(flux);
+      const row = await testDb(T.jobs).where({ id: res.body.jobId }).first();
+      expect(row.request_hash).toBe(
+        sha256Hex(
+          canonicalJson({ model: "fluxSchnell_generate", input: row.input }),
+        ),
+      );
+    });
   });
 });

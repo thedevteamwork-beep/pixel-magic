@@ -19,9 +19,10 @@ export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-type ApiClient = {
+export type ApiClient = {
   get<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T>;
   post<T>(path: string, body: unknown, opts?: { idempotencyKey?: string; signal?: AbortSignal }): Promise<T>;
+  patch<T>(path: string, body: unknown, opts?: { signal?: AbortSignal }): Promise<T>;
   delete<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T>;
 };
 
@@ -59,12 +60,19 @@ export function createApiClient(p: {
       throw new ApiError(0, "NETWORK_ERROR", message);
     }
     if (!response.ok) throw await readError(response);
+    if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }
 
   return {
     get: (path, opts) => request(path, { method: "GET", signal: opts?.signal }, {}),
     delete: (path, opts) => request(path, { method: "DELETE", signal: opts?.signal }, {}),
+    patch: (path, body, opts) =>
+      request(
+        path,
+        { method: "PATCH", body: JSON.stringify(body), signal: opts?.signal },
+        { "Content-Type": "application/json" },
+      ),
     post: (path, body, opts) => {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -79,6 +87,7 @@ export function createApiClient(p: {
 export const api: ApiClient = {
   get: (path, opts) => defaultClient().get(path, opts),
   post: (path, body, opts) => defaultClient().post(path, body, opts),
+  patch: (path, body, opts) => defaultClient().patch(path, body, opts),
   delete: (path, opts) => defaultClient().delete(path, opts),
 };
 

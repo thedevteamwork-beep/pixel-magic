@@ -15,4 +15,5 @@ export const T = {
   creditGrants: "app.credit_grants",
   creditAllocations: "app.credit_allocations",
   creditLedger: "app.credit_ledger",
+  projects: "app.projects",
 } as const;

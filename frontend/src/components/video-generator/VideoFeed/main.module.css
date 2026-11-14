@@ -1,0 +1,638 @@
+.feed {
+  display: grid;
+  gap: 34px;
+}
+
+.group {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.groupCopy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.prompt {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 78ch;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.meta > .metaModel {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  color: var(--primary);
+}
+
+.groupActions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+}
+
+.groupActions > button,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.groupActions > button:hover,
+.iconButton:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+  background: var(--overlay-hover);
+}
+
+.iconButton {
+  padding: 5px 7px;
+}
+
+.time {
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.menuWrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 180px;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  animation: pop 0.16s ease-out;
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 12px;
+  text-align: left;
+}
+
+.menu button:hover:enabled,
+.menu button:focus-visible {
+  color: var(--foreground);
+  background: var(--overlay-hover);
+  outline: none;
+}
+
+.menu button:disabled {
+  opacity: 0.45;
+}
+
+.menu .danger {
+  color: var(--danger);
+}
+
+.menu .danger:hover {
+  color: var(--danger) !important;
+}
+
+/* Justified row: every card shares a height and keeps its aspect ratio. */
+.row {
+  --row-height: var(--feed-row-height, 280px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card {
+  position: relative;
+  flex: 0 1 auto;
+  height: var(--row-height);
+  aspect-ratio: var(--ratio);
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  isolation: isolate;
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+@supports not (aspect-ratio: 1) {
+  .card {
+    width: calc(var(--row-height) * var(--ratio));
+  }
+}
+
+.open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-card);
+}
+
+.poster,
+.open video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.open video {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.card[data-playing="true"] .open video {
+  opacity: 1;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--media-ink) 65%, transparent),
+    transparent 38%,
+    transparent 70%,
+    color-mix(in srgb, var(--media-ink) 35%, transparent)
+  );
+  opacity: 0.9;
+  transition: opacity 0.25s;
+}
+
+.card[data-playing="true"]::after {
+  opacity: 0.55;
+}
+
+.playHint {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding-left: 2px;
+  transform: translate(-50%, -50%) scale(0.9);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--media-ink) 45%, transparent);
+  color: var(--on-media);
+  opacity: 0;
+  backdrop-filter: blur(8px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.card:hover .playHint,
+.open:focus-visible .playHint {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.badges {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  left: 9px;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.badges > span {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 60%, transparent);
+  color: var(--on-media);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+}
+
+.badges > .sample {
+  color: var(--on-media-muted);
+}
+
+.favorite {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--media-ink) 50%, transparent);
+  color: var(--on-media);
+  opacity: 0;
+  backdrop-filter: blur(8px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.favorite:hover {
+  transform: scale(1.08);
+}
+
+.favorite:active {
+  transform: scale(0.9);
+}
+
+.isFavorite {
+  color: var(--primary);
+  opacity: 1;
+}
+
+.actions {
+  position: absolute;
+  z-index: 2;
+  right: 8px;
+  bottom: 10px;
+  left: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.actions button,
+.actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 55%, transparent);
+  color: var(--on-media);
+  font-size: 11px;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.actions a {
+  padding: 5px 8px;
+}
+
+.actions button:hover,
+.actions a:hover {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.card:hover .favorite,
+.card:focus-within .favorite,
+.card:hover .actions,
+.card:focus-within .actions {
+  opacity: 1;
+  transform: none;
+}
+
+.favorite:focus-visible,
+.actions :focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.scrub {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--primary);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+/* Render placeholder */
+.renderCard {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.renderCard::after {
+  display: none;
+}
+
+.renderFrame {
+  position: absolute;
+  inset: 0;
+  filter: saturate(0.75) brightness(0.55) blur(1.5px);
+}
+
+.renderMesh {
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--primary) 26%, transparent), transparent 40%),
+    radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--violet-400) 30%, transparent), transparent 42%),
+    radial-gradient(circle at 45% 80%, color-mix(in srgb, var(--art-forest) 70%, transparent), transparent 45%);
+  filter: blur(30px);
+  animation: drift 8s ease-in-out infinite alternate;
+}
+
+.renderShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in srgb, var(--white) 9%, transparent) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+.renderInfo {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px;
+  color: var(--on-media);
+  text-align: center;
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--media-ink) 70%, transparent);
+}
+
+.renderStage {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.renderPercent {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.renderPercent small {
+  font-size: 0.5em;
+  opacity: 0.7;
+}
+
+.renderMeta {
+  color: var(--on-media-muted);
+  font-size: 10px;
+}
+
+.renderBar {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--white) 16%, transparent);
+}
+
+.renderBar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  box-shadow: 0 0 12px var(--primary);
+  transform-origin: left;
+  transition: transform 0.2s linear;
+}
+
+.renderCancel {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--media-ink) 55%, transparent);
+  color: var(--on-media);
+  opacity: 0.7;
+}
+
+.renderCancel:hover {
+  opacity: 1;
+  background: var(--danger);
+  color: var(--media-ink);
+}
+
+.failedCard {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  background: var(--danger-surface);
+  color: var(--danger);
+  text-align: center;
+}
+
+.failedCard::after {
+  display: none;
+}
+
+.failedCard strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.failedCard p {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.failedCard > span {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.failedCard button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 11px;
+}
+
+.failedCard button:first-child {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+@media (hover: none) {
+  .favorite,
+  .actions {
+    opacity: 1;
+    transform: none;
+  }
+  .playHint {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 700px) {
+  .card {
+    height: auto;
+    width: min(100%, calc(60svh * var(--ratio)));
+  }
+  .groupHeader {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .groupActions > button span {
+    display: none;
+  }
+  .actions button {
+    font-size: 0;
+    gap: 0;
+    padding: 5px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .menu,
+  .renderMesh,
+  .renderShimmer {
+    animation: none;
+  }
+  .favorite,
+  .actions,
+  .playHint,
+  .open video {
+    transition: none;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes drift {
+  to {
+    transform: translate(8%, -6%) rotate(25deg) scale(1.1);
+  }
+}

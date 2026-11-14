@@ -26,7 +26,7 @@ import { imageInspirations, imageModels } from "@/constants/image-generator";
 import { imageTemplateArtwork } from "@/components/image-generator/constants";
 import { landingAssets } from "@/constants/landing-media";
 import type { ImageResult, InspirationItem } from "@/types/image-generator";
-import { Modal } from "@/components/landing/Modal";
+import { Modal } from "@/ui/Modal";
 import { ImageWelcome } from "./ImageWelcome";
 import styles from "./main.module.css";
 

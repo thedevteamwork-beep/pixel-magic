@@ -10,11 +10,10 @@ import { VariationStrip } from "./VariationStrip";
 import styles from "./main.module.css";
 
 export function ResultView() {
-  const { state, dispatch, cancel } = useInfluencer();
-  const { traits, variations, selectedId, status, roster, reference } = state;
+  const { state, dispatch, cancel, modelTakesReference } = useInfluencer();
+  const { traits, variations, selectedId, status, projectId, reference } = state;
   const busy = status === "generating";
   const selected = variations.find((item) => item.id === selectedId) ?? null;
-  const saved = !!selected && roster.some((item) => item.cover.id === selected.id);
   const summary = [
     traitLabel("age", traits.age),
     traits.ethnicity && traitLabel("ethnicity", traits.ethnicity),
@@ -25,24 +24,21 @@ export function ResultView() {
 
   return (
     <div className={styles.result}>
-      <ResultToolbar
-        name={displayName(traits)}
-        summary={summary}
-        saved={saved}
-        saveDisabled={!selected || busy}
-        onSave={() => dispatch({ type: "save" })}
-      />
+      <ResultToolbar name={displayName(traits)} summary={summary} saved={projectId !== null} />
       <ResultCanvas selected={selected} busy={busy} name={displayName(traits)} onCancel={cancel} />
       <VariationStrip
         variations={variations}
         selectedId={selectedId}
-        disabled={busy}
+        busy={busy}
         onSelect={(id) => dispatch({ type: "select", id })}
       />
       {state.error && <ErrorBanner message={state.error} onDismiss={() => dispatch({ type: "dismissError" })} />}
-      <PromptDetails prompt={composeInfluencerPrompt(traits, Boolean(reference))} />
+      <PromptDetails prompt={composeInfluencerPrompt(traits, Boolean(reference) && modelTakesReference)} />
+      {/* The strip shows every variation, so this count matches it. */}
       <span className={styles.srOnly} aria-live="polite">
-        {variations.length && !busy ? `${variations.length} variations ready.` : ""}
+        {variations.length && !busy
+          ? `${variations.length} ${variations.length === 1 ? "variation" : "variations"} ready.`
+          : ""}
       </span>
     </div>
   );

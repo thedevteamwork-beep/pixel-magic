@@ -21,10 +21,13 @@ export function ResultCanvas({ selected, busy, name, onCancel }: ResultCanvasPro
             media={{ kind: "image", src: selected.url, alt: selected.alt }}
             fill
             sizes="(max-width: 900px) 90vw, 520px"
-            imageProps={{ preload: true, style: portraitStyle(selected) }}
+            // Signed storage URLs come from hosts next/image isn't configured for, so they load as they are.
+            imageProps={{ preload: true, unoptimized: true, style: portraitStyle(selected) }}
           />
-          <figcaption className={styles.badge}>Sample preview</figcaption>
         </figure>
+      )}
+      {!selected && !busy && (
+        <p className={styles.emptyNote}>No portraits yet. Press Generate to make the first ones.</p>
       )}
       {busy && (
         <div className={styles.busy} role="status">

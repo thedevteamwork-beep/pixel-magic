@@ -8,40 +8,47 @@ import styles from "./main.module.css";
 type VariationStripProps = {
   variations: readonly InfluencerVariation[];
   selectedId: string | null;
-  disabled: boolean;
+  /** A job is running: its images are on the way. */
+  busy: boolean;
   onSelect: (id: string) => void;
 };
 
-/** One thumbnail per variation, with dashed placeholders for the ones not made yet. */
-export function VariationStrip({ variations, selectedId, disabled, onSelect }: VariationStripProps) {
-  return (
-    <div className={styles.strip} role="radiogroup" aria-label="Variations">
-      {Array.from({ length: VARIATION_COUNT }, (_, index) => {
-        const item = variations[index];
-        return item ? (
-          <button
-            key={item.id}
-            type="button"
-            role="radio"
-            aria-checked={item.id === selectedId}
-            aria-label={`Variation ${index + 1}`}
-            className={styles.thumb}
-            disabled={disabled}
-            onClick={() => onSelect(item.id)}
-          >
-            <Media
-              media={{ kind: "image", src: item.url, alt: "" }}
-              fill
-              sizes="64px"
-              imageProps={{ style: portraitStyle(item) }}
-            />
-          </button>
-        ) : (
-          <span key={index} className={styles.slot} aria-hidden="true">
+/**
+ * Every variation as a thumbnail, scrolling sideways when they don't fit.
+ * Dashed placeholders stand in before the first one, and while a job makes the next set.
+ */
+export function VariationStrip({ variations, selectedId, busy, onSelect }: VariationStripProps) {
+  if (busy || variations.length === 0)
+    return (
+      <div className={styles.strip} aria-hidden="true">
+        {Array.from({ length: VARIATION_COUNT }, (_, index) => (
+          <span key={index} className={styles.slot}>
             <Sparkles size={14} />
           </span>
-        );
-      })}
+        ))}
+      </div>
+    );
+
+  return (
+    <div className={styles.strip} role="radiogroup" aria-label="Variations">
+      {variations.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          role="radio"
+          aria-checked={item.id === selectedId}
+          aria-label={`Variation ${index + 1}`}
+          className={styles.thumb}
+          onClick={() => onSelect(item.id)}
+        >
+          <Media
+            media={{ kind: "image", src: item.url, alt: "" }}
+            fill
+            sizes="64px"
+            imageProps={{ unoptimized: true, style: portraitStyle(item) }}
+          />
+        </button>
+      ))}
     </div>
   );
 }
