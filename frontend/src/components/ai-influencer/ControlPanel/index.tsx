@@ -1,18 +1,20 @@
 "use client";
 
-import { archetypes } from "@/components/ai-influencer/constants";
-import { CharacterTypes } from "../CharacterTypes";
-import { ControlSection } from "../ControlSection";
+import { Accordion } from "@/ui/Accordion";
 import { useInfluencer } from "../InfluencerContext";
 import { ReferenceUpload } from "../ReferenceUpload";
 import { TraitSections } from "../TraitSections";
 import { PanelFooter } from "./PanelFooter";
 import { PanelHeader } from "./PanelHeader";
+import { PromptField } from "./PromptField";
 import styles from "./main.module.css";
 
 export function ControlPanel() {
-  const { state, dispatch, generate, randomize, newInfluencer } = useInfluencer();
+  const { state, dispatch, generate, randomize, newInfluencer, registerField } = useInfluencer();
   const busy = state.status === "generating";
+  const send = () => {
+    if (!busy) void generate();
+  };
   return (
     <aside className={styles.panel} aria-label="Create influencer">
       <PanelHeader disabled={busy} onNew={() => newInfluencer()} />
@@ -22,24 +24,27 @@ export function ControlPanel() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (!busy) void generate();
+          send();
         }}
       >
         <div className={styles.scroll}>
           <ReferenceUpload />
-          <ControlSection title="Character type" count={archetypes.length} defaultOpen>
-            <CharacterTypes />
-          </ControlSection>
-          <TraitSections />
+          <Accordion defaultActiveEventKey="character">
+            <TraitSections part="lead" />
+            <TraitSections part="main" />
+          </Accordion>
         </div>
-        <PanelFooter
-          busy={busy}
-          hasResult={state.variations.length > 0}
-          models={state.models}
-          modelKey={state.modelKey}
-          onModelChange={(key) => dispatch({ type: "model", key })}
-          onShuffle={randomize}
-        />
+        <div className={styles.footer}>
+          <PromptField
+            value={state.traits.extra}
+            error={state.fieldErrors.extra}
+            disabled={busy}
+            onChange={(value) => dispatch({ type: "trait", key: "extra", value })}
+            onSubmit={send}
+            inputRef={(node) => registerField("extra", node)}
+          />
+          <PanelFooter busy={busy} hasResult={state.variations.length > 0} onShuffle={randomize} />
+        </div>
       </form>
     </aside>
   );

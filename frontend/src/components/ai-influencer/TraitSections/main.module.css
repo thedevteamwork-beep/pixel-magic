@@ -140,7 +140,10 @@
   height: 100%;
 }
 
-.tile[data-kind="photo"] .art {
+.tile[data-kind="photo"] .art,
+.tile[data-kind="character"] .art,
+.tile[data-kind="hair"] .art,
+.tile[data-kind="body"] .art {
   padding: 0;
 }
 
@@ -156,7 +159,10 @@
   text-align: center;
 }
 
-.tile[data-kind="photo"] .tileLabel {
+.tile[data-kind="photo"] .tileLabel,
+.tile[data-kind="character"] .tileLabel,
+.tile[data-kind="hair"] .tileLabel,
+.tile[data-kind="body"] .tileLabel {
   padding-top: 6px;
 }
 

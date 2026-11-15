@@ -40,6 +40,30 @@ describe("composeInfluencerPrompt", () => {
   });
 });
 
+describe("character type", () => {
+  it("keeps the human prompt unchanged for a natural character", () => {
+    expect(composeInfluencerPrompt({ ...everyTrait, character: "natural" })).toBe(composeInfluencerPrompt(everyTrait));
+  });
+
+  it("adds the look of an expressive or wild human character", () => {
+    expect(composeInfluencerPrompt({ ...defaultTraits, character: "expressive" })).toContain(
+      "bold, expressive features",
+    );
+    expect(composeInfluencerPrompt({ ...defaultTraits, character: "wild" })).toContain(
+      "extreme, exaggerated, eccentric look",
+    );
+  });
+
+  it("describes an animal character and drops human-only traits", () => {
+    const prompt = composeInfluencerPrompt({ ...everyTrait, character: "kitty" });
+    expect(prompt).toContain("A photorealistic portrait of an anthropomorphic cat character, female, late 20s");
+    expect(prompt).toContain("black long waves hair, brown eyes");
+    expect(prompt).not.toContain("south asian");
+    expect(prompt).not.toContain("olive skin");
+    expect(prompt).not.toContain("natural skin texture");
+  });
+});
+
 describe("reference photo", () => {
   it("asks to keep the uploaded likeness only when a photo is attached", () => {
     expect(composeInfluencerPrompt(defaultTraits)).not.toContain("reference photo");

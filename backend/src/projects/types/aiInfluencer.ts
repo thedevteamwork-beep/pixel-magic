@@ -10,6 +10,7 @@ export const aiInfluencer: ProjectTypeDefinition = {
   data: z.strictObject({
     traits: z
       .strictObject({
+        character: trait,
         gender: trait,
         age: trait,
         ethnicity: trait,

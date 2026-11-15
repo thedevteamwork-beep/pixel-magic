@@ -42,8 +42,8 @@ export function HistoryView() {
       );
     return (
       <EmptyHistory title="No saved influencers yet" message="Generate one and it’s saved here automatically.">
-        <button type="button" onClick={() => dispatch({ type: "view", view: "explore" })}>
-          Explore looks
+        <button type="button" onClick={() => dispatch({ type: "view", view: "templates" })}>
+          Browse templates
         </button>
       </EmptyHistory>
     );

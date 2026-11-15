@@ -8,9 +8,12 @@ import styles from "./main.module.css";
 /** Starting looks; picking one pre-fills the trait sections. */
 export function CharacterTypes() {
   const { state, dispatch } = useInfluencer();
-  return (
+  const humanTemplates = archetypes.filter((item) => !item.traits.character);
+  const animalTemplates = archetypes.filter((item) => Boolean(item.traits.character));
+
+  const grid = (items: typeof archetypes) => (
     <ul className={styles.grid}>
-      {archetypes.map((item) => (
+      {items.map((item) => (
         <li key={item.id}>
           <CharacterTile
             item={item}
@@ -21,5 +24,18 @@ export function CharacterTypes() {
         </li>
       ))}
     </ul>
+  );
+
+  return (
+    <div className={styles.groups}>
+      <section className={styles.group} aria-labelledby="human-templates-title">
+        <h3 id="human-templates-title">Human looks</h3>
+        {grid(humanTemplates)}
+      </section>
+      <section className={styles.group} aria-labelledby="animal-templates-title">
+        <h3 id="animal-templates-title">Animal characters</h3>
+        {grid(animalTemplates)}
+      </section>
+    </div>
   );
 }

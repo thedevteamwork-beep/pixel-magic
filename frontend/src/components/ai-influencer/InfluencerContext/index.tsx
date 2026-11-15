@@ -99,7 +99,6 @@ type Action =
   | { type: "select"; id: string }
   | { type: "dismissError" }
   | { type: "models"; models: PublicModel[] }
-  | { type: "model"; key: string }
   | { type: "projects"; projects: ProjectView[]; cursor: string | null; append?: boolean }
   | { type: "projectsStatus"; status: ProjectsStatus }
   | { type: "project"; view: ProjectView }
@@ -190,8 +189,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, error: "" };
     case "models":
       return { ...state, models: action.models, modelKey: action.models[0]?.key ?? "" };
-    case "model":
-      return { ...state, modelKey: action.key };
     case "projects": {
       const projects = action.append ? withoutDuplicates([...state.projects, ...action.projects]) : action.projects;
       return { ...state, projects, projectsCursor: action.cursor, projectsStatus: "idle" };
@@ -528,9 +525,11 @@ export function InfluencerProvider({
 
   const randomize = useCallback(() => {
     const picks: Partial<InfluencerTraits> = {};
+    // The character type stays as chosen: "Surprise me" shuffles the look, not the species.
     for (const group of traitGroups)
       for (const field of group.fields)
-        picks[field.key] = field.options[Math.floor(Math.random() * field.options.length)].value;
+        if (field.key !== "character")
+          picks[field.key] = field.options[Math.floor(Math.random() * field.options.length)].value;
     dispatch({ type: "randomize", picks });
   }, []);
 

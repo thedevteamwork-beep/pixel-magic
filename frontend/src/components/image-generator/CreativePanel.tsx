@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Media } from "@/ui/Media";
+import { Accordion, AccordionItem } from "@/ui/Accordion";
 import { useId } from "react";
 import { MAX_REFERENCE_IMAGES } from "@/constants/image-generator";
 import { lightingOptions, paletteOptions, stylePresets } from "@/components/image-generator/constants";
@@ -279,13 +280,17 @@ export function CreativePanel({
         </div>
       </section>
 
-      <details className={styles.details}>
-        <summary>
-          <SunMedium size={15} aria-hidden="true" />
-          <span>Lighting &amp; colors</span>
-          <ChevronDown className={styles.detailsChevron} size={14} aria-hidden="true" />
-        </summary>
-        <div className={styles.detailsBody}>
+      <Accordion className={styles.detailsAccordion}>
+        <AccordionItem
+          eventKey="lighting-colors"
+          title="Lighting & colors"
+          variant="plain"
+          className={styles.details}
+          leadingIcon={<SunMedium size={15} aria-hidden="true" />}
+          showChevron={false}
+          trailingContent={<ChevronDown className={styles.detailsChevron} size={14} aria-hidden="true" />}
+          bodyContentClassName={styles.detailsBody}
+        >
           <label className={styles.field}>
             <span>
               <SunMedium size={12} aria-hidden="true" />
@@ -327,16 +332,18 @@ export function CreativePanel({
             </div>
           )}
           {selectedPalette?.instruction && <p className={styles.optionDescription}>{selectedPalette.instruction}</p>}
-        </div>
-      </details>
+        </AccordionItem>
 
-      <details className={styles.details}>
-        <summary>
-          <SlidersHorizontal size={15} aria-hidden="true" />
-          <span>Prompt additions</span>
-          <ChevronDown className={styles.detailsChevron} size={14} aria-hidden="true" />
-        </summary>
-        <div className={styles.detailsBody}>
+        <AccordionItem
+          eventKey="prompt-additions"
+          title="Prompt additions"
+          variant="plain"
+          className={styles.details}
+          leadingIcon={<SlidersHorizontal size={15} aria-hidden="true" />}
+          showChevron={false}
+          trailingContent={<ChevronDown className={styles.detailsChevron} size={14} aria-hidden="true" />}
+          bodyContentClassName={styles.detailsBody}
+        >
           <p className={styles.optionDescription}>The direction added by your creative choices.</p>
           <textarea
             aria-label="Prompt additions"
@@ -346,8 +353,8 @@ export function CreativePanel({
             value={guidancePrompt}
             placeholder="Choose a style, lighting, or palette to add direction. Your own prompt stays in the canvas."
           />
-        </div>
-      </details>
+        </AccordionItem>
+      </Accordion>
 
       <p className={styles.sampleNote} id={`${id}-sample-note`}>
         <Info size={14} aria-hidden="true" />

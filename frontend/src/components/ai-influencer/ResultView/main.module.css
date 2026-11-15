@@ -43,6 +43,11 @@
   font-size: var(--fs-xs);
 }
 
+.promptAccordion {
+  flex-shrink: 0;
+  gap: 0;
+}
+
 .prompt summary {
   cursor: pointer;
 }

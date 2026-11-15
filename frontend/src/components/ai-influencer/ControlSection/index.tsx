@@ -1,29 +1,23 @@
-import { ChevronDown } from "lucide-react";
+import { AccordionItem } from "@/ui/Accordion";
 import type { ReactNode } from "react";
-import styles from "./main.module.css";
 
 /** Collapsible block used for every group in the left panel. */
 export function ControlSection({
+  eventKey,
   title,
+  description,
   count,
-  defaultOpen = false,
   children,
 }: {
+  eventKey: string;
   title: string;
+  description?: string;
   count?: number;
-  defaultOpen?: boolean;
   children: ReactNode;
 }) {
   return (
-    <details className={styles.section} open={defaultOpen}>
-      <summary>
-        <span>
-          {title}
-          {count !== undefined && <small> · {count}</small>}
-        </span>
-        <ChevronDown size={15} className={styles.chevron} aria-hidden="true" />
-      </summary>
-      <div className={styles.body}>{children}</div>
-    </details>
+    <AccordionItem eventKey={eventKey} title={title} description={description} count={count}>
+      {children}
+    </AccordionItem>
   );
 }

@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
+import { Accordion, AccordionItem } from "@/ui/Accordion";
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { calculateUpscaleOutput } from "@/lib/image-upscaler/limits";
 import {
@@ -341,59 +342,65 @@ export function UpscaleSettingsPanel({
             )}
 
             {model.presets.length > 0 && (
-              <details className={styles.advanced}>
-                <summary
-                  aria-disabled={busy}
-                  tabIndex={busy ? -1 : 0}
-                  onClick={(event) => {
-                    if (busy) event.preventDefault();
-                  }}
-                  onKeyDown={(event) => {
-                    if (busy && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+              <Accordion>
+                <AccordionItem
+                  eventKey="advanced-settings"
+                  title="Advanced settings"
+                  variant="plain"
+                  className={styles.advanced}
+                  leadingIcon={<SlidersHorizontal size={13} aria-hidden="true" />}
+                  showChevron={false}
+                  trailingContent={<ChevronDown size={13} className={styles.advancedChevron} aria-hidden="true" />}
+                  summaryProps={{
+                    "aria-disabled": busy,
+                    tabIndex: busy ? -1 : 0,
+                    onClick: (event) => {
+                      if (busy) event.preventDefault();
+                    },
+                    onKeyDown: (event) => {
+                      if (busy && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+                    },
                   }}
                 >
-                  <SlidersHorizontal size={13} aria-hidden="true" />
-                  <span>Advanced settings</span>
-                  <ChevronDown size={13} className={styles.advancedChevron} aria-hidden="true" />
-                </summary>
-                <div className={styles.advancedContent}>
-                  <SettingsPicker
-                    label="Preset"
-                    value={settings.preset ?? model.presets[0].value}
-                    options={model.presets}
-                    onChange={(preset) => update({ preset })}
-                    disabled={busy}
-                  />
-                  {tuning && (
-                    <div className={styles.tuning}>
-                      <TuningSlider
-                        label="Sharpness"
-                        value={settings.sharpness ?? 50}
-                        onChange={(sharpness) => update({ sharpness })}
-                      />
-                      <TuningSlider
-                        label="Denoise"
-                        value={settings.denoise ?? 20}
-                        onChange={(denoise) => update({ denoise })}
-                      />
-                    </div>
-                  )}
-                  {faceEnhancement && (
-                    <label className={styles.faceEnhancement}>
-                      <span>Face enhancement</span>
-                      <span className={styles.switch}>
-                        <input
-                          type="checkbox"
-                          role="switch"
-                          checked={settings.face_enhancement ?? false}
-                          onChange={(event) => update({ face_enhancement: event.target.checked })}
+                  <div className={styles.advancedContent}>
+                    <SettingsPicker
+                      label="Preset"
+                      value={settings.preset ?? model.presets[0].value}
+                      options={model.presets}
+                      onChange={(preset) => update({ preset })}
+                      disabled={busy}
+                    />
+                    {tuning && (
+                      <div className={styles.tuning}>
+                        <TuningSlider
+                          label="Sharpness"
+                          value={settings.sharpness ?? 50}
+                          onChange={(sharpness) => update({ sharpness })}
                         />
-                        <span className={styles.switchTrack} aria-hidden="true" />
-                      </span>
-                    </label>
-                  )}
-                </div>
-              </details>
+                        <TuningSlider
+                          label="Denoise"
+                          value={settings.denoise ?? 20}
+                          onChange={(denoise) => update({ denoise })}
+                        />
+                      </div>
+                    )}
+                    {faceEnhancement && (
+                      <label className={styles.faceEnhancement}>
+                        <span>Face enhancement</span>
+                        <span className={styles.switch}>
+                          <input
+                            type="checkbox"
+                            role="switch"
+                            checked={settings.face_enhancement ?? false}
+                            onChange={(event) => update({ face_enhancement: event.target.checked })}
+                          />
+                          <span className={styles.switchTrack} aria-hidden="true" />
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                </AccordionItem>
+              </Accordion>
             )}
           </fieldset>
         </div>
@@ -410,17 +417,22 @@ export function UpscaleSettingsPanel({
         {!source && <p className={styles.startHint}>Upload an image to get started.</p>}
       </form>
 
-      <details className={styles.previewInfo}>
-        <summary>
-          <Info size={13} aria-hidden="true" />
-          <span>Preview · resizing only · no credits</span>
-          <ChevronDown size={12} aria-hidden="true" />
-        </summary>
-        <p>
-          Images are resized locally in your browser. AI model, preset, sharpness, denoise, and face enhancement
-          settings aren’t applied in this preview.
-        </p>
-      </details>
+      <Accordion className={styles.previewInfoAccordion}>
+        <AccordionItem
+          eventKey="preview-info"
+          title="Preview · resizing only · no credits"
+          variant="plain"
+          className={styles.previewInfo}
+          leadingIcon={<Info size={13} aria-hidden="true" />}
+          showChevron={false}
+          trailingContent={<ChevronDown size={12} aria-hidden="true" />}
+        >
+          <p>
+            Images are resized locally in your browser. AI model, preset, sharpness, denoise, and face enhancement
+            settings aren’t applied in this preview.
+          </p>
+        </AccordionItem>
+      </Accordion>
     </aside>
   );
 }

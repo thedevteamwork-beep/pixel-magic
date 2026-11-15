@@ -39,7 +39,7 @@ export function ReferenceUpload() {
         <UploadDropzone disabled={busy} onBrowse={() => input.current?.click()} onFiles={pick} />
       )}
       {selectedModel && !modelTakesReference && (
-        <p className={styles.note}>{"This model doesn't use a reference photo."}</p>
+        <p className={styles.note}>{"Reference photos aren't used by the current model yet."}</p>
       )}
       {error && (
         <p className={styles.error} role="alert">

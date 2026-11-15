@@ -8,29 +8,36 @@ import { OptionGroup } from "./OptionGroup";
 import { OptionTiles } from "./OptionTiles";
 import { TextField } from "./TextField";
 
-/** Name plus every trait group. Required traits always keep a value; the rest can be cleared by clicking them again. */
-export function TraitSections() {
+/**
+ * Trait groups. `part="lead"` shows the groups that open the panel (character type); `part="main"` shows the name
+ * and every other group. Required traits always keep a value; the rest can be cleared by clicking them again.
+ */
+export function TraitSections({ part }: { part: "lead" | "main" }) {
   const { state, dispatch, registerField } = useInfluencer();
   const { traits, fieldErrors } = state;
   const busy = state.status === "generating";
 
+  const groups = traitGroups.filter((group) => Boolean(group.lead) === (part === "lead"));
+
   return (
     <>
-      <ControlSection title="Name" defaultOpen>
-        <TextField
-          label="Name"
-          value={traits.name}
-          maxLength={MAX_NAME_LENGTH}
-          placeholder="e.g. Mira Kapoor"
-          disabled={busy}
-          error={fieldErrors.name}
-          fieldRef={(node) => registerField("name", node)}
-          onChange={(value) => dispatch({ type: "trait", key: "name", value })}
-        />
-      </ControlSection>
+      {part === "main" && (
+        <ControlSection eventKey="name" title="Name">
+          <TextField
+            label="Name"
+            value={traits.name}
+            maxLength={MAX_NAME_LENGTH}
+            placeholder="e.g. Mira Kapoor"
+            disabled={busy}
+            error={fieldErrors.name}
+            fieldRef={(node) => registerField("name", node)}
+            onChange={(value) => dispatch({ type: "trait", key: "name", value })}
+          />
+        </ControlSection>
+      )}
 
-      {traitGroups.map((group) => (
-        <ControlSection key={group.id} title={group.title} defaultOpen={group.id === "identity"}>
+      {groups.map((group) => (
+        <ControlSection eventKey={group.id} key={group.id} title={group.title} description={group.description}>
           {group.fields.map((field) => {
             const allowClear = !field.required;
             const onChange = (value: string) => dispatch({ type: "trait", key: field.key, value });
@@ -41,7 +48,6 @@ export function TraitSections() {
                     kind={field.tiles}
                     options={field.options}
                     value={traits[field.key]}
-                    traits={traits}
                     allowClear={allowClear}
                     onChange={onChange}
                   />

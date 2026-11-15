@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { navigationLinks } from "@/components/layout/constants";
+import { Accordion, AccordionItem } from "@/ui/Accordion";
 import { Logo } from "../Logo";
 import styles from "./main.module.css";
 
@@ -27,16 +28,22 @@ export function Footer() {
       </div>
       <div className={styles.footerBottom}>
         <p>© 2026 Pixel Magic</p>
-        <details>
-          <summary>Preview imagery credits</summary>
-          <p>
-            Curated sample photography and films from{" "}
-            <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">
-              Pexels
-            </a>{" "}
-            by Kelly, cottonbro studio, Mikhail Nilov, Lucius Crick, Natalie Bond, Nenyasha Manzvera, and Wayne Lee.
-          </p>
-        </details>
+        <Accordion className={styles.creditsAccordion}>
+          <AccordionItem
+            eventKey="preview-credits"
+            title="Preview imagery credits"
+            variant="plain"
+            className={styles.creditsItem}
+          >
+            <p>
+              Curated sample photography and films from{" "}
+              <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">
+                Pexels
+              </a>{" "}
+              by Kelly, cottonbro studio, Mikhail Nilov, Lucius Crick, Natalie Bond, Nenyasha Manzvera, and Wayne Lee.
+            </p>
+          </AccordionItem>
+        </Accordion>
         <Link href="/#top">Back to top ↑</Link>
       </div>
     </footer>

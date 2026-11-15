@@ -1,10 +1,18 @@
+import { Accordion, AccordionItem } from "@/ui/Accordion";
 import styles from "./main.module.css";
 
 export function PromptDetails({ prompt }: { prompt: string }) {
   return (
-    <details className={styles.prompt}>
-      <summary>Prompt used</summary>
-      <p>{prompt}</p>
-    </details>
+    <Accordion className={styles.promptAccordion}>
+      <AccordionItem
+        eventKey="prompt-used"
+        title="Prompt used"
+        variant="plain"
+        className={styles.prompt}
+        showChevron={false}
+      >
+        <p>{prompt}</p>
+      </AccordionItem>
+    </Accordion>
   );
 }

@@ -1,6 +1,5 @@
 import { Media } from "@/ui/Media";
 import { Check } from "lucide-react";
-import { landingAssets } from "@/constants/landing-media";
 import type { Archetype } from "@/types/ai-influencer";
 import styles from "./main.module.css";
 
@@ -22,13 +21,14 @@ export function CharacterTile({ item, selected, disabled, onSelect }: CharacterT
       onClick={onSelect}
     >
       <Media
-        media={{ kind: "image", src: landingAssets[item.asset].image, alt: "" }}
+        media={{ kind: "image", src: item.asset.src, alt: "" }}
         fill
-        sizes="110px"
+        sizes="(max-width: 700px) 45vw, (max-width: 1100px) 30vw, 320px"
         className={styles.art}
       />
       <span className={styles.shade} aria-hidden="true" />
       <span className={styles.label}>{item.title}</span>
+      <span className={styles.tagline}>{item.tagline}</span>
       {selected && (
         <span className={styles.check} aria-hidden="true">
           <Check size={12} />

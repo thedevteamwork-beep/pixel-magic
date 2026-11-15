@@ -2,7 +2,6 @@
 
 import {
   AudioLines,
-  ChevronDown,
   Coins,
   Dices,
   Film,
@@ -18,6 +17,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import { Accordion, AccordionItem } from "@/ui/Accordion";
 import { useId, type CSSProperties, type FormEvent, type ReactNode, type RefObject } from "react";
 import {
   MAX_ACTIVE_RENDERS,
@@ -340,65 +340,70 @@ export function DirectorPanel(props: DirectorPanelProps) {
           </div>
         </div>
 
-        <details className={styles.advanced}>
-          <summary>
-            <span>Advanced</span>
-            {(settings.seed !== null || settings.negativePrompt) && (
-              <span className={styles.dot} aria-label="Advanced settings in use" />
-            )}
-            <ChevronDown size={14} aria-hidden="true" />
-          </summary>
-          <div className={styles.advancedBody}>
-            <label className={styles.field}>
-              <span className={styles.label}>Seed</span>
-              <span className={styles.seed}>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={4294967295}
-                  placeholder="Random each time"
-                  value={settings.seed ?? ""}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    onChange({
-                      seed: value === "" ? null : Math.max(0, Math.min(4294967295, Math.floor(Number(value)) || 0)),
-                    });
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange({ seed: crypto.getRandomValues(new Uint32Array(1))[0] })}
-                  aria-label="Pick a random seed"
-                  title="Pick and lock a random seed"
-                >
-                  <Dices size={14} aria-hidden="true" />
-                </button>
-                {settings.seed !== null && (
+        <Accordion>
+          <AccordionItem
+            eventKey="advanced"
+            title="Advanced"
+            variant="plain"
+            className={styles.advanced}
+            trailingContent={
+              (settings.seed !== null || settings.negativePrompt) && (
+                <span className={styles.dot} aria-label="Advanced settings in use" />
+              )
+            }
+          >
+            <div className={styles.advancedBody}>
+              <label className={styles.field}>
+                <span className={styles.label}>Seed</span>
+                <span className={styles.seed}>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={4294967295}
+                    placeholder="Random each time"
+                    value={settings.seed ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      onChange({
+                        seed: value === "" ? null : Math.max(0, Math.min(4294967295, Math.floor(Number(value)) || 0)),
+                      });
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={() => onChange({ seed: null })}
-                    aria-label="Unlock seed"
-                    title="Use a new random seed each time"
+                    onClick={() => onChange({ seed: crypto.getRandomValues(new Uint32Array(1))[0] })}
+                    aria-label="Pick a random seed"
+                    title="Pick and lock a random seed"
                   >
-                    <Lock size={13} aria-hidden="true" />
+                    <Dices size={14} aria-hidden="true" />
                   </button>
-                )}
-              </span>
-              <small>Lock a seed to explore small prompt changes with a similar result.</small>
-            </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Avoid</span>
-              <textarea
-                rows={2}
-                maxLength={MAX_NEGATIVE_PROMPT_LENGTH}
-                value={settings.negativePrompt}
-                placeholder="Blur, distortion, extra limbs, text…"
-                onChange={(event) => onChange({ negativePrompt: event.target.value })}
-              />
-            </label>
-          </div>
-        </details>
+                  {settings.seed !== null && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ seed: null })}
+                      aria-label="Unlock seed"
+                      title="Use a new random seed each time"
+                    >
+                      <Lock size={13} aria-hidden="true" />
+                    </button>
+                  )}
+                </span>
+                <small>Lock a seed to explore small prompt changes with a similar result.</small>
+              </label>
+              <label className={styles.field}>
+                <span className={styles.label}>Avoid</span>
+                <textarea
+                  rows={2}
+                  maxLength={MAX_NEGATIVE_PROMPT_LENGTH}
+                  value={settings.negativePrompt}
+                  placeholder="Blur, distortion, extra limbs, text…"
+                  onChange={(event) => onChange({ negativePrompt: event.target.value })}
+                />
+              </label>
+            </div>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <div className={styles.footer}>

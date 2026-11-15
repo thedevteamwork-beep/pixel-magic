@@ -1,3 +1,37 @@
+import type { StaticImageData } from "next/image";
+import naturalCharacter from "@/assets/images/ai-influencer/character/generated/natural.jpg";
+import expressiveCharacter from "@/assets/images/ai-influencer/character/generated/expressive.jpg";
+import wildCharacter from "@/assets/images/ai-influencer/character/generated/wild.jpg";
+import kittyCharacter from "@/assets/images/ai-influencer/character/generated/kitty.jpg";
+import puppyCharacter from "@/assets/images/ai-influencer/character/generated/puppy.jpg";
+import froggyCharacter from "@/assets/images/ai-influencer/character/generated/froggy.jpg";
+import hamsterCharacter from "@/assets/images/ai-influencer/character/generated/hamster.jpg";
+import birdieCharacter from "@/assets/images/ai-influencer/character/generated/birdie.jpg";
+import bugCharacter from "@/assets/images/ai-influencer/character/generated/bug.jpg";
+import bobHair from "@/assets/images/ai-influencer/hair/bob.webp";
+import braidsHair from "@/assets/images/ai-influencer/hair/braids.webp";
+import buzzCutHair from "@/assets/images/ai-influencer/hair/buzz-cut.webp";
+import curlyHair from "@/assets/images/ai-influencer/hair/curly.webp";
+import longWavesHair from "@/assets/images/ai-influencer/hair/long-waves.webp";
+import pixieHair from "@/assets/images/ai-influencer/hair/pixie.webp";
+import sleekStraightHair from "@/assets/images/ai-influencer/hair/sleek-straight.webp";
+import topKnotHair from "@/assets/images/ai-influencer/hair/top-knot.webp";
+import athleticBuild from "@/assets/images/ai-influencer/build/athletic.webp";
+import broadBuild from "@/assets/images/ai-influencer/build/broad.webp";
+import curvyBuild from "@/assets/images/ai-influencer/build/curvy.webp";
+import slimBuild from "@/assets/images/ai-influencer/build/slim.webp";
+import fashionTemplate from "@/assets/images/ai-influencer/templates/fashion.jpg";
+import fitnessTemplate from "@/assets/images/ai-influencer/templates/fitness.jpg";
+import travelTemplate from "@/assets/images/ai-influencer/templates/travel.jpg";
+import beautyTemplate from "@/assets/images/ai-influencer/templates/beauty.jpg";
+import streetwearTemplate from "@/assets/images/ai-influencer/templates/streetwear.jpg";
+import luxuryTemplate from "@/assets/images/ai-influencer/templates/luxury.jpg";
+import kittyTemplate from "@/assets/images/ai-influencer/templates/kitty.jpg";
+import puppyTemplate from "@/assets/images/ai-influencer/templates/puppy.jpg";
+import froggyTemplate from "@/assets/images/ai-influencer/templates/froggy.jpg";
+import hamsterTemplate from "@/assets/images/ai-influencer/templates/hamster.jpg";
+import birdieTemplate from "@/assets/images/ai-influencer/templates/birdie.jpg";
+import bugTemplate from "@/assets/images/ai-influencer/templates/bug.jpg";
 import { isNotEmpty, isTextLength, trimmed, type FieldRules } from "@/lib/validation/validators";
 import type {
   Archetype,
@@ -26,8 +60,10 @@ export const textFieldRules: FieldRules<TextValues> = {
 
 const options = (...values: string[]): TraitOption[] =>
   values.map((value) => ({ value: value.toLowerCase().replace(/\s+/g, "-"), label: value }));
+
 const withArt = (list: TraitOption[], art: Record<string, string>): TraitOption[] =>
   list.map((option) => ({ ...option, art: art[option.value] }));
+
 const swatches = (entries: Record<string, string>): TraitOption[] =>
   Object.entries(entries).map(([label, swatch]) => ({
     value: label.toLowerCase().replace(/\s+/g, "-"),
@@ -35,126 +71,157 @@ const swatches = (entries: Record<string, string>): TraitOption[] =>
     swatch,
   }));
 
+/**
+ * Character types that are animals, with the species the model is asked for. The prompt drops human-only traits
+ * (heritage, skin tone) for these.
+ */
+export const ANIMAL_SPECIES: Readonly<Record<string, string>> = {
+  kitty: "cat",
+  puppy: "dog",
+  froggy: "frog",
+  hamster: "hamster",
+  birdie: "bird",
+  bug: "insect",
+};
+
 export const traitGroups: readonly {
   id: string;
   title: string;
+  /** Shown at the top of the panel, before the persona and name sections. */
+  lead?: boolean;
+  description?: string;
   fields: readonly { key: TraitKey; label: string; options: TraitOption[]; tiles?: TileKind; required?: boolean }[];
 }[] = [
-  {
-    id: "identity",
-    title: "Identity",
-    fields: [
-      {
-        key: "gender",
-        label: "Gender",
-        required: true,
-        tiles: "hair",
-        options: withArt(options("Woman", "Man", "Non-binary"), {
-          woman: "long-waves",
-          man: "buzz-cut",
-          "non-binary": "bob",
-        }),
-      },
-      { key: "age", label: "Age", required: true, options: options("Early 20s", "Late 20s", "30s", "40s", "50s+") },
-      {
-        key: "ethnicity",
-        label: "Heritage",
-        options: options(
-          "South Asian",
-          "East Asian",
-          "Southeast Asian",
-          "Black",
-          "Latina",
-          "Middle Eastern",
-          "White",
-          "Mixed",
-        ),
-      },
-    ],
-  },
-  {
-    id: "look",
-    title: "Look",
-    fields: [
-      {
-        key: "skinTone",
-        label: "Skin tone",
-        options: swatches({
-          Porcelain: "#f4d9c6",
-          Fair: "#e8bf9f",
-          Olive: "#c99a6e",
-          Tan: "#a8754b",
-          Brown: "#7a4e30",
-          Deep: "#4b2d1d",
-        }),
-      },
-      {
-        key: "hairStyle",
-        label: "Hair style",
-        tiles: "hair",
-        options: withArt(
-          options("Long waves", "Sleek straight", "Curly", "Bob", "Pixie", "Braids", "Buzz cut", "Top knot"),
-          {},
-        ),
-      },
-      {
-        key: "hairColor",
-        label: "Hair colour",
-        options: swatches({
-          Black: "#17120f",
-          Brunette: "#5a3825",
-          Auburn: "#8a3b22",
-          Blonde: "#d7b46a",
-          Silver: "#c9cbc8",
-          Pastel: "#c7a7f0",
-        }),
-      },
-      {
-        key: "eyeColor",
-        label: "Eyes",
-        options: swatches({ Brown: "#5a3a22", Hazel: "#8a6a35", Green: "#4f7a4a", Blue: "#4f7ea8", Grey: "#8a9296" }),
-      },
-      { key: "build", label: "Build", tiles: "body", options: options("Slim", "Athletic", "Curvy", "Broad") },
-    ],
-  },
-  {
-    id: "style",
-    title: "Style",
-    fields: [
-      {
-        key: "outfit",
-        label: "Outfit",
-        tiles: "icon",
-        options: withArt(options("Streetwear", "Tailored", "Athleisure", "Boho", "Evening wear", "Minimal basics"), {
-          streetwear: "Shirt",
-          tailored: "Briefcase",
-          athleisure: "Dumbbell",
-          boho: "Flower2",
-          "evening-wear": "Wine",
-          "minimal-basics": "Circle",
-        }),
-      },
-      {
-        key: "setting",
-        label: "Setting",
-        tiles: "photo",
-        options: withArt(options("Studio", "City street", "Beach", "Café", "Gym", "Rooftop at golden hour"), {
-          studio: "product",
-          "city-street": "architecture",
-          beach: "ocean",
-          café: "flowers",
-          gym: "sneakers",
-          "rooftop-at-golden-hour": "desert",
-        }),
-      },
-    ],
-  },
-];
+    {
+      id: "character",
+      title: "Character",
+      description: "Choose a human look or an animal character.",
+      lead: true,
+      fields: [
+        {
+          key: "character",
+          label: "Choose a character",
+          tiles: "character",
+          options: options("Natural", "Expressive", "Wild", "Kitty", "Puppy", "Froggy", "Hamster", "Birdie", "Bug"),
+        },
+      ],
+    },
+    {
+      id: "identity",
+      title: "Identity",
+      fields: [
+        {
+          key: "gender",
+          label: "Gender",
+          required: true,
+          tiles: "hair",
+          options: withArt(options("Woman", "Man", "Non-binary"), {
+            woman: "long-waves",
+            man: "buzz-cut",
+            "non-binary": "bob",
+          }),
+        },
+        { key: "age", label: "Age", required: true, options: options("Early 20s", "Late 20s", "30s", "40s", "50s+") },
+        {
+          key: "ethnicity",
+          label: "Heritage",
+          options: options(
+            "South Asian",
+            "East Asian",
+            "Southeast Asian",
+            "Black",
+            "Latina",
+            "Middle Eastern",
+            "White",
+            "Mixed",
+          ),
+        },
+      ],
+    },
+    {
+      id: "look",
+      title: "Look",
+      fields: [
+        {
+          key: "skinTone",
+          label: "Skin tone",
+          options: swatches({
+            Porcelain: "#f4d9c6",
+            Fair: "#e8bf9f",
+            Olive: "#c99a6e",
+            Tan: "#a8754b",
+            Brown: "#7a4e30",
+            Deep: "#4b2d1d",
+          }),
+        },
+        {
+          key: "hairStyle",
+          label: "Hair style",
+          tiles: "hair",
+          options: withArt(
+            options("Long waves", "Sleek straight", "Curly", "Bob", "Pixie", "Braids", "Buzz cut", "Top knot"),
+            {},
+          ),
+        },
+        {
+          key: "hairColor",
+          label: "Hair colour",
+          options: swatches({
+            Black: "#17120f",
+            Brunette: "#5a3825",
+            Auburn: "#8a3b22",
+            Blonde: "#d7b46a",
+            Silver: "#c9cbc8",
+            Pastel: "#c7a7f0",
+          }),
+        },
+        {
+          key: "eyeColor",
+          label: "Eyes",
+          options: swatches({ Brown: "#5a3a22", Hazel: "#8a6a35", Green: "#4f7a4a", Blue: "#4f7ea8", Grey: "#8a9296" }),
+        },
+        { key: "build", label: "Build", tiles: "body", options: options("Slim", "Athletic", "Curvy", "Broad") },
+      ],
+    },
+    {
+      id: "style",
+      title: "Style",
+      fields: [
+        {
+          key: "outfit",
+          label: "Outfit",
+          tiles: "photo",
+          options: withArt(options("Streetwear", "Tailored", "Athleisure", "Boho", "Evening wear", "Minimal basics"), {
+            streetwear: "outfit-streetwear",
+            tailored: "outfit-tailored",
+            athleisure: "outfit-athleisure",
+            boho: "outfit-boho",
+            "evening-wear": "outfit-evening-wear",
+            "minimal-basics": "outfit-minimal-basics",
+          }),
+        },
+        {
+          key: "setting",
+          label: "Setting",
+          tiles: "photo",
+          options: withArt(options("Studio", "City street", "Beach", "Café", "Gym", "Rooftop at golden hour"), {
+            studio: "setting-studio",
+            "city-street": "setting-city-street",
+            beach: "setting-beach",
+            café: "setting-cafe",
+            gym: "setting-gym",
+            "rooftop-at-golden-hour": "setting-rooftop",
+          }),
+        },
+      ],
+    },
+  ];
 
 /** Gender and age are always set. Every other trait starts empty and is left out of the prompt until chosen. */
 export const defaultTraits: Readonly<InfluencerTraits> = {
   name: "",
   extra: "",
+  character: "",
   gender: "woman",
   age: "late-20s",
   ethnicity: "",
@@ -167,13 +234,13 @@ export const defaultTraits: Readonly<InfluencerTraits> = {
   setting: "",
 };
 
-/** Starting looks. Sample art only; swap `asset` when real renders exist. */
+/** Ready-made trait combinations shown in the Templates tab. */
 export const archetypes: readonly Archetype[] = [
   {
     id: "fashion",
     title: "Fashion muse",
     tagline: "Runway-ready and effortless",
-    asset: "portrait",
+    asset: fashionTemplate,
     tone: "plum",
     traits: { outfit: "tailored", setting: "studio", hairStyle: "sleek-straight", build: "slim" },
   },
@@ -181,7 +248,7 @@ export const archetypes: readonly Archetype[] = [
     id: "fitness",
     title: "Fitness coach",
     tagline: "Strong, warm, camera-ready",
-    asset: "portrait",
+    asset: fitnessTemplate,
     tone: "forest",
     traits: { outfit: "athleisure", setting: "gym", hairStyle: "top-knot", build: "athletic" },
   },
@@ -189,7 +256,7 @@ export const archetypes: readonly Archetype[] = [
     id: "travel",
     title: "Travel diarist",
     tagline: "Sun, sea and golden hours",
-    asset: "ocean",
+    asset: travelTemplate,
     tone: "sage",
     traits: { outfit: "boho", setting: "beach", hairStyle: "long-waves", hairColor: "brunette" },
   },
@@ -197,7 +264,7 @@ export const archetypes: readonly Archetype[] = [
     id: "beauty",
     title: "Beauty creator",
     tagline: "Glow-first close-ups",
-    asset: "flowers",
+    asset: beautyTemplate,
     tone: "peach",
     traits: { outfit: "minimal-basics", setting: "studio", hairStyle: "curly", skinTone: "tan" },
   },
@@ -205,7 +272,7 @@ export const archetypes: readonly Archetype[] = [
     id: "streetwear",
     title: "Street stylist",
     tagline: "Sneakers, city, attitude",
-    asset: "sneakers",
+    asset: streetwearTemplate,
     tone: "paper",
     traits: { outfit: "streetwear", setting: "city-street", hairStyle: "braids", gender: "man" },
   },
@@ -213,9 +280,57 @@ export const archetypes: readonly Archetype[] = [
     id: "luxury",
     title: "Lifestyle luxe",
     tagline: "Rooftops and quiet luxury",
-    asset: "architecture",
+    asset: luxuryTemplate,
     tone: "plum",
     traits: { outfit: "evening-wear", setting: "rooftop-at-golden-hour", hairStyle: "bob", hairColor: "auburn" },
+  },
+  {
+    id: "kitty-creator",
+    title: "Cat creator",
+    tagline: "Curious, polished, camera-ready",
+    asset: kittyTemplate,
+    tone: "plum",
+    traits: { character: "kitty", outfit: "minimal-basics", setting: "studio" },
+  },
+  {
+    id: "puppy-coach",
+    title: "Puppy coach",
+    tagline: "Playful energy, every day",
+    asset: puppyTemplate,
+    tone: "forest",
+    traits: { character: "puppy", outfit: "athleisure", setting: "gym" },
+  },
+  {
+    id: "frog-explorer",
+    title: "Frog explorer",
+    tagline: "Small adventures, big charm",
+    asset: froggyTemplate,
+    tone: "sage",
+    traits: { character: "froggy", outfit: "boho", setting: "beach" },
+  },
+  {
+    id: "hamster-beauty",
+    title: "Hamster beauty",
+    tagline: "A little glow goes a long way",
+    asset: hamsterTemplate,
+    tone: "peach",
+    traits: { character: "hamster", outfit: "minimal-basics", setting: "studio" },
+  },
+  {
+    id: "songbird-stylist",
+    title: "Songbird stylist",
+    tagline: "Bright looks with city flair",
+    asset: birdieTemplate,
+    tone: "paper",
+    traits: { character: "birdie", outfit: "streetwear", setting: "city-street" },
+  },
+  {
+    id: "beetle-luxe",
+    title: "Beetle after dark",
+    tagline: "Tiny icon, rooftop glamour",
+    asset: bugTemplate,
+    tone: "plum",
+    traits: { character: "bug", outfit: "tailored", setting: "rooftop-at-golden-hour" },
   },
 ];
 
@@ -294,13 +409,38 @@ export const featuredInfluencers: readonly FeaturedInfluencer[] = [
   },
 ];
 
-/** The five cards fanned out behind the Explore headline. */
-export const heroFan = ["ocean", "flowers", "portrait", "sneakers", "architecture"] as const;
+/** Five template portraits fanned out behind the Explore headline, including a male and animal character. */
+export const heroFan = [travelTemplate, beautyTemplate, fashionTemplate, streetwearTemplate, kittyTemplate] as const;
 
-/** Colour behind a skin, hair or eye option, used to tint the picture tiles. */
-export function swatchFor(key: TraitKey, value: string): string | undefined {
-  return traitGroups
-    .flatMap((group) => group.fields)
-    .find((field) => field.key === key)
-    ?.options.find((option) => option.value === value)?.swatch;
-}
+/** Pictures for the hair style tiles (and the gender tiles, which reuse them), by hair style value. */
+export const hairImages: Readonly<Record<string, StaticImageData>> = {
+  bob: bobHair,
+  braids: braidsHair,
+  "buzz-cut": buzzCutHair,
+  curly: curlyHair,
+  "long-waves": longWavesHair,
+  pixie: pixieHair,
+  "sleek-straight": sleekStraightHair,
+  "top-knot": topKnotHair,
+};
+
+/** Pictures for the character type tiles, by character value. */
+export const characterImages: Readonly<Record<string, StaticImageData>> = {
+  natural: naturalCharacter,
+  expressive: expressiveCharacter,
+  wild: wildCharacter,
+  kitty: kittyCharacter,
+  puppy: puppyCharacter,
+  froggy: froggyCharacter,
+  hamster: hamsterCharacter,
+  birdie: birdieCharacter,
+  bug: bugCharacter,
+};
+
+/** Pictures for the build tiles, by build value. */
+export const buildImages: Readonly<Record<string, StaticImageData>> = {
+  athletic: athleticBuild,
+  broad: broadBuild,
+  curvy: curvyBuild,
+  slim: slimBuild,
+};

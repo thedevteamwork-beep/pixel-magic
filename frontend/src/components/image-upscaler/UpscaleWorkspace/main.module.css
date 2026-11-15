@@ -1241,6 +1241,10 @@
   margin-top: 11px;
 }
 
+.previewInfoAccordion {
+  gap: 0;
+}
+
 .previewInfo summary {
   display: flex;
   align-items: center;

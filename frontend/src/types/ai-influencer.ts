@@ -1,7 +1,18 @@
+import type { StaticImageData } from "next/image";
 import type { MediaId } from "./landing";
 
 export type TraitKey =
-  "gender" | "age" | "ethnicity" | "skinTone" | "hairStyle" | "hairColor" | "eyeColor" | "build" | "outfit" | "setting";
+  | "character"
+  | "gender"
+  | "age"
+  | "ethnicity"
+  | "skinTone"
+  | "hairStyle"
+  | "hairColor"
+  | "eyeColor"
+  | "build"
+  | "outfit"
+  | "setting";
 
 export type InfluencerTraits = Record<TraitKey, string> & {
   name: string;
@@ -19,14 +30,14 @@ export type TraitOption = {
 };
 
 /** How a trait is drawn: plain chips, or picture tiles showing what each option means. */
-export type TileKind = "hair" | "body" | "photo" | "icon";
+export type TileKind = "character" | "hair" | "body" | "photo" | "icon";
 
 export type Archetype = {
   id: string;
   title: string;
   tagline: string;
-  asset: MediaId;
-  /** Which sample crop and tone this card uses. */
+  asset: StaticImageData;
+  /** Accent tint behind the image in the card. */
   tone: "peach" | "sage" | "plum" | "forest" | "paper";
   traits: Partial<InfluencerTraits>;
 };
@@ -41,7 +52,7 @@ export type InfluencerVariation = {
   position?: string;
 };
 
-export type StageView = "explore" | "result" | "history";
+export type StageView = "explore" | "result" | "templates" | "history";
 
 /** A ready-made persona shown on the Explore tab. Sample art only. */
 export type FeaturedInfluencer = {

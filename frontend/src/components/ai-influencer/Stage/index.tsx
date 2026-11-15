@@ -1,15 +1,15 @@
 "use client";
 
-import { Compass, History, Sparkles } from "lucide-react";
+import { Compass, History, LayoutGrid, Sparkles } from "lucide-react";
 import { ExploreView } from "../ExploreView";
 import { HistoryView } from "../HistoryView";
 import { useInfluencer } from "../InfluencerContext";
-import { PromptDock } from "../PromptDock";
 import { ResultView } from "../ResultView";
+import { TemplatesView } from "../TemplatesView";
 import { StageTabs, type StageTab } from "./StageTabs";
 import styles from "./main.module.css";
 
-/** Right-hand stage: Explore sample looks, see the current result, or open saved influencers. */
+/** Right-hand stage: explore influencers, choose a template, view results, or open saved influencers. */
 export function Stage() {
   const { state, dispatch } = useInfluencer();
   // An open project keeps its Result tab even before its first portrait, and the shown view always has its tab.
@@ -18,6 +18,7 @@ export function Stage() {
   const tabs: StageTab[] = [
     { id: "explore", label: "Explore", icon: Compass },
     ...(showResult ? [{ id: "result" as const, label: "Result", icon: Sparkles }] : []),
+    { id: "templates", label: "Templates", icon: LayoutGrid },
     { id: "history", label: "History", icon: History, count: state.projects.length },
   ];
 
@@ -33,9 +34,9 @@ export function Stage() {
       >
         {state.view === "explore" && <ExploreView />}
         {state.view === "result" && <ResultView />}
+        {state.view === "templates" && <TemplatesView />}
         {state.view === "history" && <HistoryView />}
       </div>
-      <PromptDock />
     </section>
   );
 }

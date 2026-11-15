@@ -54,18 +54,23 @@
   margin: 0;
 }
 
-.footerBottom details {
+.creditsAccordion {
+  gap: 0;
   max-width: 390px;
   margin-left: auto;
   text-align: right;
 }
 
-.footerBottom details p {
+.creditsItem {
+  max-width: 390px;
+}
+
+.creditsItem p {
   padding-top: 10px;
   line-height: 1.8;
 }
 
-.footerBottom details a {
+.creditsItem a {
   text-decoration: underline;
 }
 
@@ -82,7 +87,7 @@
     flex-wrap: wrap;
     gap: 16px;
   }
-  .footerBottom details {
+  .creditsAccordion {
     order: 3;
     flex-basis: 100%;
     max-width: none;

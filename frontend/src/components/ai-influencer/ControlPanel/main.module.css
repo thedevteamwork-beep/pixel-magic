@@ -38,55 +38,68 @@
   border-top: 1px solid var(--border);
 }
 
-.model {
+.prompt {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.promptHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.model label {
-  flex-shrink: 0;
+.promptHead label {
   color: var(--subtle);
   font-size: var(--fs-sm);
   font-weight: 500;
 }
 
-.select {
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  min-width: 0;
+.promptCount {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
 }
 
-.select select {
-  appearance: none;
+.promptInput {
   width: 100%;
-  min-height: 38px;
-  padding: 8px 30px 8px 12px;
+  min-height: 44px;
+  padding: 9px 12px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--foreground);
   font: inherit;
   font-size: var(--fs-sm);
-  text-overflow: ellipsis;
+  line-height: 1.5;
+  resize: none;
+  transition: border-color 0.18s;
 }
 
-.select select:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+.promptInput::placeholder {
+  color: var(--muted);
 }
 
-.select select:disabled {
+.promptInput:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.promptInput:disabled {
   opacity: 0.6;
 }
 
-.select svg {
-  position: absolute;
-  right: 11px;
-  color: var(--muted);
-  pointer-events: none;
+.promptInput[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.promptError {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
 }
 
 .actions {
@@ -144,6 +157,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .promptInput,
   .shuffle,
   .generate {
     transition: none;

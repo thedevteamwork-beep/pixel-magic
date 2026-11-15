@@ -36,6 +36,12 @@ describe("ai-influencer data", () => {
     expect(out.archetypeId).toBe("street");
   });
 
+  it("accepts the character type trait", () => {
+    expect(
+      aiInfluencer.data.parse({ traits: { character: "kitty" } }).traits,
+    ).toEqual({ character: "kitty" });
+  });
+
   it.each([
     ["unknown trait key", { traits: { wings: "yes" } }],
     ["trait too long", { traits: { gender: "x".repeat(41) } }],

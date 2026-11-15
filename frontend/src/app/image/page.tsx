@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ImageWorkspace } from "@/components/image-generator/ImageWorkspace";
+import { ImageWorkspace } from "@/components/image-generator";
 import { defaultImageSettings, imageInspirations, imageModels } from "@/constants/image-generator";
 
 export const metadata: Metadata = {
