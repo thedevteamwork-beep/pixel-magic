@@ -24,26 +24,15 @@ export function publicEnv(): {
   supabaseUrl: string;
   supabasePublishableKey: string;
 } {
-  const apiUrl = required(
-    "NEXT_PUBLIC_API_URL",
-    process.env.NEXT_PUBLIC_API_URL,
-  );
+  const apiUrl = required("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
   const supabaseEnabled = isSupabaseEnabled();
   return {
     apiUrl: apiUrl.replace(/\/$/, ""),
     supabaseEnabled,
     // The keys are only needed while Supabase is on.
-    supabaseUrl: supabaseEnabled
-      ? required(
-          "NEXT_PUBLIC_SUPABASE_URL",
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-        )
-      : "",
+    supabaseUrl: supabaseEnabled ? required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL) : "",
     supabasePublishableKey: supabaseEnabled
-      ? required(
-          "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-        )
+      ? required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
       : "",
   };
 }
@@ -56,15 +45,10 @@ export function paddleEnv(): {
   clientToken: string;
   environment: "sandbox" | "production";
 } {
-  const clientToken = required(
-    "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN",
-    process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-  );
+  const clientToken = required("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN);
   const environment = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
   if (environment !== "sandbox" && environment !== "production") {
-    throw new Error(
-      `NEXT_PUBLIC_PADDLE_ENV must be "sandbox" or "production", got "${environment}"`,
-    );
+    throw new Error(`NEXT_PUBLIC_PADDLE_ENV must be "sandbox" or "production", got "${environment}"`);
   }
   return { clientToken, environment };
 }

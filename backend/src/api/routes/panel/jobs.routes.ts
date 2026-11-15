@@ -13,6 +13,7 @@ import { validate } from "../../middlewares/validate.js";
 // The input's fields are checked against the operation's schema in createJob.
 const createBody = z.strictObject({
   input: z.record(z.string(), z.unknown()),
+  projectId: z.string().uuid().optional(),
 });
 
 const idempotencyKey = z.string().min(1).max(200);
@@ -21,6 +22,7 @@ const jobId = z.string().uuid();
 const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().min(1).optional(),
+  projectId: z.string().uuid().optional(),
 });
 
 export function jobsRoutes(deps: Deps): Router {
@@ -41,7 +43,12 @@ export function jobsRoutes(deps: Deps): Router {
       const { status, job } = await createJob(
         deps,
         req.user!.id,
-        { plugin, operation, input: body.input },
+        {
+          plugin,
+          operation,
+          input: body.input,
+          projectId: body.projectId,
+        },
         key,
       );
       res.status(status).json(job);
@@ -49,11 +56,12 @@ export function jobsRoutes(deps: Deps): Router {
   );
 
   router.get("/jobs", async (req, res) => {
-    const { limit, cursor } = listQuery.parse(req.query);
+    const { limit, cursor, projectId } = listQuery.parse(req.query);
     // One extra row tells us whether another page exists.
     const rows = await listUserJobs(deps.db, req.user!.id, {
       limit: limit + 1,
       before: cursor ? decodeCursor(cursor) : undefined,
+      projectId,
     });
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
@@ -61,7 +69,7 @@ export function jobsRoutes(deps: Deps): Router {
       jobs: await jobViews(deps, page),
       nextCursor:
         rows.length > limit
-          ? encodeCursor({ createdAt: last.created_at, id: last.id })
+          ? encodeCursor({ at: last.created_at, id: last.id })
           : null,
     });
   });

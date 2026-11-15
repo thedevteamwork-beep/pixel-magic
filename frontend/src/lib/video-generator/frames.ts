@@ -1,4 +1,11 @@
-import { CLIP_MIME_TYPES, FRAME_MIME_TYPES, MAX_CLIP_BYTES, MAX_CLIP_SECONDS, MAX_FRAME_BYTES, MIN_CLIP_SECONDS } from "@/constants/video-generator";
+import {
+  CLIP_MIME_TYPES,
+  FRAME_MIME_TYPES,
+  MAX_CLIP_BYTES,
+  MAX_CLIP_SECONDS,
+  MAX_FRAME_BYTES,
+  MIN_CLIP_SECONDS,
+} from "@/components/video-generator/constants";
 import type { FrameImage, MotionClip } from "@/types/video-generator";
 
 export class FrameError extends Error {}
@@ -13,12 +20,22 @@ async function decode(url: string): Promise<{ width: number; height: number }> {
 
 /** Decode a local file into a frame. The object URL is owned by the caller. */
 export async function loadFrameFile(file: File): Promise<FrameImage> {
-  if (!FRAME_MIME_TYPES.some((type) => type === file.type)) throw new FrameError(`${file.name}: choose a JPG, PNG, or WebP image.`);
-  if (!file.size || file.size > MAX_FRAME_BYTES) throw new FrameError(`${file.name}: choose an image smaller than 20 MB.`);
+  if (!FRAME_MIME_TYPES.some((type) => type === file.type))
+    throw new FrameError(`${file.name}: choose a JPG, PNG, or WebP image.`);
+  if (!file.size || file.size > MAX_FRAME_BYTES)
+    throw new FrameError(`${file.name}: choose an image smaller than 20 MB.`);
   const url = URL.createObjectURL(file);
   try {
     const size = await decode(url);
-    return { id: crypto.randomUUID(), url, name: file.name, mimeType: file.type, size: file.size, source: "upload", ...size };
+    return {
+      id: crypto.randomUUID(),
+      url,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+      source: "upload",
+      ...size,
+    };
   } catch {
     URL.revokeObjectURL(url);
     throw new FrameError(`${file.name} couldn’t be opened. Try another image.`);
@@ -31,7 +48,15 @@ export async function loadSampleFrame(url: string, name: string, signal?: AbortS
   if (!response.ok) throw new FrameError("That sample couldn’t be added. Please try again.");
   const blob = await response.blob();
   const size = await decode(url);
-  return { id: crypto.randomUUID(), url, name, mimeType: blob.type || "image/jpeg", size: blob.size, source: "sample", ...size };
+  return {
+    id: crypto.randomUUID(),
+    url,
+    name,
+    mimeType: blob.type || "image/jpeg",
+    size: blob.size,
+    source: "sample",
+    ...size,
+  };
 }
 
 /** Grab the frame currently shown by a same-origin video. The object URL is owned by the caller. */
@@ -45,30 +70,47 @@ export async function captureVideoFrame(video: HTMLVideoElement, name: string): 
   canvas.getContext("2d")?.drawImage(video, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
   if (!blob) throw new FrameError("That frame couldn’t be captured. Please try again.");
-  return { id: crypto.randomUUID(), url: URL.createObjectURL(blob), name, mimeType: "image/jpeg", size: blob.size, source: "capture", width, height };
+  return {
+    id: crypto.randomUUID(),
+    url: URL.createObjectURL(blob),
+    name,
+    mimeType: "image/jpeg",
+    size: blob.size,
+    source: "capture",
+    width,
+    height,
+  };
 }
 
 /** Read a local motion clip's length and shape. The object URL is owned by the caller. */
 export async function loadClipFile(file: File): Promise<MotionClip> {
-  if (!CLIP_MIME_TYPES.some((type) => type === file.type)) throw new FrameError(`${file.name}: choose an MP4, MOV, or WebM clip.`);
-  if (!file.size || file.size > MAX_CLIP_BYTES) throw new FrameError(`${file.name}: choose a clip smaller than 100 MB.`);
+  if (!CLIP_MIME_TYPES.some((type) => type === file.type))
+    throw new FrameError(`${file.name}: choose an MP4, MOV, or WebM clip.`);
+  if (!file.size || file.size > MAX_CLIP_BYTES)
+    throw new FrameError(`${file.name}: choose a clip smaller than 100 MB.`);
   const url = URL.createObjectURL(file);
   try {
     const meta = await new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
       const video = document.createElement("video");
       video.preload = "metadata";
       video.muted = true;
-      video.onloadedmetadata = () => resolve({ duration: video.duration, width: video.videoWidth, height: video.videoHeight });
+      video.onloadedmetadata = () =>
+        resolve({ duration: video.duration, width: video.videoWidth, height: video.videoHeight });
       video.onerror = () => reject(new FrameError("Unreadable clip"));
       video.src = url;
     });
-    if (!Number.isFinite(meta.duration) || !meta.width) throw new FrameError(`${file.name} couldn’t be opened. Try another clip.`);
+    if (!Number.isFinite(meta.duration) || !meta.width)
+      throw new FrameError(`${file.name} couldn’t be opened. Try another clip.`);
     if (meta.duration < MIN_CLIP_SECONDS || meta.duration > MAX_CLIP_SECONDS) {
-      throw new FrameError(`Use a clip between ${MIN_CLIP_SECONDS} and ${MAX_CLIP_SECONDS} seconds; this one is ${Math.round(meta.duration)}s.`);
+      throw new FrameError(
+        `Use a clip between ${MIN_CLIP_SECONDS} and ${MAX_CLIP_SECONDS} seconds; this one is ${Math.round(meta.duration)}s.`,
+      );
     }
     return { id: crypto.randomUUID(), url, name: file.name, mimeType: file.type, size: file.size, ...meta };
   } catch (error) {
     URL.revokeObjectURL(url);
-    throw error instanceof FrameError && !error.message.startsWith("Unreadable") ? error : new FrameError(`${file.name} couldn’t be opened. Try another clip.`);
+    throw error instanceof FrameError && !error.message.startsWith("Unreadable")
+      ? error
+      : new FrameError(`${file.name} couldn’t be opened. Try another clip.`);
   }
 }

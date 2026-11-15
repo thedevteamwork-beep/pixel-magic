@@ -17,11 +17,11 @@ type UpscaleSettings = {
 };
 ```
 
-| UI model | Enabled preview scales | Advanced settings |
-| --- | --- | --- |
-| ByteDance Upscale | 2×, 4× | All advanced fields `null` |
-| Topaz (default) | 1×, 2×, 4×, 8× | Precision preset, sharpness, denoise, face enhancement |
-| Topaz Generative (Premium label) | 1×, 2×, 4× | Generative preset; sharpness/denoise only for Redefine; face control except Wonder 4 |
+| UI model                         | Enabled preview scales | Advanced settings                                                                    |
+| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| ByteDance Upscale                | 2×, 4×                 | All advanced fields `null`                                                           |
+| Topaz (default)                  | 1×, 2×, 4×, 8×         | Precision preset, sharpness, denoise, face enhancement                               |
+| Topaz Generative (Premium label) | 1×, 2×, 4×             | Generative preset; sharpness/denoise only for Redefine; face control except Wonder 4 |
 
 16× is disabled for all models; also disable unsupported or oversized choices. Defaults: Topaz, 1×, `preset: "Standard V2"` displayed as **Standard**, sharpness 50, denoise 20, face enhancement off. Numeric controls use 0–100; unsupported settings are `null`. Reset restores settings while retaining the file and existing result.
 
@@ -58,11 +58,11 @@ Validate exact keys, PNG/JPEG/WebP metadata, integer dimensions/size, model-spec
 
 These are **local implementation caps, not provider limits**:
 
-| Constraint | Input | Output |
-| --- | --- | --- |
-| File size | Up to 20 MiB (`20 × 1024²` bytes) | Determined by browser encoding |
-| Longest edge | Up to 8,192px | Up to 8,192px |
-| Pixel count | Up to 33,554,432 (`32 × 1024²`) | Up to 33,554,432 |
+| Constraint   | Input                             | Output                         |
+| ------------ | --------------------------------- | ------------------------------ |
+| File size    | Up to 20 MiB (`20 × 1024²` bytes) | Determined by browser encoding |
+| Longest edge | Up to 8,192px                     | Up to 8,192px                  |
+| Pixel count  | Up to 33,554,432 (`32 × 1024²`)   | Up to 33,554,432               |
 
 Check output caps before allocating canvas. Share client/server limits. Test compatibility, boundaries, fixed PNG, settings echoes, zero credits, and metadata-only requests.
 

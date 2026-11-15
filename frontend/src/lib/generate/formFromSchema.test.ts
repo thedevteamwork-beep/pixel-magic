@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildOptions,
-  defaultOptions,
-  imageField,
-  imageFieldName,
-  optionFields,
-} from "@/lib/generate/formFromSchema";
+import { buildOptions, defaultOptions, imageField, imageFieldName, optionFields } from "@/lib/generate/formFromSchema";
 import { fluxSchnell, kling21 } from "@/lib/generate/fixtures";
 
 describe("defaultOptions", () => {

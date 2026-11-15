@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { createDb } from "../../src/db/knex.js";
 import { migrationConfig, runMigrations } from "../../src/db/migrate.js";
@@ -37,6 +38,30 @@ describe("migrations", () => {
       "knex_migrations",
       "knex_migrations_lock",
     ]);
+  });
+
+  it("adds a nullable project_id to jobs that is set to null when its project goes", async () => {
+    const userId = randomUUID();
+    await testDb(T.profiles).insert({ id: userId });
+    const [project] = await testDb(T.projects)
+      .insert({ user_id: userId, type: "ai-influencer", title: "Mia" })
+      .returning("id");
+    const [job] = await testDb(T.jobs)
+      .insert({
+        user_id: userId,
+        model_key: "m",
+        input: {},
+        credit_cost: 1,
+        status: "queued",
+        idempotency_key: randomUUID(),
+        request_hash: "h",
+        project_id: project.id,
+      })
+      .returning("id");
+    await testDb(T.projects).where({ id: project.id }).delete();
+    const row = await testDb(T.jobs).where({ id: job.id }).first();
+    expect(row).toBeDefined();
+    expect(row.project_id).toBeNull();
   });
 
   it("rolls all the way down and up again", async () => {

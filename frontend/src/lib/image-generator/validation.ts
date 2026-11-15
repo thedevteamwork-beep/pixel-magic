@@ -30,7 +30,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Accept descriptors only; uploaded files and remote URLs never enter this demo API. */
 export function validateImageGenerationRequest(input: unknown): ImageGenerationValidation {
   if (!isRecord(input)) {
-    return { ok: false, error: { code: "VALIDATION_ERROR", message: "Send an object containing image settings and reference metadata." } };
+    return {
+      ok: false,
+      error: { code: "VALIDATION_ERROR", message: "Send an object containing image settings and reference metadata." },
+    };
   }
 
   const record = input;
@@ -72,7 +75,10 @@ export function validateImageGenerationRequest(input: unknown): ImageGenerationV
     return minimum;
   }
 
-  const model = choice("model", imageModels.map((item) => item.id));
+  const model = choice(
+    "model",
+    imageModels.map((item) => item.id),
+  );
   const prompt = text("prompt", MAX_PROMPT_LENGTH, true);
   const mode = choice("mode", ["create", "edit"] as const);
   const aspectRatio = choice("aspectRatio", aspectRatios);
@@ -103,7 +109,11 @@ export function validateImageGenerationRequest(input: unknown): ImageGenerationV
         return;
       }
       const { id, mimeType, size } = reference;
-      if (typeof id !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(id) || /^(?:https?:|data:|blob:)/i.test(id)) {
+      if (
+        typeof id !== "string" ||
+        !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(id) ||
+        /^(?:https?:|data:|blob:)/i.test(id)
+      ) {
         fields[`${field}.id`] = "Use a reference ID of 1–128 letters, numbers, or ID punctuation.";
       } else if (ids.has(id)) {
         fields[`${field}.id`] = "Reference IDs must be unique.";
@@ -124,14 +134,31 @@ export function validateImageGenerationRequest(input: unknown): ImageGenerationV
   }
 
   if (Object.keys(fields).length > 0) {
-    return { ok: false, error: { code: "VALIDATION_ERROR", message: "Check the image settings and try again.", fields } };
+    return {
+      ok: false,
+      error: { code: "VALIDATION_ERROR", message: "Check the image settings and try again.", fields },
+    };
   }
 
   return {
     ok: true,
     data: {
-      model, prompt, mode, aspectRatio, resolution, quality, count, queue, style, seed,
-      negativePrompt, enhancePrompt, private: privateOutput, format, background, references,
+      model,
+      prompt,
+      mode,
+      aspectRatio,
+      resolution,
+      quality,
+      count,
+      queue,
+      style,
+      seed,
+      negativePrompt,
+      enhancePrompt,
+      private: privateOutput,
+      format,
+      background,
+      references,
     },
   };
 }

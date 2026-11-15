@@ -36,35 +36,40 @@ Tests never touch the network (fal, Storage and the queue are faked). They use `
 API routes live in `src/api/routes/`, one `*.routes.ts` file per area:
 
 - `public/`: APIs anyone can call, no login (plans, add-ons, models, credit estimate).
-- `panel/`: APIs for the logged-in app user (me, billing, uploads, jobs). `panel/index.ts` applies the login guard once per area.
+- `panel/`: APIs for the logged-in app user (me, billing, uploads, jobs, projects). `panel/index.ts` applies the login guard once per area.
 - `health.routes.ts` and `webhooks.routes.ts` stay at the top: they are not user APIs.
 
 Route files only parse and validate; the logic is in `src/services/`.
 
 ## Endpoints
 
-| Where  | Endpoint                                           | Notes                                                             |
-| ------ | -------------------------------------------------- | ----------------------------------------------------------------- |
-| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                                   |
-| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                                    |
-| api    | `GET /v1/me`                                       | credits and subscription (auth)                                   |
-| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                                 |
-| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                             |
-| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`)        |
-| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                            |
-| api    | `GET /v1/billing/invoices`                         | paid invoices                                                     |
-| api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth)       |
-| api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)                 |
-| api    | `POST /v1/credits/estimate/:plugin/:operation`     | price a job before creating it (public, see Credit pricing)       |
-| api    | `POST /v1/jobs/:plugin/:operation`                 | `{input}`: create a job; `Idempotency-Key` header required (auth) |
-| api    | `GET /v1/jobs`                                     | list your jobs, newest first, with `limit`/`cursor` (auth)        |
-| api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)             |
-| api    | `POST /webhooks/paddle`                            | signed Paddle events                                              |
-| api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)          |
-| worker | `GET /_healthz`, `GET /_readyz`                    |                                                                   |
-| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                                |
-| worker | `POST /tasks/reconcile`                            | recovers stuck jobs (every 5 minutes)                             |
-| worker | `POST /tasks/generate`, `POST /tasks/finalize`     | `{jobId}`; called by the task queue                               |
+| Where  | Endpoint                                           | Notes                                                                                              |
+| ------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| api    | `GET /_healthz`, `GET /_readyz`                    | liveness, readiness (checks DB)                                                                    |
+| api    | `GET /v1/plans`, `GET /v1/addons`                  | public catalog                                                                                     |
+| api    | `GET /v1/me`                                       | credits and subscription (auth)                                                                    |
+| api    | `POST /v1/billing/addons`                          | buy an add-on, returns a checkout                                                                  |
+| api    | `GET /v1/billing/subscription/preview?plan=`       | preview a plan change                                                                              |
+| api    | `POST /v1/billing/subscription`                    | `{plan}`: checkout, schedule downgrade, or cancel (`free`)                                         |
+| api    | `DELETE /v1/billing/subscription/scheduled-change` | revert a scheduled downgrade or cancel                                                             |
+| api    | `GET /v1/billing/invoices`                         | paid invoices                                                                                      |
+| api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth)                                        |
+| api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)                                                  |
+| api    | `POST /v1/credits/estimate/:plugin/:operation`     | price a job before creating it (public, see Credit pricing)                                        |
+| api    | `POST /v1/projects`                                | `{type, title, data?}`: create a project (auth)                                                    |
+| api    | `GET /v1/projects`                                 | list your projects, newest updated first, with `type`/`limit`/`cursor` and a signed `cover` (auth) |
+| api    | `GET /v1/projects/:id`                             | one project (auth)                                                                                 |
+| api    | `PATCH /v1/projects/:id`                           | `{title?, data?}`: rename or replace `data` (auth)                                                 |
+| api    | `DELETE /v1/projects/:id`                          | delete a project; its jobs stay, unlinked (auth)                                                   |
+| api    | `POST /v1/jobs/:plugin/:operation`                 | `{input, projectId?}`: create a job; `Idempotency-Key` header required (auth)                      |
+| api    | `GET /v1/jobs`                                     | list your jobs, newest first, with `limit`/`cursor`, `?projectId=` (auth)                          |
+| api    | `GET /v1/jobs/:id`                                 | status, plus signed output URLs once completed (auth)                                              |
+| api    | `POST /webhooks/paddle`                            | signed Paddle events                                                                               |
+| api    | `POST /webhooks/fal`                               | signed fal events (`?jobId=` links a request, see below)                                           |
+| worker | `GET /_healthz`, `GET /_readyz`                    |                                                                                                    |
+| worker | `POST /tasks/billing-sweep`                        | hourly sweep (see Cloud Scheduler)                                                                 |
+| worker | `POST /tasks/reconcile`                            | recovers stuck jobs (every 5 minutes)                                                              |
+| worker | `POST /tasks/generate`, `POST /tasks/finalize`     | `{jobId}`; called by the task queue                                                                |
 
 A user needs an email to buy. Users without one get `422 VALIDATION_FAILED`.
 

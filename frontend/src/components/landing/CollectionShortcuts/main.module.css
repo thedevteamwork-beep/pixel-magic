@@ -1,0 +1,85 @@
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.shortcuts a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 19px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.shortcuts a:hover {
+  background: var(--surface-raised);
+  border-color: var(--primary);
+}
+
+.shortcuts strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.shortcuts small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.shortcutIcon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.shortcutNumber {
+  display: none;
+}
+
+.shortcutArrow {
+  color: var(--muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) {
+  .shortcuts a {
+    padding: 16px 13px;
+    gap: 10px;
+  }
+  .shortcutArrow {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .shortcuts a {
+    padding: 14px 11px;
+  }
+  .shortcuts strong {
+    font-size: 11px;
+  }
+  .shortcuts small {
+    font-size: 9px;
+    line-height: 1.5;
+  }
+  .shortcutIcon {
+    width: 17px;
+  }
+}

@@ -57,15 +57,16 @@ function PaymentStatus({ transactionId }: { transactionId: string }) {
 
   return (
     <div className="text-center">
-      <p>
-        Your payment is still being confirmed. Credits appear within a few minutes; check your account page.
-      </p>
+      <p>Your payment is still being confirmed. Credits appear within a few minutes; check your account page.</p>
       <div className="mt-6 flex justify-center gap-3">
         <ButtonWithLink href="/account">View account</ButtonWithLink>
-        <Button variant="outline" onClick={() => {
+        <Button
+          variant="outline"
+          onClick={() => {
             setResult(null);
             setAttempt((n) => n + 1);
-          }}>
+          }}
+        >
           Check again
         </Button>
       </div>

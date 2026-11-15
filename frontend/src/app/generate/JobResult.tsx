@@ -15,8 +15,16 @@ export function JobResult({ job, waiting, error, onCheckAgain }: JobResultProps)
   return (
     <section className="mt-8 flex flex-col gap-4" aria-live="polite">
       {!job && waiting && <p className="text-sm">Waiting for status…</p>}
-      {job && <p className="text-sm">Status: {job.status} · {job.creditCost} credits</p>}
-      {error != null && <p role="alert" className="text-sm text-red-500">{messageForError(error)}</p>}
+      {job && (
+        <p className="text-sm">
+          Status: {job.status} · {job.creditCost} credits
+        </p>
+      )}
+      {error != null && (
+        <p role="alert" className="text-sm text-red-500">
+          {messageForError(error)}
+        </p>
+      )}
       {error instanceof PollLostError && <CheckAgain onClick={onCheckAgain} />}
       {job?.status === "completed" && <Outputs outputs={job.outputs} />}
     </section>

@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import type { JobRow, JobStatus } from "../rows.js";
 import { ACTIVE_JOB_STATUSES } from "../rows.js";
+import type { PageCursor } from "../../services/jobs/cursor.js";
 import { T } from "../tables.js";
 
 type Db = Knex | Knex.Transaction;
@@ -13,6 +14,7 @@ export type NewJob = {
   credit_cost: number;
   idempotency_key: string;
   request_hash: string;
+  project_id: string | null;
   now: Date;
 };
 
@@ -61,7 +63,7 @@ export async function getUserJob(
 export async function listUserJobs(
   db: Db,
   userId: string,
-  p: { limit: number; before?: { createdAt: Date; id: string } },
+  p: { limit: number; before?: PageCursor; projectId?: string },
 ): Promise<JobRow[]> {
   const query = db(T.jobs)
     .where("user_id", userId)
@@ -70,11 +72,9 @@ export async function listUserJobs(
       { column: "id", order: "desc" },
     ])
     .limit(p.limit);
+  if (p.projectId) query.where("project_id", p.projectId);
   if (p.before) {
-    query.whereRaw("(created_at, id) < (?, ?)", [
-      p.before.createdAt,
-      p.before.id,
-    ]);
+    query.whereRaw("(created_at, id) < (?, ?)", [p.before.at, p.before.id]);
   }
   return query;
 }

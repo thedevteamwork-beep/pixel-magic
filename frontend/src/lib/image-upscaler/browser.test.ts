@@ -4,12 +4,22 @@ import { calculateUpscaleOutput } from "./limits";
 
 const origin = "https://pixel.example";
 const sourceUrl = `blob:${origin}/local-source`;
-const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])], "image.png", { type: "image/png" });
+const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])], "image.png", {
+  type: "image/png",
+});
 
-function bitmap() { return { width: 120, height: 80, close: vi.fn() } as unknown as ImageBitmap; }
+function bitmap() {
+  return { width: 120, height: 80, close: vi.fn() } as unknown as ImageBitmap;
+}
 let decoded: ImageBitmap;
 let createBitmap: ReturnType<typeof vi.fn<typeof createImageBitmap>>;
-let context: { imageSmoothingEnabled: boolean; imageSmoothingQuality: string; fillStyle: string; fillRect: ReturnType<typeof vi.fn>; drawImage: ReturnType<typeof vi.fn> };
+let context: {
+  imageSmoothingEnabled: boolean;
+  imageSmoothingQuality: string;
+  fillStyle: string;
+  fillRect: ReturnType<typeof vi.fn>;
+  drawImage: ReturnType<typeof vi.fn>;
+};
 let canvas: { width: number; height: number; getContext: ReturnType<typeof vi.fn>; toBlob: ReturnType<typeof vi.fn> };
 let revoke: ReturnType<typeof vi.spyOn>;
 
@@ -20,12 +30,29 @@ beforeEach(() => {
   vi.stubGlobal("window", { location: { origin } });
   vi.spyOn(URL, "createObjectURL").mockReturnValue(sourceUrl);
   revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-  context = { imageSmoothingEnabled: false, imageSmoothingQuality: "low", fillStyle: "", fillRect: vi.fn(), drawImage: vi.fn() };
-  canvas = { width: 0, height: 0, getContext: vi.fn(() => context), toBlob: vi.fn((callback: BlobCallback, type: string) => callback(new Blob(["encoded"], { type }))) };
+  context = {
+    imageSmoothingEnabled: false,
+    imageSmoothingQuality: "low",
+    fillStyle: "",
+    fillRect: vi.fn(),
+    drawImage: vi.fn(),
+  };
+  canvas = {
+    width: 0,
+    height: 0,
+    getContext: vi.fn(() => context),
+    toBlob: vi.fn((callback: BlobCallback, type: string) => callback(new Blob(["encoded"], { type }))),
+  };
   vi.stubGlobal("document", { createElement: vi.fn(() => canvas) });
-  vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(file, { headers: { "Content-Type": file.type } })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>().mockResolvedValue(new Response(file, { headers: { "Content-Type": file.type } })),
+  );
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("local upscale browser resources", () => {
   it("returns a caller-owned preview URL and closes the decoded bitmap", async () => {
@@ -43,7 +70,12 @@ describe("local upscale browser resources", () => {
 
   it("closes a late bitmap after cancellation without leaking an object URL", async () => {
     let complete!: (value: ImageBitmap) => void;
-    createBitmap.mockImplementation(() => new Promise((resolve) => { complete = resolve; }));
+    createBitmap.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
     const controller = new AbortController();
     const loading = loadUpscaleFile(file, controller.signal);
     await vi.waitFor(() => expect(createBitmap).toHaveBeenCalled());
@@ -72,8 +104,16 @@ describe("local upscale browser resources", () => {
   });
 
   it("rejects unsupported browser encoding fallbacks and still releases resources", async () => {
-    canvas.toBlob.mockImplementation((callback: BlobCallback) => callback(new Blob(["wrong codec"], { type: "image/png" })));
-    await expect(resizeUpscaleImage(sourceUrl, calculateUpscaleOutput({ width: 120, height: 80 }, 2, "webp"), new AbortController().signal)).rejects.toThrow("couldn’t export WEBP");
+    canvas.toBlob.mockImplementation((callback: BlobCallback) =>
+      callback(new Blob(["wrong codec"], { type: "image/png" })),
+    );
+    await expect(
+      resizeUpscaleImage(
+        sourceUrl,
+        calculateUpscaleOutput({ width: 120, height: 80 }, 2, "webp"),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow("couldn’t export WEBP");
     expect(decoded.close).toHaveBeenCalledOnce();
     expect(canvas.width).toBe(0);
     expect(canvas.height).toBe(0);
@@ -81,9 +121,15 @@ describe("local upscale browser resources", () => {
 
   it("releases resources immediately when canceled during asynchronous encoding", async () => {
     let finish!: BlobCallback;
-    canvas.toBlob.mockImplementation((callback: BlobCallback) => { finish = callback; });
+    canvas.toBlob.mockImplementation((callback: BlobCallback) => {
+      finish = callback;
+    });
     const controller = new AbortController();
-    const resizing = resizeUpscaleImage(sourceUrl, calculateUpscaleOutput({ width: 120, height: 80 }, 2, "png"), controller.signal);
+    const resizing = resizeUpscaleImage(
+      sourceUrl,
+      calculateUpscaleOutput({ width: 120, height: 80 }, 2, "png"),
+      controller.signal,
+    );
     await vi.waitFor(() => expect(canvas.toBlob).toHaveBeenCalled());
     controller.abort();
     await expect(resizing).rejects.toMatchObject({ name: "AbortError" });
@@ -95,7 +141,13 @@ describe("local upscale browser resources", () => {
   });
 
   it("refuses remote source URLs before any fetch", async () => {
-    await expect(resizeUpscaleImage("https://outside.example/image.png", calculateUpscaleOutput({ width: 120, height: 80 }, 2, "png"), new AbortController().signal)).rejects.toThrow("local image");
+    await expect(
+      resizeUpscaleImage(
+        "https://outside.example/image.png",
+        calculateUpscaleOutput({ width: 120, height: 80 }, 2, "png"),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow("local image");
     expect(fetch).not.toHaveBeenCalled();
   });
 

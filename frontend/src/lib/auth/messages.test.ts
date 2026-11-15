@@ -58,13 +58,12 @@ describe("auth error messages", () => {
     expect(emailExists).not.toMatch(/already exists/i);
   });
 
-  it.each([
-    { code: "over_email_send_rate_limit" },
-    { code: "over_request_rate_limit" },
-    { status: 429 },
-  ])("recognizes rate limits from either a provider code or HTTP status: %j", (error) => {
-    expect(authErrorMessage(error)).toBe("A few too many attempts. Wait a minute, then try again.");
-  });
+  it.each([{ code: "over_email_send_rate_limit" }, { code: "over_request_rate_limit" }, { status: 429 }])(
+    "recognizes rate limits from either a provider code or HTTP status: %j",
+    (error) => {
+      expect(authErrorMessage(error)).toBe("A few too many attempts. Wait a minute, then try again.");
+    },
+  );
 
   it.each([new TypeError("Failed to fetch private endpoint"), { name: "AuthRetryableFetchError" }])(
     "turns network failures into connection guidance",
@@ -76,8 +75,13 @@ describe("auth error messages", () => {
     (code) => expect(authErrorMessage({ code })).toBe("This link has expired. Request a fresh link to continue."),
   );
 
-  it.each([new Error("Sensitive server diagnostic"), { code: "unrecognized_provider_code", message: "Sensitive server diagnostic" }, null, undefined, "private diagnostic"])(
-    "keeps unexpected failures generic",
-    (error) => expect(authErrorMessage(error)).toBe("Something interrupted that attempt. Please try again."),
+  it.each([
+    new Error("Sensitive server diagnostic"),
+    { code: "unrecognized_provider_code", message: "Sensitive server diagnostic" },
+    null,
+    undefined,
+    "private diagnostic",
+  ])("keeps unexpected failures generic", (error) =>
+    expect(authErrorMessage(error)).toBe("Something interrupted that attempt. Please try again."),
   );
 });

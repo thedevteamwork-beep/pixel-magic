@@ -7,7 +7,10 @@ const noStore = { "Cache-Control": "no-store" };
 class BodyTooLargeError extends Error {}
 
 function failure(code: string, message: string, status = 400, fields?: Record<string, string>) {
-  return Response.json({ ok: false, error: { code, message, ...(fields ? { fields } : {}) } }, { status, headers: noStore });
+  return Response.json(
+    { ok: false, error: { code, message, ...(fields ? { fields } : {}) } },
+    { status, headers: noStore },
+  );
 }
 
 async function readJSON(request: Request): Promise<unknown> {
@@ -30,7 +33,9 @@ async function readJSON(request: Request): Promise<unknown> {
       text += decoder.decode(value, { stream: true });
     }
     text += decoder.decode();
-  } finally { reader.releaseLock(); }
+  } finally {
+    reader.releaseLock();
+  }
   return JSON.parse(text);
 }
 
@@ -40,9 +45,11 @@ export async function POST(request: Request) {
     return failure("UNSUPPORTED_MEDIA_TYPE", "Send JSON image metadata only.", 415);
   }
   let input: unknown;
-  try { input = await readJSON(request); }
-  catch (error) {
-    if (error instanceof BodyTooLargeError) return failure("PAYLOAD_TOO_LARGE", "Send image metadata only, under 4 KiB.", 413);
+  try {
+    input = await readJSON(request);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError)
+      return failure("PAYLOAD_TOO_LARGE", "Send image metadata only, under 4 KiB.", 413);
     return failure("INVALID_JSON", "Send valid JSON image metadata.");
   }
   const result = validateUpscaleRequest(input);

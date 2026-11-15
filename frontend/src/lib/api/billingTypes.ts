@@ -64,10 +64,7 @@ export type CheckoutResult = {
 };
 
 export type PlanChangeResult =
-  | CheckoutResult
-  | { action: "scheduled"; effectiveAt: string }
-  | { action: "reverted" }
-  | { action: "canceled" };
+  CheckoutResult | { action: "scheduled"; effectiveAt: string } | { action: "reverted" } | { action: "canceled" };
 
 /** The preview endpoint answers 409 for "same", so that type never appears here. */
 export type PlanChangePreview = {

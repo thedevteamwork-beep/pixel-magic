@@ -2,14 +2,14 @@
 
 Created with the built-in image generation tool, using the approved compact-header mockup as the reference. These are reconstructed standalone photo assets, with UI labels removed. Next.js Image serves responsive optimized versions.
 
-| Asset | Saved file |
-| --- | --- |
-| Product | [public/media/image-studio/product.png](../public/media/image-studio/product.png) |
-| Portrait | [public/media/image-studio/portrait.png](../public/media/image-studio/portrait.png) |
-| Cinematic | [public/media/image-studio/cinematic.png](../public/media/image-studio/cinematic.png) |
-| Architecture | [public/media/image-studio/architecture.png](../public/media/image-studio/architecture.png) |
+| Asset        | Saved file                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------- |
+| Product      | [src/assets/images/image-studio/product.png](../src/assets/images/image-studio/product.png)           |
+| Portrait     | [src/assets/images/image-studio/portrait.png](../src/assets/images/image-studio/portrait.png)         |
+| Cinematic    | [src/assets/images/image-studio/cinematic.png](../src/assets/images/image-studio/cinematic.png)       |
+| Architecture | [src/assets/images/image-studio/architecture.png](../src/assets/images/image-studio/architecture.png) |
 
-The card artwork catalog is `src/constants/image-template-artwork.ts`. The same visuals appear in the four welcome cards and the template browser. Landing-page video posters and the mock generation endpoint keep their existing sample assets.
+The card artwork catalog is `src/components/image-generator/constants.ts`. The same visuals appear in the four welcome cards and the template browser. Landing-page video posters and the mock generation endpoint keep their existing sample assets.
 
 ## Final prompts
 

@@ -6,6 +6,7 @@ import {
   insertJob,
   transitionJob,
 } from "../../db/repositories/jobs.repo.js";
+import { touchProject } from "../../db/repositories/projects.repo.js";
 import {
   releaseCredits,
   reserveCredits,
@@ -17,12 +18,16 @@ import { canonicalJson, sha256Hex } from "../../lib/hash.js";
 import { getOperation } from "../../models/registry.js";
 import { uploadIdsIn } from "../../models/schemaGenerator.js";
 import { estimateCredits } from "../credits/estimate.js";
+import { DOWNLOAD_URL_TTL_SECONDS, signObjects } from "../signing.js";
+import { assertProjectAcceptsModel } from "../projects.js";
 import { resolveUploads } from "../uploads.js";
 
 export type JobView = {
   jobId: string;
   status: JobStatus;
   model: string;
+  /** The project the job belongs to, if any. */
+  projectId: string | null;
   creditCost: number;
   createdAt: Date;
   completedAt: Date | null;
@@ -31,7 +36,7 @@ export type JobView = {
   error?: { code: JobErrorCode; message: string };
 };
 
-export const DOWNLOAD_URL_TTL_SECONDS = 3600;
+export { DOWNLOAD_URL_TTL_SECONDS };
 
 /** The job as the client sees it. A completed job gets fresh signed output URLs. */
 export async function jobView(deps: Deps, job: JobRow): Promise<JobView> {
@@ -40,33 +45,16 @@ export async function jobView(deps: Deps, job: JobRow): Promise<JobView> {
 
 /** Views in the order of `jobs`; signs the outputs of all completed jobs with one call per bucket. */
 export async function jobViews(deps: Deps, jobs: JobRow[]): Promise<JobView[]> {
-  const expiresAt = new Date(
-    deps.clock.now().getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000,
+  const { urlFor, expiresAt } = await signObjects(
+    deps,
+    completedJobs(jobs).flatMap((job) => job.outputs ?? []),
   );
-
-  const pathsByBucket = new Map<string, string[]>();
-  for (const job of completedJobs(jobs)) {
-    for (const o of job.outputs ?? []) {
-      pathsByBucket.set(o.bucket, [
-        ...(pathsByBucket.get(o.bucket) ?? []),
-        o.path,
-      ]);
-    }
-  }
-  const urlByObject = new Map<string, string>();
-  for (const [bucket, paths] of pathsByBucket) {
-    const urls = await deps.storage.createSignedUrls(
-      bucket,
-      paths,
-      DOWNLOAD_URL_TTL_SECONDS,
-    );
-    paths.forEach((path, i) => urlByObject.set(`${bucket}/${path}`, urls[i]));
-  }
 
   return jobs.map((job) => ({
     jobId: job.id,
     status: job.status,
     model: job.model_key,
+    projectId: job.project_id,
     creditCost: job.credit_cost,
     createdAt: job.created_at,
     completedAt: job.completed_at,
@@ -75,7 +63,7 @@ export async function jobViews(deps: Deps, jobs: JobRow[]): Promise<JobView[]> {
         ? (job.outputs ?? []).map((o, index) => ({
             index,
             mimeType: o.mimeType,
-            url: urlByObject.get(`${o.bucket}/${o.path}`)!,
+            url: urlFor(o),
             expiresAt,
           }))
         : [],
@@ -92,7 +80,12 @@ function completedJobs(jobs: JobRow[]): JobRow[] {
 export async function createJob(
   deps: Deps,
   userId: string,
-  body: { plugin: string; operation: string; input: unknown },
+  body: {
+    plugin: string;
+    operation: string;
+    input: unknown;
+    projectId?: string;
+  },
   idempotencyKey: string,
 ): Promise<{ status: 200 | 202; job: JobView }> {
   const model = getOperation(body.plugin, body.operation);
@@ -112,7 +105,14 @@ export async function createJob(
     }
   }
 
-  const requestHash = sha256Hex(canonicalJson({ model: model.key, input }));
+  // projectId joins the hash only when sent, so jobs without one keep their old hash.
+  const requestHash = sha256Hex(
+    canonicalJson({
+      model: model.key,
+      input,
+      ...(body.projectId ? { projectId: body.projectId } : {}),
+    }),
+  );
   // The same function as POST /v1/credits/estimate, so the two always agree.
   const { creditsPerJob: creditCost } = estimateCredits(
     deps,
@@ -133,6 +133,14 @@ export async function createJob(
       }
       return { job: existing, created: false };
     }
+    if (body.projectId) {
+      await assertProjectAcceptsModel(
+        trx,
+        userId,
+        body.projectId,
+        model.schema.info.kind,
+      );
+    }
     if (
       (await countActiveJobs(trx, userId)) >=
       deps.config.MAX_ACTIVE_JOBS_PER_USER
@@ -148,9 +156,11 @@ export async function createJob(
       credit_cost: creditCost,
       idempotency_key: idempotencyKey,
       request_hash: requestHash,
+      project_id: body.projectId ?? null,
       now,
     });
     if (!row) throw new Error("Job insert conflicted under the profile lock");
+    if (body.projectId) await touchProject(trx, body.projectId, now);
     await reserveCredits(trx, {
       userId,
       jobId: row.id,

@@ -55,7 +55,11 @@ export function AddonCard({ addon, signedIn }: AddonCardProps) {
             Sign in to buy
           </ButtonWithLink>
         )}
-        {error && <p role="alert" className="mt-3 text-xs text-subtle">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-subtle">
+            {error}
+          </p>
+        )}
       </div>
     </li>
   );

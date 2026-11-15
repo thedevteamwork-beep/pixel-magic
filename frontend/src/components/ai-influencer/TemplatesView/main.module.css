@@ -1,0 +1,41 @@
+.templates {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 36px 28px;
+}
+
+.heading {
+  margin-bottom: 24px;
+}
+
+.heading p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.heading h2 {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.heading span {
+  display: block;
+  max-width: 580px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  .templates {
+    padding: 24px 14px;
+  }
+}

@@ -179,6 +179,16 @@ export interface UploadRow {
   updated_at: Date;
 }
 
+export interface ProjectRow {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  data: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface JobRow {
   id: string;
   user_id: string;
@@ -189,6 +199,7 @@ export interface JobRow {
   status: JobStatus;
   idempotency_key: string;
   request_hash: string;
+  project_id: string | null;
   fal_request_id: string | null;
   lease_expires_at: Date | null;
   attempts: number;

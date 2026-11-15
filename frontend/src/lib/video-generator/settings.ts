@@ -1,5 +1,12 @@
-import { videoModels, videoModes } from "@/constants/video-generator";
-import type { MotionClip, VideoMode, VideoModel, VideoResolution, VideoSettings } from "@/types/video-generator";
+import { videoModels, videoModes } from "@/components/video-generator/constants";
+import type {
+  MotionClip,
+  VideoMode,
+  VideoModel,
+  VideoResolution,
+  VideoResult,
+  VideoSettings,
+} from "@/types/video-generator";
 
 export function getVideoModel(id: string): VideoModel {
   return videoModels.find((model) => model.id === id) ?? videoModels[0];
@@ -14,14 +21,20 @@ export function modeName(mode: VideoMode): string {
 }
 
 export function nearestDuration(options: readonly number[], value: number): number {
-  return options.reduce((best, option) => Math.abs(option - value) < Math.abs(best - value) ? option : best, options[0]);
+  return options.reduce(
+    (best, option) => (Math.abs(option - value) < Math.abs(best - value) ? option : best),
+    options[0],
+  );
 }
 
 /**
  * Fit settings to what a model can do. Each adjustment is described in plain
  * language so the UI can tell people what changed instead of silently swapping.
  */
-export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = getVideoModel(settings.model)): { settings: VideoSettings; adjustments: string[] } {
+export function fitSettingsToModel(
+  settings: VideoSettings,
+  model: VideoModel = getVideoModel(settings.model),
+): { settings: VideoSettings; adjustments: string[] } {
   const next = { ...settings, model: model.id };
   const adjustments: string[] = [];
   if (!model.modes.includes(next.mode)) {
@@ -35,7 +48,10 @@ export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = 
   }
   if (!model.resolutions.includes(next.resolution)) {
     const order: readonly VideoResolution[] = ["480p", "720p", "1080p"];
-    const index = nearestDuration(model.resolutions.map((value) => order.indexOf(value)), order.indexOf(next.resolution));
+    const index = nearestDuration(
+      model.resolutions.map((value) => order.indexOf(value)),
+      order.indexOf(next.resolution),
+    );
     adjustments.push(`${next.resolution} → ${order[index]}`);
     next.resolution = order[index];
   }
@@ -51,7 +67,10 @@ export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = 
 }
 
 /** Motion control follows the length of the clip, within what the model supports. */
-export function effectiveDuration(settings: Pick<VideoSettings, "mode" | "duration" | "model">, clip: Pick<MotionClip, "duration"> | null): number {
+export function effectiveDuration(
+  settings: Pick<VideoSettings, "mode" | "duration" | "model">,
+  clip: Pick<MotionClip, "duration"> | null,
+): number {
   if (settings.mode !== "motion" || !clip) return settings.duration;
   return nearestDuration(getVideoModel(settings.model).durations, clip.duration);
 }
@@ -59,9 +78,12 @@ export function effectiveDuration(settings: Pick<VideoSettings, "mode" | "durati
 const resolutionTime: Record<VideoResolution, number> = { "480p": 0.6, "720p": 1, "1080p": 1.8 };
 
 /** Indicative credits for a real render. Sound adds a quarter. */
-export function estimateCredits(settings: Pick<VideoSettings, "model" | "resolution" | "duration" | "count" | "audio">): number {
+export function estimateCredits(
+  settings: Pick<VideoSettings, "model" | "resolution" | "duration" | "count" | "audio">,
+): number {
   const model = getVideoModel(settings.model);
-  const perClip = model.creditsPerSecond[settings.resolution] * settings.duration * (settings.audio && model.audio ? 1.25 : 1);
+  const perClip =
+    model.creditsPerSecond[settings.resolution] * settings.duration * (settings.audio && model.audio ? 1.25 : 1);
   return Math.ceil(perClip) * settings.count;
 }
 
@@ -91,7 +113,8 @@ export function formatTimecode(seconds: number): string {
 /** "4s–30s" for a range, "5s · 10s" for a short list. */
 export function durationLabel(model: VideoModel): string {
   const values = model.durations;
-  const contiguous = values.length > 3 && values.every((value, index) => index === 0 || value - values[index - 1] === 1);
+  const contiguous =
+    values.length > 3 && values.every((value, index) => index === 0 || value - values[index - 1] === 1);
   return contiguous ? `${values[0]}s–${values.at(-1)}s` : values.map((value) => `${value}s`).join(" · ");
 }
 
@@ -108,5 +131,14 @@ export function ratioValue(aspectRatio: string): number {
 /** The closest supported ratio to an image's natural dimensions. */
 export function closestAspectRatio(width: number, height: number, options: readonly string[]): string {
   const target = width / height;
-  return options.reduce((best, option) => Math.abs(Math.log(ratioValue(option) / target)) < Math.abs(Math.log(ratioValue(best) / target)) ? option : best, options[0]);
+  return options.reduce(
+    (best, option) =>
+      Math.abs(Math.log(ratioValue(option) / target)) < Math.abs(Math.log(ratioValue(best) / target)) ? option : best,
+    options[0],
+  );
+}
+
+/** File name for a downloaded sample clip. */
+export function downloadName(item: Pick<VideoResult, "id">) {
+  return `pixel-magic-sample-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-")}.mp4`;
 }

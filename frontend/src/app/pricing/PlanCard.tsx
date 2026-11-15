@@ -45,9 +45,7 @@ export function PlanCard({ plan, plans, account, signedIn, onDone }: PlanCardPro
         setError(null);
         try {
           setPreview(
-            await api.get<PlanChangePreview>(
-              `/v1/billing/subscription/preview?plan=${encodeURIComponent(plan.name)}`,
-            ),
+            await api.get<PlanChangePreview>(`/v1/billing/subscription/preview?plan=${encodeURIComponent(plan.name)}`),
           );
         } catch (e) {
           setError(billingErrorMessage(e));
@@ -125,7 +123,11 @@ export function PlanCard({ plan, plans, account, signedIn, onDone }: PlanCardPro
             </Button>
           )
         )}
-        {!preview && error && <p role="alert" className="mt-3 text-xs text-subtle">{error}</p>}
+        {!preview && error && (
+          <p role="alert" className="mt-3 text-xs text-subtle">
+            {error}
+          </p>
+        )}
       </div>
 
       {preview && (

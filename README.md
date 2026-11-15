@@ -14,7 +14,7 @@ Open [localhost:3000](http://localhost:3000). For a production check, run `npm r
 
 ## Change the theme in one place
 
-Edit [`frontend/src/styles/theme.css`](frontend/src/styles/theme.css). The palette feeds semantic variables such as `--primary`, `--primary-foreground`, `--background`, `--surface`, and `--muted`. Buttons, selected filters, focus rings, artwork accents, and banners all use these shared tokens. Spacing, page width, and corner radii live there too. `globals.css` exposes the same tokens to Tailwind and holds only the shared base styles.
+Edit [`frontend/src/assets/styles/theme.css`](frontend/src/assets/styles/theme.css). The palette feeds semantic variables such as `--primary`, `--primary-foreground`, `--background`, `--surface`, and `--muted`. Buttons, selected filters, focus rings, artwork accents, and banners all use these shared tokens. Spacing, page width, and corner radii live there too. `globals.css` exposes the same tokens to Tailwind and holds only the shared base styles.
 
 To switch the main accent to the violet palette, change `--primary: var(--lime-400)` to `--primary: var(--violet-400)` in that file. Check text contrast when changing foreground/background pairs.
 
@@ -22,10 +22,10 @@ To switch the main accent to the violet palette, change `--primary: var(--lime-4
 
 - `frontend/src/app/page.tsx` composes the page as a Server Component.
 - `frontend/src/components/landing/` contains the carousel, cinematic hero, reusable masonry grid and template cards, collection banners, media previews, and model directory. CSS Modules keep section styles scoped.
-- `frontend/src/constants/landing-tools.ts` defines carousel content and landing destinations.
-- `frontend/src/constants/landing-templates.ts` defines model names and template collections. Marketing Studio appears before GPT Image 2.
-- `frontend/src/constants/landing-media.ts` maps reusable media IDs to local posters and compressed clips in `public/media/landing/`.
-- `frontend/src/styles/theme.css` owns all color values and shared design tokens.
+- `frontend/src/components/landing/constants.ts` defines carousel content and landing destinations.
+- `frontend/src/components/landing/constants.ts` defines model names and template collections. Marketing Studio appears before GPT Image 2.
+- `frontend/src/constants/landing-media.ts` maps reusable media IDs to local posters (`src/assets/images/landing/`) and compressed clips (`public/media/landing/`).
+- `frontend/src/assets/styles/theme.css` owns all color values and shared design tokens.
 
 `LandingProvider` keeps the motion preference and template filters in separate contexts. Native scroll rails support touch and keyboard input. Masonry positions are calculated in advance for desktop, tablet, and phone layouts, preserving DOM order and reserving space before media loads. Next Image serves responsive, lazy-loaded artwork; clips mount on visibility/interaction, pause offscreen or in hidden tabs, and respect reduced motion. Native dialogs provide preview focus management and Escape dismissal. All calls to action lead to landing sections or media previews.
 

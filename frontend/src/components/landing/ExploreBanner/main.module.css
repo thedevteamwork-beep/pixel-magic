@@ -1,0 +1,93 @@
+.finalBanner {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: clamp(26px, 4vw, 58px);
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.finalBanner::after {
+  position: absolute;
+  z-index: -1;
+  right: -60px;
+  top: -140px;
+  content: "✳";
+  color: color-mix(in srgb, var(--primary-foreground) 6%, transparent);
+  font-size: 600px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.finalBanner h2 {
+  margin: 0;
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(28px, 3vw, 45px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.06em;
+}
+
+.finalBanner h2 em {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+}
+
+.finalBanner p:not(.finalEyebrow) {
+  margin: 15px 0 0;
+  font-size: 12px;
+}
+
+.finalEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 22px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.finalBanner a {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 28px;
+  min-height: 48px;
+  padding: 14px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-foreground);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.finalBanner a:hover {
+  transform: translateY(-3px);
+}
+
+@media (max-width: 760px) {
+  .finalBanner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .finalEyebrow {
+    line-height: 1.6;
+    font-size: 8px;
+    gap: 8px;
+  }
+  .finalBanner h2 {
+    font-size: 31px;
+  }
+}

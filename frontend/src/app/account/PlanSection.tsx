@@ -29,9 +29,7 @@ export function PlanSection({ subscription, planNames, onChanged }: PlanSectionP
         setPending(true);
         setError(null);
         try {
-          const result = await api.delete<{ subscription: Subscription }>(
-            "/v1/billing/subscription/scheduled-change",
-          );
+          const result = await api.delete<{ subscription: Subscription }>("/v1/billing/subscription/scheduled-change");
           onChanged(result.subscription);
           notifyCreditsChanged();
         } catch (e) {
@@ -58,17 +56,11 @@ export function PlanSection({ subscription, planNames, onChanged }: PlanSectionP
           </span>
         )}
       </p>
-      <p className="mt-1 text-sm text-muted">
-        {isFree ? `Credits refresh on ${date}` : `Renews on ${date}`}
-      </p>
+      <p className="mt-1 text-sm text-muted">{isFree ? `Credits refresh on ${date}` : `Renews on ${date}`}</p>
 
       {next && (
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          <p>
-            {next === "free"
-              ? `Your plan ends on ${date}.`
-              : `Changes to ${planNames[next] ?? next} on ${date}.`}
-          </p>
+          <p>{next === "free" ? `Your plan ends on ${date}.` : `Changes to ${planNames[next] ?? next} on ${date}.`}</p>
           <Button size="sm" variant="outline" disabled={pending} onClick={() => void undo()}>
             Undo
           </Button>

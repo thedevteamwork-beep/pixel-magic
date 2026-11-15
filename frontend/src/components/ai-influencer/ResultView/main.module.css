@@ -1,0 +1,250 @@
+.result {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.srOnly {
+  composes: srOnly from "../../../assets/styles/shared.module.css";
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: 8px;
+  background: var(--danger-surface);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+.error button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.prompt {
+  flex-shrink: 0;
+  padding: 0 6px 4px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.promptAccordion {
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.prompt summary {
+  cursor: pointer;
+}
+
+.prompt p {
+  margin: 8px 0 0;
+  color: var(--subtle);
+  line-height: 1.6;
+}
+
+.canvas {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+}
+
+.emptyNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.hero {
+  position: relative;
+  height: 100%;
+  max-height: 100%;
+  aspect-ratio: 3 / 4;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+  animation: reveal 0.45s ease-out;
+}
+
+.busy {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--background) 90%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--primary);
+}
+
+.busy strong {
+  color: var(--foreground);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.busy button {
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--subtle);
+  font-size: var(--fs-xs);
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+.spinner {
+  composes: spinner from "../../../assets/styles/shared.module.css";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    animation: none;
+  }
+}
+
+.toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 0 4px 0 6px;
+}
+
+.info {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: var(--fs-base);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--subtle);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+/* The padding leaves room for the focus ring, which the scroll box would clip; the negative margin keeps the spacing. */
+.strip {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-block: -8px;
+  padding: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* Centred when they fit. Auto margins, unlike justify-content: center, keep the first ones reachable when they scroll. */
+.strip > :first-child {
+  margin-inline-start: auto;
+}
+
+.strip > :last-child {
+  margin-inline-end: auto;
+}
+
+.thumb,
+.slot {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 72px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.thumb {
+  padding: 0;
+  opacity: 0.7;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s;
+}
+
+.thumb:hover:enabled,
+.thumb[aria-checked="true"] {
+  opacity: 1;
+}
+
+.thumb[aria-checked="true"] {
+  border-color: var(--primary);
+}
+
+.slot {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

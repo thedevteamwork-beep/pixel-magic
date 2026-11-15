@@ -14,9 +14,7 @@ export function CreditsSection({ credits }: { credits: Account["credits"] }) {
       <SectionHeading title="Credits" tone="default" />
       <p className="mt-4 text-sm text-subtle">Available</p>
       <p className="text-4xl font-bold">{credits.available}</p>
-      {credits.reserved > 0 && (
-        <p className="mt-2 text-sm text-muted">Reserved for running jobs: {credits.reserved}</p>
-      )}
+      {credits.reserved > 0 && <p className="mt-2 text-sm text-muted">Reserved for running jobs: {credits.reserved}</p>}
 
       {credits.grants.length > 0 && (
         <table className="mt-6 w-full text-left text-sm">

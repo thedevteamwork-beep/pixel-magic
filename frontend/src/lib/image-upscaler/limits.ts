@@ -15,9 +15,15 @@ export const CONTENT_TYPE_BY_FORMAT: Readonly<Record<UpscaleFormat, string>> = {
 };
 
 export function isWithinUpscaleLimits(width: number, height: number): boolean {
-  return Number.isSafeInteger(width) && Number.isSafeInteger(height)
-    && width > 0 && height > 0 && width <= MAX_UPSCALE_EDGE && height <= MAX_UPSCALE_EDGE
-    && width * height <= MAX_UPSCALE_PIXELS;
+  return (
+    Number.isSafeInteger(width) &&
+    Number.isSafeInteger(height) &&
+    width > 0 &&
+    height > 0 &&
+    width <= MAX_UPSCALE_EDGE &&
+    height <= MAX_UPSCALE_EDGE &&
+    width * height <= MAX_UPSCALE_PIXELS
+  );
 }
 
 export function isSupportedUpscaleContentType(value: string): boolean {
@@ -25,16 +31,24 @@ export function isSupportedUpscaleContentType(value: string): boolean {
 }
 
 /** Local canvas limits, independent of any provider's model capabilities. */
-export function calculateUpscaleOutput(source: Pick<UpscaleSource, "width" | "height">, factor: UpscaleFactor, format: UpscaleFormat = "png"): UpscaleOutput {
+export function calculateUpscaleOutput(
+  source: Pick<UpscaleSource, "width" | "height">,
+  factor: UpscaleFactor,
+  format: UpscaleFormat = "png",
+): UpscaleOutput {
   if (!isWithinUpscaleLimits(source.width, source.height)) {
     throw new Error("Choose an image up to 8,192 pixels per side and 32 megapixels.");
   }
-  if (!LOCAL_UPSCALE_FACTORS.some((value) => value === factor)) throw new Error("Choose 1×, 2×, 4×, or 8×. 16× is not available in this preview.");
-  if (!UPSCALE_FORMATS.some((value) => value === format)) throw new Error("Choose PNG, JPG, or WebP for your download.");
+  if (!LOCAL_UPSCALE_FACTORS.some((value) => value === factor))
+    throw new Error("Choose 1×, 2×, 4×, or 8×. 16× is not available in this preview.");
+  if (!UPSCALE_FORMATS.some((value) => value === format))
+    throw new Error("Choose PNG, JPG, or WebP for your download.");
   const width = source.width * factor;
   const height = source.height * factor;
   if (!isWithinUpscaleLimits(width, height)) {
-    throw new Error(`This image would be too large at ${factor}×. Try a lower factor or a smaller image. Downloads are limited to 8,192 pixels per side and 32 megapixels.`);
+    throw new Error(
+      `This image would be too large at ${factor}×. Try a lower factor or a smaller image. Downloads are limited to 8,192 pixels per side and 32 megapixels.`,
+    );
   }
   return { width, height, contentType: CONTENT_TYPE_BY_FORMAT[format], format };
 }

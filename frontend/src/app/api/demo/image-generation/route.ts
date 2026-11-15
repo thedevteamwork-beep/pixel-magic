@@ -8,7 +8,10 @@ const noStore = { "Cache-Control": "no-store" };
 class BodyTooLargeError extends Error {}
 
 function failure(code: string, message: string, status = 400, fields?: Record<string, string>) {
-  return Response.json({ ok: false, error: { code, message, ...(fields ? { fields } : {}) } }, { status, headers: noStore });
+  return Response.json(
+    { ok: false, error: { code, message, ...(fields ? { fields } : {}) } },
+    { status, headers: noStore },
+  );
 }
 
 /** Bound the actual stream, including requests with missing or inaccurate length headers. */
@@ -62,12 +65,17 @@ const styleCategories: Record<string, readonly string[]> = {
 function samplesFor(settings: ImageGenerationRequest): readonly InspirationItem[] {
   const words = settings.prompt.toLowerCase().match(/[a-z]+/g) ?? [];
   const preferredCategories = styleCategories[settings.style] ?? [];
-  const ranked = imageInspirations.map((item, index) => ({
-    item,
-    index,
-    score: (sampleKeywords[item.category] ?? []).filter((keyword) => words.some((word) => word.startsWith(keyword))).length * 4
-      + (preferredCategories.includes(item.category) ? 1 : 0),
-  })).sort((a, b) => b.score - a.score || a.index - b.index);
+  const ranked = imageInspirations
+    .map((item, index) => ({
+      item,
+      index,
+      score:
+        (sampleKeywords[item.category] ?? []).filter((keyword) => words.some((word) => word.startsWith(keyword)))
+          .length *
+          4 +
+        (preferredCategories.includes(item.category) ? 1 : 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
   const matches = ranked.filter((entry) => entry.score > 0);
   return (matches.length ? matches : ranked).map((entry) => entry.item);
 }
@@ -78,7 +86,8 @@ export async function POST(request: Request) {
   try {
     input = await readJSON(request);
   } catch (error) {
-    if (error instanceof BodyTooLargeError) return failure("PAYLOAD_TOO_LARGE", "Keep the request under 128 KiB. Send reference metadata only.", 413);
+    if (error instanceof BodyTooLargeError)
+      return failure("PAYLOAD_TOO_LARGE", "Keep the request under 128 KiB. Send reference metadata only.", 413);
     return failure("INVALID_JSON", "Send a valid JSON request.");
   }
   const result = validateImageGenerationRequest(input);

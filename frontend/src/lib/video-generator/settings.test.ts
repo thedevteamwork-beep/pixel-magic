@@ -1,18 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { defaultVideoSettings, videoModels } from "@/constants/video-generator";
-import { closestAspectRatio, durationLabel, effectiveDuration, estimateCredits, estimateRenderSeconds, fitSettingsToModel, formatEta, formatTimecode, getVideoModel, modelsForMode, previewRenderMs, resolutionLabel } from "./settings";
+import { defaultVideoSettings, videoModels } from "@/components/video-generator/constants";
+import {
+  closestAspectRatio,
+  durationLabel,
+  effectiveDuration,
+  estimateCredits,
+  estimateRenderSeconds,
+  fitSettingsToModel,
+  formatEta,
+  formatTimecode,
+  getVideoModel,
+  modelsForMode,
+  previewRenderMs,
+  resolutionLabel,
+} from "./settings";
 
 describe("video settings", () => {
   it("fits settings to a model and explains every change", () => {
-    const { settings, adjustments } = fitSettingsToModel({ ...defaultVideoSettings, mode: "reference", duration: 15, resolution: "480p", aspectRatio: "21:9", audio: true }, getVideoModel("hailuo_02"));
-    expect(settings).toMatchObject({ model: "hailuo_02", mode: "text", duration: 10, resolution: "480p", aspectRatio: "16:9", audio: false });
+    const { settings, adjustments } = fitSettingsToModel(
+      {
+        ...defaultVideoSettings,
+        mode: "reference",
+        duration: 15,
+        resolution: "480p",
+        aspectRatio: "21:9",
+        audio: true,
+      },
+      getVideoModel("hailuo_02"),
+    );
+    expect(settings).toMatchObject({
+      model: "hailuo_02",
+      mode: "text",
+      duration: 10,
+      resolution: "480p",
+      aspectRatio: "16:9",
+      audio: false,
+    });
     expect(adjustments).toEqual(["Reference to Video → Text to Video", "15s → 10s", "21:9 → 16:9", "sound off"]);
     expect(fitSettingsToModel(defaultVideoSettings).adjustments).toEqual([]);
   });
 
   it("lists only models that support a mode, and every mode has one", () => {
     expect(modelsForMode("motion").map((model) => model.id)).toEqual(["kling_2_1", "wan_2_5"]);
-    for (const mode of ["text", "image", "reference", "motion"] as const) expect(modelsForMode(mode).length).toBeGreaterThan(0);
+    for (const mode of ["text", "image", "reference", "motion"] as const)
+      expect(modelsForMode(mode).length).toBeGreaterThan(0);
     for (const model of videoModels) {
       expect(model.durations).toEqual([...model.durations].sort((a, b) => a - b));
       if (model.modes.includes("reference")) expect(model.maxReferences).toBeGreaterThan(0);
@@ -27,8 +58,12 @@ describe("video settings", () => {
   });
 
   it("estimates credits per clip, with sound adding a quarter", () => {
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 1, audio: false })).toBe(40);
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 2, audio: true })).toBe(100);
+    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 1, audio: false })).toBe(
+      40,
+    );
+    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 2, audio: true })).toBe(
+      100,
+    );
     expect(estimateCredits({ model: "kling_2_1", resolution: "1080p", duration: 10, count: 1, audio: true })).toBe(200);
   });
 

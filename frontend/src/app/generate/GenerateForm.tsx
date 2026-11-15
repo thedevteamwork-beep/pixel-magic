@@ -236,12 +236,7 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
           {messageForError(submitError)}
         </p>
       )}
-      <JobResult
-        job={job}
-        waiting={waiting}
-        error={pollError}
-        onCheckAgain={checkAgain}
-      />
+      <JobResult job={job} waiting={waiting} error={pollError} onCheckAgain={checkAgain} />
     </div>
   );
 }

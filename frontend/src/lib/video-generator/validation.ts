@@ -11,7 +11,7 @@ import {
   MIN_CLIP_SECONDS,
   videoCounts,
   videoModels,
-} from "@/constants/video-generator";
+} from "@/components/video-generator/constants";
 import type { ClipDescriptor, FrameDescriptor, VideoGenerationRequest, VideoMode } from "@/types/video-generator";
 
 export type VideoGenerationValidation =
@@ -35,11 +35,15 @@ function validId(id: unknown): id is string {
 /** Accept descriptors only; pixels, footage and remote URLs never enter this demo API. */
 export function validateVideoGenerationRequest(input: unknown): VideoGenerationValidation {
   if (!isRecord(input)) {
-    return { ok: false, error: { code: "VALIDATION_ERROR", message: "Send an object containing video settings and input metadata." } };
+    return {
+      ok: false,
+      error: { code: "VALIDATION_ERROR", message: "Send an object containing video settings and input metadata." },
+    };
   }
   const record = input;
   const fields: Record<string, string> = {};
-  if (Object.keys(input).some((key) => !settingKeys.has(key))) fields.request = "Only video settings and input descriptors are accepted.";
+  if (Object.keys(input).some((key) => !settingKeys.has(key)))
+    fields.request = "Only video settings and input descriptors are accepted.";
 
   function choice<T extends string>(field: string, options: readonly T[], message = "Choose a supported option."): T {
     const value = record[field];
@@ -67,9 +71,13 @@ export function validateVideoGenerationRequest(input: unknown): VideoGenerationV
     }
     const { id, mimeType, size } = value;
     if (!validId(id)) fields[`${field}.id`] = "Use an ID of 1–128 letters, numbers, or ID punctuation.";
-    if (typeof mimeType !== "string" || !FRAME_MIME_TYPES.some((type) => type === mimeType)) fields[`${field}.mimeType`] = "Use a JPEG, PNG, or WebP image.";
-    if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > MAX_FRAME_BYTES) fields[`${field}.size`] = `Each image must be no larger than ${MAX_FRAME_BYTES} bytes.`;
-    return Object.keys(fields).some((key) => key.startsWith(field)) ? null : { id: id as string, mimeType: mimeType as string, size: size as number };
+    if (typeof mimeType !== "string" || !FRAME_MIME_TYPES.some((type) => type === mimeType))
+      fields[`${field}.mimeType`] = "Use a JPEG, PNG, or WebP image.";
+    if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > MAX_FRAME_BYTES)
+      fields[`${field}.size`] = `Each image must be no larger than ${MAX_FRAME_BYTES} bytes.`;
+    return Object.keys(fields).some((key) => key.startsWith(field))
+      ? null
+      : { id: id as string, mimeType: mimeType as string, size: size as number };
   }
   function clip(value: unknown): ClipDescriptor | null {
     if (value === null || value === undefined) return null;
@@ -80,13 +88,26 @@ export function validateVideoGenerationRequest(input: unknown): VideoGenerationV
     }
     const { id, mimeType, size, duration } = value;
     if (!validId(id)) fields[`${field}.id`] = "Use an ID of 1–128 letters, numbers, or ID punctuation.";
-    if (typeof mimeType !== "string" || !CLIP_MIME_TYPES.some((type) => type === mimeType)) fields[`${field}.mimeType`] = "Use an MP4, MOV, or WebM clip.";
-    if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > MAX_CLIP_BYTES) fields[`${field}.size`] = `The clip must be no larger than ${MAX_CLIP_BYTES} bytes.`;
-    if (typeof duration !== "number" || !Number.isFinite(duration) || duration < MIN_CLIP_SECONDS || duration > MAX_CLIP_SECONDS) fields[`${field}.duration`] = `Use a clip of ${MIN_CLIP_SECONDS}–${MAX_CLIP_SECONDS} seconds.`;
-    return Object.keys(fields).some((key) => key.startsWith(field)) ? null : { id: id as string, mimeType: mimeType as string, size: size as number, duration: duration as number };
+    if (typeof mimeType !== "string" || !CLIP_MIME_TYPES.some((type) => type === mimeType))
+      fields[`${field}.mimeType`] = "Use an MP4, MOV, or WebM clip.";
+    if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > MAX_CLIP_BYTES)
+      fields[`${field}.size`] = `The clip must be no larger than ${MAX_CLIP_BYTES} bytes.`;
+    if (
+      typeof duration !== "number" ||
+      !Number.isFinite(duration) ||
+      duration < MIN_CLIP_SECONDS ||
+      duration > MAX_CLIP_SECONDS
+    )
+      fields[`${field}.duration`] = `Use a clip of ${MIN_CLIP_SECONDS}–${MAX_CLIP_SECONDS} seconds.`;
+    return Object.keys(fields).some((key) => key.startsWith(field))
+      ? null
+      : { id: id as string, mimeType: mimeType as string, size: size as number, duration: duration as number };
   }
 
-  const modelId = choice("model", videoModels.map((model) => model.id));
+  const modelId = choice(
+    "model",
+    videoModels.map((model) => model.id),
+  );
   const model = videoModels.find((item) => item.id === modelId) ?? videoModels[0];
   const promptValue = record.prompt;
   let prompt = "";
@@ -97,11 +118,17 @@ export function validateVideoGenerationRequest(input: unknown): VideoGenerationV
   }
   const mode = choice<VideoMode>("mode", ["text", "image", "reference", "motion"]);
   if (!fields.mode && !model.modes.includes(mode)) fields.mode = `${model.name} doesn’t support this mode.`;
-  const aspectRatio = choice("aspectRatio", model.aspectRatios, `${model.name} supports ${model.aspectRatios.join(", ")}.`);
+  const aspectRatio = choice(
+    "aspectRatio",
+    model.aspectRatios,
+    `${model.name} supports ${model.aspectRatios.join(", ")}.`,
+  );
   const resolution = choice("resolution", allVideoResolutions);
-  if (!fields.resolution && !model.resolutions.includes(resolution)) fields.resolution = `${model.name} renders at ${model.resolutions.join(", ")}.`;
+  if (!fields.resolution && !model.resolutions.includes(resolution))
+    fields.resolution = `${model.name} renders at ${model.resolutions.join(", ")}.`;
   const duration = integer("duration", 1, 60);
-  if (!fields.duration && !model.durations.includes(duration)) fields.duration = `${model.name} doesn’t support ${duration} second clips.`;
+  if (!fields.duration && !model.durations.includes(duration))
+    fields.duration = `${model.name} doesn’t support ${duration} second clips.`;
   const count = integer("count", 1, 4);
   if (!videoCounts.some((value) => value === count)) fields.count = "Choose a supported number of videos.";
   const audio = boolean("audio");
@@ -116,39 +143,70 @@ export function validateVideoGenerationRequest(input: unknown): VideoGenerationV
     inputs.start = frame("inputs.start", raw.start);
     inputs.end = frame("inputs.end", raw.end);
     inputs.clip = clip(raw.clip);
-    if (raw.references.length > MAX_REFERENCE_LIMIT) fields["inputs.references"] = `Use up to ${MAX_REFERENCE_LIMIT} references.`;
-    else raw.references.forEach((reference: unknown, index: number) => {
-      const descriptor = frame(`inputs.references.${index}`, reference);
-      if (descriptor) inputs.references.push(descriptor);
-    });
+    if (raw.references.length > MAX_REFERENCE_LIMIT)
+      fields["inputs.references"] = `Use up to ${MAX_REFERENCE_LIMIT} references.`;
+    else
+      raw.references.forEach((reference: unknown, index: number) => {
+        const descriptor = frame(`inputs.references.${index}`, reference);
+        if (descriptor) inputs.references.push(descriptor);
+      });
     const ids = [inputs.start, inputs.end, ...inputs.references, inputs.clip].filter(Boolean).map((item) => item!.id);
     if (new Set(ids).size !== ids.length) fields.inputs = "Each attachment needs its own ID.";
 
-    const unexpected = (present: boolean, field: string, message: string) => { if (present && !fields[field]) fields[field] = message; };
+    const unexpected = (present: boolean, field: string, message: string) => {
+      if (present && !fields[field]) fields[field] = message;
+    };
     if (mode === "text") {
-      unexpected(Boolean(inputs.start || inputs.end || inputs.references.length || inputs.clip), "inputs", "Text to video doesn’t use attachments.");
+      unexpected(
+        Boolean(inputs.start || inputs.end || inputs.references.length || inputs.clip),
+        "inputs",
+        "Text to video doesn’t use attachments.",
+      );
       if (!prompt && !fields.prompt) fields.prompt = "Describe the video you want to explore.";
     }
     if (mode === "image") {
       if (!inputs.start && !fields["inputs.start"]) fields["inputs.start"] = "Add a start image to animate.";
       unexpected(Boolean(inputs.end) && !model.endFrame, "inputs.end", `${model.name} doesn’t support end frames.`);
-      unexpected(Boolean(inputs.references.length || inputs.clip), "inputs", "Image to video uses only start and end frames.");
+      unexpected(
+        Boolean(inputs.references.length || inputs.clip),
+        "inputs",
+        "Image to video uses only start and end frames.",
+      );
     }
     if (mode === "reference") {
-      if (!inputs.references.length && !fields["inputs.references"]) fields["inputs.references"] = "Add at least one reference image.";
-      unexpected(inputs.references.length > model.maxReferences, "inputs.references", `${model.name} accepts up to ${model.maxReferences} references.`);
-      unexpected(Boolean(inputs.start || inputs.end || inputs.clip), "inputs", "Reference to video uses only reference images.");
+      if (!inputs.references.length && !fields["inputs.references"])
+        fields["inputs.references"] = "Add at least one reference image.";
+      unexpected(
+        inputs.references.length > model.maxReferences,
+        "inputs.references",
+        `${model.name} accepts up to ${model.maxReferences} references.`,
+      );
+      unexpected(
+        Boolean(inputs.start || inputs.end || inputs.clip),
+        "inputs",
+        "Reference to video uses only reference images.",
+      );
       if (!prompt && !fields.prompt) fields.prompt = "Describe how your references come together.";
     }
     if (mode === "motion") {
       if (!inputs.start && !fields["inputs.start"]) fields["inputs.start"] = "Add a character image.";
       if (!inputs.clip && !fields["inputs.clip"]) fields["inputs.clip"] = "Add a motion clip to copy.";
-      unexpected(Boolean(inputs.end || inputs.references.length), "inputs", "Motion control uses a character image and a clip.");
+      unexpected(
+        Boolean(inputs.end || inputs.references.length),
+        "inputs",
+        "Motion control uses a character image and a clip.",
+      );
     }
   }
 
   if (Object.keys(fields).length > 0) {
-    return { ok: false, error: { code: "VALIDATION_ERROR", message: "Check the video settings and try again.", fields } };
+    return {
+      ok: false,
+      error: { code: "VALIDATION_ERROR", message: "Check the video settings and try again.", fields },
+    };
   }
-  return { ok: true, data: { model: model.id, prompt, mode, aspectRatio, resolution, duration, count, audio, enhancePrompt, inputs } };
+  return {
+    ok: true,
+    data: { model: model.id, prompt, mode, aspectRatio, resolution, duration, count, audio, enhancePrompt, inputs },
+  };
 }
