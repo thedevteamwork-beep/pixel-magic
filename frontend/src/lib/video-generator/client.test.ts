@@ -4,11 +4,11 @@ import { landingAssets } from "@/constants/landing-media";
 import type { VideoGenerationRequest, VideoGenerationResponse, VideoResult } from "@/types/video-generator";
 import { requestVideoPreview, VideoPreviewError } from "./client";
 
-const settings: VideoGenerationRequest = { ...defaultVideoSettings, prompt: "Waves", count: 2, seed: 9, frames: { start: null, end: null } };
+const settings: VideoGenerationRequest = { ...defaultVideoSettings, prompt: "Waves", count: 2, inputs: { start: null, end: null, references: [], clip: null } };
 const video = (index: number, patch: Partial<VideoResult> = {}): VideoResult => ({
   id: `sample-${index}`, batchId: "demo-1", url: landingAssets.ocean.video!, poster: landingAssets.ocean.image, alt: "Sample preview",
-  prompt: "Waves", model: settings.model, mode: "text", aspectRatio: "16:9", resolution: "720p", duration: 5, motion: "auto",
-  audio: false, seed: 9, createdAt: "2026-11-13T12:00:00.000Z", favorite: false, demo: true, ...patch,
+  prompt: "Waves", model: settings.model, mode: "text", aspectRatio: "16:9", resolution: "720p", duration: 5,
+  audio: false, createdAt: "2026-11-13T12:00:00.000Z", favorite: false, demo: true, ...patch,
 });
 const response = (patch: Partial<VideoGenerationResponse> = {}): VideoGenerationResponse => ({ id: "demo-1", demo: true, creditsCharged: 0, estimatedCredits: 80, videos: [video(1), video(2)], ...patch });
 const fetching = (body: unknown, status = 200) => vi.fn<typeof fetch>().mockResolvedValue(Response.json(body, { status }));
@@ -31,7 +31,7 @@ describe("video preview transport", () => {
     response({ videos: [video(1)] }),
     response({ videos: [video(1), video(2, { url: "https://example.com/clip.mp4" })] }),
     response({ videos: [video(1), video(2, { batchId: "other" })] }),
-    response({ videos: [video(1), video(2, { motion: "teleport" })] }),
+    response({ videos: [video(1), video(2, { mode: "frames" as "text" })] }),
   ])("rejects unexpected responses", async (body) => {
     await expect(requestVideoPreview(settings, new AbortController().signal, fetching(body))).rejects.toBeInstanceOf(VideoPreviewError);
   });

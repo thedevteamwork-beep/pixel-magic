@@ -3,10 +3,9 @@
 import Image from "next/image";
 import { ArrowDownToLine, AudioLines, Heart, ImagePlus, Play, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { motionPresets, renderStages } from "@/constants/video-generator";
-import { ratioValue } from "@/lib/video-generator/settings";
+import { renderStages } from "@/constants/video-generator";
+import { modeName, ratioValue } from "@/lib/video-generator/settings";
 import type { RenderJob, VideoResult } from "@/types/video-generator";
-import motion from "./motion.module.css";
 import styles from "./VideoFeed.module.css";
 
 export function downloadName(item: Pick<VideoResult, "id">) {
@@ -87,19 +86,18 @@ export function RenderCard({ job, index, frame, motionEnabled, onCancel }: { job
   const linear = Math.min(1, Math.max(0, (now - job.startedAt) / job.eta));
   const progress = Math.min(0.99, 1 - Math.pow(1 - linear, 1.6));
   const remaining = Math.max(0, Math.ceil((job.eta - (now - job.startedAt)) / 1000));
-  const preset = motionPresets.find((item) => item.id === job.motion) ?? motionPresets[0];
 
   return <div className={`${styles.card} ${styles.renderCard}`} style={{ ...ratioStyle(job.aspectRatio), "--delay": `${index * 70}ms` } as CSSProperties}>
-    {frame ? <span className={`${motion.stage} ${motionEnabled ? motion.playing : ""} ${styles.renderFrame}`} data-motion={preset.id} aria-hidden="true">
+    {frame ? <span className={styles.renderFrame} data-animate={motionEnabled} aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={frame} alt="" className={motion.layer} />
+      <img src={frame} alt="" />
     </span> : <span className={styles.renderMesh} aria-hidden="true" />}
     <span className={styles.renderShimmer} aria-hidden="true" />
     <span className={styles.renderInfo} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}
       aria-valuetext={`${stageFor(progress)}, ${Math.round(progress * 100)}%`} aria-label={`Rendering video ${index + 1} of ${job.count}`}>
       <span className={styles.renderStage}>{stageFor(progress)}</span>
       <span className={styles.renderPercent}>{Math.round(progress * 100)}<small>%</small></span>
-      <span className={styles.renderMeta}>{remaining > 0 ? `About ${remaining}s left` : "Almost there"} · {preset.id === "auto" ? "Auto camera" : preset.name}</span>
+      <span className={styles.renderMeta}>{remaining > 0 ? `About ${remaining}s left` : "Almost there"} · {modeName(job.mode)}</span>
     </span>
     <span className={styles.renderBar} aria-hidden="true"><span style={{ transform: `scaleX(${progress})` }} /></span>
     {onCancel && <button type="button" className={styles.renderCancel} onClick={onCancel} aria-label="Cancel this render"><X size={14} aria-hidden="true" /></button>}

@@ -62,7 +62,9 @@
 /* Render placeholder */
 .renderCard { display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface); }
 .renderCard::after { display: none; }
-.renderFrame { position: absolute; inset: 0; filter: saturate(.75) brightness(.55) blur(1.5px); }
+.renderFrame { position: absolute; inset: 0; overflow: hidden; filter: saturate(.75) brightness(.55) blur(1.5px); }
+.renderFrame img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.08); }
+.renderFrame[data-animate="true"] img { animation: push 9s ease-out forwards; }
 .renderMesh {
   position: absolute;
   inset: -40%;
@@ -92,6 +94,7 @@
 .failedCard button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--foreground); font-size: 11px; }
 .failedCard button:first-child { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 
+@keyframes push { to { transform: scale(1.3); } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -100% 0; } }

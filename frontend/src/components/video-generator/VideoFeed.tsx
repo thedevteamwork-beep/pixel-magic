@@ -1,10 +1,9 @@
 "use client";
 
-import { AudioLines, Copy, Film, MonitorUp, MoreHorizontal, Trash2, Undo2 } from "lucide-react";
+import { AudioLines, Copy, MonitorUp, MoreHorizontal, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { motionPresets } from "@/constants/video-generator";
-import { getVideoModel } from "@/lib/video-generator/settings";
-import type { RenderJob, VideoResult } from "@/types/video-generator";
+import { getVideoModel, modeName } from "@/lib/video-generator/settings";
+import type { RenderJob, VideoMode, VideoResult } from "@/types/video-generator";
 import { FailedCard, RenderCard, VideoCard } from "./FeedCards";
 import styles from "./VideoFeed.module.css";
 
@@ -24,12 +23,10 @@ type VideoFeedProps = {
   onDismiss: (jobId: string) => void;
 };
 
-function Meta({ model, duration, aspectRatio, resolution, motion, audio }: { model: string; duration: number; aspectRatio: string; resolution: string; motion: string; audio: boolean }) {
-  const preset = motionPresets.find((item) => item.id === motion);
+function Meta({ model, mode, duration, aspectRatio, resolution, audio }: { model: string; mode: VideoMode; duration: number; aspectRatio: string; resolution: string; audio: boolean }) {
   return <span className={styles.meta}>
     <span className={styles.metaModel}>{getVideoModel(model).name}</span>
-    <span>{duration}s</span><span>{aspectRatio}</span><span>{resolution}</span>
-    {preset && preset.id !== "auto" && <span><Film size={10} aria-hidden="true" />{preset.name}</span>}
+    <span>{modeName(mode)}</span><span>{duration}s</span><span>{aspectRatio}</span><span>{resolution}</span>
     {audio && <span><AudioLines size={10} aria-hidden="true" />Sound</span>}
   </span>;
 }
@@ -61,8 +58,8 @@ export function VideoFeed(props: VideoFeedProps) {
     {jobs.map((job) => <section key={job.id} className={styles.group} aria-label={job.status === "failed" ? "Render failed" : "Rendering"}>
       <header className={styles.groupHeader}>
         <div className={styles.groupCopy}>
-          <p className={styles.prompt}>{job.prompt || "Animated from your start frame"}</p>
-          <Meta model={job.model} duration={job.duration} aspectRatio={job.aspectRatio} resolution={job.resolution} motion={job.motion} audio={false} />
+          <p className={styles.prompt}>{job.prompt || `${modeName(job.mode)} from your upload`}</p>
+          <Meta model={job.model} mode={job.mode} duration={job.duration} aspectRatio={job.aspectRatio} resolution={job.resolution} audio={false} />
         </div>
       </header>
       <div className={styles.row}>
@@ -79,7 +76,7 @@ export function VideoFeed(props: VideoFeedProps) {
       return <section key={id} className={styles.group} aria-label={`Videos: ${first.prompt || "animated frame"}`}>
         <header className={styles.groupHeader}>
           <div className={styles.groupCopy}>
-            <p className={styles.prompt} title={first.prompt}>{first.prompt || "Animated from your start frame"}</p>
+            <p className={styles.prompt} title={first.prompt}>{first.prompt || `${modeName(first.mode)} from your upload`}</p>
             <Meta {...first} />
           </div>
           <div className={styles.groupActions}>

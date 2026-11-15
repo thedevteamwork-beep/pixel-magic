@@ -1,5 +1,5 @@
 import { landingAssets } from "@/constants/landing-media";
-import { videoInspirations, videoSampleAssets } from "@/constants/video-generator";
+import { videoSampleAssets } from "@/constants/video-generator";
 import { estimateCredits } from "@/lib/video-generator/settings";
 import { validateVideoGenerationRequest } from "@/lib/video-generator/validation";
 import type { MediaId } from "@/types/landing";
@@ -51,11 +51,10 @@ const sampleKeywords: Record<MediaId, readonly string[]> = {
 /** Choose from a fixed local sample catalog; this does not generate or edit any footage. */
 function samplesFor(settings: VideoGenerationRequest): readonly MediaId[] {
   const words = settings.prompt.toLowerCase().match(/[a-z]+/g) ?? [];
-  const motionHint = videoInspirations.find((item) => item.motion === settings.motion)?.asset;
   const ranked = videoSampleAssets.map((asset, index) => ({
     asset,
     index,
-    score: sampleKeywords[asset].filter((keyword) => words.some((word) => word.startsWith(keyword))).length * 4 + (asset === motionHint ? 1 : 0),
+    score: sampleKeywords[asset].filter((keyword) => words.some((word) => word.startsWith(keyword))).length * 4 + (settings.mode === "motion" && asset === "portrait" ? 1 : 0),
   })).sort((a, b) => b.score - a.score || a.index - b.index);
   return ranked.map((entry) => entry.asset);
 }
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
   try {
     input = await readJSON(request);
   } catch (error) {
-    if (error instanceof BodyTooLargeError) return failure("PAYLOAD_TOO_LARGE", "Keep the request under 64 KiB. Send frame metadata only.", 413);
+    if (error instanceof BodyTooLargeError) return failure("PAYLOAD_TOO_LARGE", "Keep the request under 64 KiB. Send input metadata only.", 413);
     return failure("INVALID_JSON", "Send a valid JSON request.");
   }
   const result = validateVideoGenerationRequest(input);
@@ -95,9 +94,7 @@ export async function POST(request: Request) {
         aspectRatio: settings.aspectRatio,
         resolution: settings.resolution,
         duration: settings.duration,
-        motion: settings.motion,
         audio: settings.audio,
-        seed: settings.seed ?? crypto.getRandomValues(new Uint32Array(1))[0],
         createdAt,
         favorite: false,
         demo: true,

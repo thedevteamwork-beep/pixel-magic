@@ -2,17 +2,15 @@
 
 import { ArrowDownToLine, Camera, ChevronLeft, ChevronRight, Copy, Heart, Keyboard, Maximize, MonitorUp, Pause, Play, Repeat, StepBack, StepForward, Trash2, Undo2, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { motionPresets } from "@/constants/video-generator";
 import { Modal } from "@/components/landing/Modal";
 import { captureVideoFrame } from "@/lib/video-generator/frames";
-import { formatTimecode, getVideoModel, ratioValue } from "@/lib/video-generator/settings";
+import { formatTimecode, getVideoModel, modeName, ratioValue } from "@/lib/video-generator/settings";
 import type { FrameImage, VideoResult } from "@/types/video-generator";
 import { downloadName } from "./FeedCards";
 import styles from "./VideoViewer.module.css";
 
 const FRAME = 1 / 24;
 const rates = [0.5, 1, 1.5, 2] as const;
-const modeLabels = { text: "Text to video", image: "Image to video", frames: "Start & end frames" } as const;
 
 type VideoViewerProps = {
   items: readonly VideoResult[];
@@ -50,7 +48,6 @@ function Player({ item, index, items, autoplay, onNavigate, onFavorite, onReuse,
   const [capturing, setCapturing] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const model = getVideoModel(item.model);
-  const preset = motionPresets.find((entry) => entry.id === item.motion);
   const previous = items[index - 1];
   const next = items[index + 1];
   const canUpscale = item.resolution !== "1080p" && model.resolutions.includes("1080p");
@@ -162,17 +159,16 @@ function Player({ item, index, items, autoplay, onNavigate, onFavorite, onReuse,
 
       <div className={styles.block}>
         <div className={styles.blockHead}><h3>Prompt</h3>{item.prompt && <button type="button" onClick={() => onCopy(item.prompt, "Prompt")}><Copy size={12} aria-hidden="true" />Copy</button>}</div>
-        <p className={styles.prompt} tabIndex={0}>{item.prompt || "Animated from a start frame, without a written prompt."}</p>
+        <p className={styles.prompt} tabIndex={0}>{item.prompt || "Made from your upload, without a written prompt."}</p>
       </div>
 
       <dl className={styles.meta}>
-        <div><dt>Mode</dt><dd>{modeLabels[item.mode]}</dd></div>
+        <div><dt>Mode</dt><dd>{modeName(item.mode)}</dd></div>
+        <div><dt>Model</dt><dd>{model.name}</dd></div>
         <div><dt>Duration</dt><dd>{item.duration}s</dd></div>
         <div><dt>Aspect ratio</dt><dd>{item.aspectRatio}</dd></div>
         <div><dt>Resolution</dt><dd>{item.resolution}</dd></div>
-        <div><dt>Camera</dt><dd>{preset?.name ?? "Auto"}</dd></div>
         <div><dt>Sound</dt><dd>{item.audio ? "On" : "Off"}</dd></div>
-        <div className={styles.seed}><dt>Seed</dt><dd><button type="button" onClick={() => onCopy(String(item.seed), "Seed")} title="Copy seed">{item.seed}<Copy size={11} aria-hidden="true" /></button></dd></div>
       </dl>
 
       <div className={styles.actions}>

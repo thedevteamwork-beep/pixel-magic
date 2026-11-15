@@ -1,0 +1,21 @@
+.panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--shadow-color) 55%, transparent), 0 0 0 1px color-mix(in srgb, var(--white) 3%, transparent) inset;
+  backdrop-filter: blur(18px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.panel:popover-open { animation: open .18s cubic-bezier(.2, .8, .2, 1); }
+.panel[data-side="right"]:popover-open { animation-name: openSide; }
+@keyframes open { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes openSide { from { opacity: 0; transform: translateX(-8px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .panel:popover-open { animation: none; } }

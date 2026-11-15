@@ -2,26 +2,27 @@
 
 import { ArrowDownLeft, CircleHelp, Heart, Info, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { defaultVideoSettings, MAX_VIDEO_PROMPT_LENGTH, motionPresets, videoInspirations } from "@/constants/video-generator";
+import { defaultVideoSettings, videoInspirations } from "@/constants/video-generator";
 import { Modal } from "@/components/landing/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import { requestVideoPreview, VideoPreviewError } from "@/lib/video-generator/client";
-import { FrameError, loadFrameFile, loadSampleFrame } from "@/lib/video-generator/frames";
-import { closestAspectRatio, composeVideoPrompt, fitSettingsToModel, getVideoModel, previewRenderMs } from "@/lib/video-generator/settings";
-import type { FrameImage, FrameSlot, RenderJob, VideoGenerationRequest, VideoMode, VideoResult, VideoSettings } from "@/types/video-generator";
+import { FrameError, loadClipFile, loadFrameFile, loadSampleFrame } from "@/lib/video-generator/frames";
+import { closestAspectRatio, effectiveDuration, fitSettingsToModel, getVideoModel, modeName, modelsForMode, previewRenderMs } from "@/lib/video-generator/settings";
+import type { FrameImage, RenderJob, VideoGenerationRequest, VideoInputs, VideoMode, VideoResult, VideoSettings } from "@/types/video-generator";
 import { DirectorPanel, MAX_ACTIVE_RENDERS } from "./DirectorPanel";
+import type { InputTarget } from "./InputsSection";
 import { VideoFeed } from "./VideoFeed";
 import { VideoViewer } from "./VideoViewer";
 import { VideoWelcome } from "./VideoWelcome";
 import styles from "./VideoWorkspace.module.css";
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void }; tone?: "success" | "info" };
-type Frames = Record<FrameSlot, FrameImage | null>;
 /** What a render needs to be retried or re-rendered at a higher resolution. */
 type Snapshot = { request: VideoGenerationRequest; prompt: string; frameUrl?: string };
 type RowSize = "s" | "m" | "l";
 const rowHeights: Record<RowSize, string> = { s: "190px", m: "280px", l: "400px" };
 const MAX_ITEMS = 60;
+const emptyInputs: VideoInputs = { start: null, end: null, references: [], clip: null };
 
 function wait(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -34,15 +35,17 @@ function initialSettings(model: string, preset: string | null): VideoSettings {
   const inspiration = videoInspirations.find((item) => item.id === preset);
   const base: VideoSettings = { ...defaultVideoSettings, model };
   if (!inspiration) return fitSettingsToModel(base).settings;
-  return fitSettingsToModel({ ...base, prompt: inspiration.prompt, motion: inspiration.motion, aspectRatio: inspiration.aspectRatio, duration: inspiration.duration }).settings;
+  return fitSettingsToModel({ ...base, prompt: inspiration.prompt, aspectRatio: inspiration.aspectRatio, duration: inspiration.duration }).settings;
 }
+
+const descriptor = (frame: FrameImage) => ({ id: frame.id, mimeType: frame.mimeType, size: frame.size });
 
 export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: string; initialPreset: string | null }) {
   const { motionEnabled } = useLandingMotion();
   const [settings, setSettings] = useState<VideoSettings>(() => initialSettings(initialModel, initialPreset));
-  const [frames, setFrames] = useState<Frames>({ start: null, end: null });
-  const [frameBusy, setFrameBusy] = useState<FrameSlot | null>(null);
-  const [frameError, setFrameError] = useState("");
+  const [inputs, setInputs] = useState<VideoInputs>(emptyInputs);
+  const [inputBusy, setInputBusy] = useState<InputTarget | null>(null);
+  const [inputError, setInputError] = useState("");
   const [items, setItems] = useState<VideoResult[]>([]);
   const [jobs, setJobs] = useState<RenderJob[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +62,9 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
   const snapshots = useRef(new Map<string, Snapshot>());
   const ownedUrls = useRef(new Set<string>());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Async uploads finish after renders; read the latest settings and inputs, not a stale closure.
+  const latest = useRef({ settings, inputs });
+  useEffect(() => { latest.current = { settings, inputs }; });
   const model = getVideoModel(settings.model);
 
   const notify = useCallback((text: string, action?: Toast["action"], tone: Toast["tone"] = "info") => {
@@ -67,11 +73,11 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
     toastTimer.current = setTimeout(() => setToast(null), action ? 8000 : 4500);
   }, []);
 
-  // Revoke local object URLs once neither a frame slot nor a running job shows them.
+  // Revoke local object URLs once neither an input nor a running job shows them.
   useEffect(() => {
-    const active = new Set([frames.start?.url, frames.end?.url, ...jobs.map((job) => job.frameUrl)].filter(Boolean));
+    const active = new Set([inputs.start?.url, inputs.end?.url, inputs.clip?.url, ...inputs.references.map((item) => item.url), ...jobs.map((job) => job.frameUrl)].filter(Boolean));
     for (const url of ownedUrls.current) if (!active.has(url)) { URL.revokeObjectURL(url); ownedUrls.current.delete(url); }
-  }, [frames, jobs]);
+  }, [inputs, jobs]);
 
   useEffect(() => {
     const owned = ownedUrls.current;
@@ -87,9 +93,13 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
     requestAnimationFrame(() => {
       const prompt = promptRef.current;
       if (!prompt) return;
-      prompt.focus({ preventScroll: false });
+      prompt.focus();
       prompt.setSelectionRange(prompt.value.length, prompt.value.length);
     });
+  }
+
+  function revealPanel() {
+    formWrapRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" });
   }
 
   function update(patch: Partial<VideoSettings>) {
@@ -98,72 +108,132 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
   }
 
   function changeModel(id: string) {
-    const { settings: next, adjustments } = fitSettingsToModel(settings, getVideoModel(id));
-    setSettings(next);
-    const name = getVideoModel(id).name;
-    if (adjustments.length) notify(`Switched to ${name}. Adjusted to fit: ${adjustments.join(", ")}.`);
+    const next = getVideoModel(id);
+    const { settings: fitted, adjustments } = fitSettingsToModel(latest.current.settings, next);
+    setSettings(fitted);
+    if (adjustments.length) notify(`Switched to ${next.name}. Adjusted to fit: ${adjustments.join(", ")}.`);
   }
 
+  /** A mode the current model can’t do moves to the best model that can, and says so. */
   function changeMode(mode: VideoMode) {
-    update({ mode });
-    setFrameError("");
+    const current = latest.current.settings;
+    setInputError("");
+    setError(null);
+    if (getVideoModel(current.model).modes.includes(mode)) { setSettings({ ...current, mode }); return; }
+    const next = modelsForMode(mode)[0];
+    const { settings: fitted, adjustments } = fitSettingsToModel({ ...current, mode }, next);
+    setSettings(fitted);
+    notify(`${modeName(mode)} uses ${next.name}${adjustments.length ? `. Adjusted: ${adjustments.join(", ")}` : ""}.`);
   }
 
-  function setFrame(slot: FrameSlot, frame: FrameImage | null) {
-    if (frame && frame.url.startsWith("blob:")) ownedUrls.current.add(frame.url);
-    setFrames((current) => ({ ...current, [slot]: frame }));
+  function track<T extends { url: string }>(item: T): T {
+    if (item.url.startsWith("blob:")) ownedUrls.current.add(item.url);
+    return item;
   }
 
-  /** The first start frame sets the shape of the shot, with a one-tap undo. */
-  function matchFrameShape(frame: FrameImage) {
-    const ratio = closestAspectRatio(frame.width, frame.height, model.aspectRatios);
-    if (ratio === settings.aspectRatio) return;
-    const previous = settings.aspectRatio;
+  /** The first image sets the shape of the shot, with a one-tap undo. */
+  function matchShape(frame: FrameImage) {
+    const current = latest.current.settings;
+    const ratio = closestAspectRatio(frame.width, frame.height, getVideoModel(current.model).aspectRatios);
+    if (ratio === current.aspectRatio) return;
+    const previous = current.aspectRatio;
     update({ aspectRatio: ratio });
-    notify(`Aspect ratio set to ${ratio} to match your frame.`, { label: "Undo", run: () => update({ aspectRatio: previous }) });
+    notify(`Aspect ratio set to ${ratio} to match your image.`, { label: "Undo", run: () => update({ aspectRatio: previous }) });
   }
 
-  async function addFrameFiles(slot: FrameSlot, files: readonly File[]) {
-    const file = files.find((item) => item.type.startsWith("image/")) ?? files[0];
-    if (!file || frameBusy) return;
-    setFrameBusy(slot);
-    setFrameError("");
+  async function addFiles(target: InputTarget, files: readonly File[]) {
+    if (!files.length || inputBusy) return;
+    setInputBusy(target);
+    setInputError("");
     try {
-      const frame = await loadFrameFile(file);
-      ownedUrls.current.add(frame.url);
-      const firstStart = slot === "start" && !frames.start;
-      setFrame(slot, frame);
-      if (settings.mode === "text") update({ mode: "image" });
-      if (firstStart) matchFrameShape(frame);
+      if (target === "clip") {
+        const file = files.find((item) => item.type.startsWith("video/")) ?? files[0];
+        const clip = track(await loadClipFile(file));
+        setInputs((current) => ({ ...current, clip }));
+      } else if (target === "reference") {
+        const limit = getVideoModel(latest.current.settings.model).maxReferences;
+        const room = limit - latest.current.inputs.references.length;
+        const issues: string[] = files.length > room ? [`Only ${room} more ${room === 1 ? "reference fits" : "references fit"}.`] : [];
+        const added: FrameImage[] = [];
+        for (const file of files.slice(0, Math.max(0, room))) {
+          try { added.push(track(await loadFrameFile(file))); }
+          catch (caught) { issues.push(caught instanceof FrameError ? caught.message : `${file.name} couldn’t be added.`); }
+        }
+        if (added.length) setInputs((current) => ({ ...current, references: [...current.references, ...added] }));
+        if (issues.length) setInputError(issues.join(" "));
+      } else {
+        const file = files.find((item) => item.type.startsWith("image/")) ?? files[0];
+        const frame = track(await loadFrameFile(file));
+        const firstStart = target === "start" && !latest.current.inputs.start;
+        setInputs((current) => ({ ...current, [target]: frame }));
+        if (firstStart) matchShape(frame);
+      }
     } catch (caught) {
-      setFrameError(caught instanceof FrameError ? caught.message : "That image couldn’t be added. Please try another.");
-    } finally { setFrameBusy(null); }
+      setInputError(caught instanceof FrameError ? caught.message : "That file couldn’t be added. Please try another.");
+    } finally { setInputBusy(null); }
   }
 
-  function applyStartFrame(frame: FrameImage, message: string) {
-    setFrame("start", frame);
-    if (settings.mode === "text") update({ mode: "image" });
+  function removeInput(target: InputTarget, id?: string) {
+    setInputs((current) => target === "reference" ? { ...current, references: current.references.filter((item) => item.id !== id) } : { ...current, [target]: null });
+    setInputError("");
+  }
+
+  function clearInputs() {
+    const mode = latest.current.settings.mode;
+    setInputs((current) => mode === "reference" ? { ...current, references: [] }
+      : mode === "motion" ? { ...current, start: null, clip: null } : { ...current, start: null, end: null });
+    setInputError("");
+  }
+
+  /** Route pasted or dropped files to wherever they make sense for the current mode. */
+  function routeFiles(files: readonly File[]) {
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    const clips = files.filter((file) => file.type.startsWith("video/"));
+    if (!images.length && !clips.length) return false;
+    const { settings: current, inputs: attached } = latest.current;
+    if (clips.length) {
+      if (current.mode !== "motion") changeMode("motion");
+      void addFiles("clip", clips);
+      return true;
+    }
+    if (current.mode === "text") changeMode("image");
+    if (current.mode === "reference") void addFiles("reference", images);
+    else if (current.mode === "image" && attached.start && !attached.end && getVideoModel(current.model).endFrame) void addFiles("end", images);
+    else void addFiles("start", images);
+    return true;
+  }
+
+  /** A frame from a result or the viewer becomes the next shot’s starting point. */
+  function takeFrame(frame: FrameImage, message: string) {
+    track(frame);
+    const mode = latest.current.settings.mode;
+    if (mode === "reference" && latest.current.inputs.references.length < model.maxReferences) {
+      setInputs((current) => ({ ...current, references: [...current.references, frame] }));
+      notify("Added to your references.", undefined, "success");
+    } else {
+      if (mode === "text" || mode === "reference") changeMode("image");
+      setInputs((current) => ({ ...current, start: frame }));
+      notify(message, undefined, "success");
+    }
     setViewerId(null);
-    notify(message, undefined, "success");
-    formWrapRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" });
+    revealPanel();
     focusPrompt();
   }
 
   async function startFromResult(item: VideoResult) {
-    try {
-      const frame = await loadSampleFrame(item.poster, "Frame from your video");
-      applyStartFrame(frame, "Start frame set. Describe how the scene should move next.");
-    } catch { notify("That frame couldn’t be added. Please try again."); }
+    try { takeFrame(await loadSampleFrame(item.poster, "Frame from your video"), "Start image set. Describe how the scene should move next."); }
+    catch { notify("That frame couldn’t be added. Please try again."); }
   }
 
   function swapFrames() {
-    setFrames((current) => ({ start: current.end, end: current.start }));
+    setInputs((current) => ({ ...current, start: current.end, end: current.start }));
   }
 
-  function applyInspiration(id: string, message?: string) {
+  function applyInspiration(id: string, keepMode = false, message?: string) {
     const inspiration = videoInspirations.find((item) => item.id === id);
     if (!inspiration) return;
-    const { settings: next } = fitSettingsToModel({ ...settings, mode: "text", prompt: inspiration.prompt, motion: inspiration.motion, aspectRatio: inspiration.aspectRatio, duration: inspiration.duration });
+    const current = latest.current.settings;
+    const { settings: next } = fitSettingsToModel({ ...current, mode: keepMode ? current.mode : "text", prompt: inspiration.prompt, aspectRatio: inspiration.aspectRatio, duration: inspiration.duration });
     setSettings(next);
     setError(null);
     notify(message ?? `“${inspiration.title}” is loaded. Make it yours, then generate.`);
@@ -173,22 +243,15 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
   function surprise() {
     const options = videoInspirations.filter((item) => item.prompt !== settings.prompt);
     const pick = options[Math.floor(Math.random() * options.length)];
-    applyInspiration(pick.id, `Here’s an idea: “${pick.title}”.`);
-  }
-
-  function selectMotion(id: string) {
-    update({ motion: id });
-    notify(`${motionPresets.find((preset) => preset.id === id)?.name} added to your shot.`);
-    focusPrompt();
+    applyInspiration(pick.id, true, `Here’s an idea: “${pick.title}”.`);
   }
 
   const startRender = useCallback((snapshot: Snapshot) => {
     const { request, prompt, frameUrl } = snapshot;
     const id = `job-${crypto.randomUUID()}`;
     const job: RenderJob = {
-      id, prompt, model: request.model, aspectRatio: request.aspectRatio, duration: request.duration, resolution: request.resolution,
-      count: request.count, motion: request.motion, startedAt: Date.now(),
-      eta: previewRenderMs(request) + Math.round(Math.random() * 800), frameUrl, status: "rendering",
+      id, prompt, model: request.model, mode: request.mode, aspectRatio: request.aspectRatio, duration: request.duration, resolution: request.resolution,
+      count: request.count, startedAt: Date.now(), eta: previewRenderMs(request) + Math.round(Math.random() * 800), frameUrl, status: "rendering",
     };
     const controller = new AbortController();
     controllers.current.set(id, controller);
@@ -220,19 +283,30 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
       return;
     }
     const fitted = fitSettingsToModel(settings).settings;
-    if (fitted.mode === "text" && !fitted.prompt.trim()) { setError("Describe your scene in a few words first, or switch to Image to animate a still."); promptRef.current?.focus(); return; }
-    if (fitted.mode !== "text" && !frames.start) { setFrameError("Add a start frame to animate."); return; }
-    if (fitted.mode === "frames" && !frames.end) { setFrameError("Add an end frame for the shot to land on."); return; }
-    const composed = composeVideoPrompt(fitted.prompt, fitted.motion, fitted.motionStrength);
-    if (composed.length > MAX_VIDEO_PROMPT_LENGTH) { setError("Your prompt and camera direction are a little long together. Shorten the prompt slightly."); promptRef.current?.focus(); return; }
-    const descriptor = (frame: FrameImage | null) => frame ? { id: frame.id, mimeType: frame.mimeType, size: frame.size } : null;
+    const prompt = fitted.prompt.trim();
+    const { start, end, references, clip } = inputs;
+    const needsPrompt = (message: string) => { setError(message); promptRef.current?.focus(); };
+    if (fitted.mode === "text" && !prompt) return needsPrompt("Describe your scene in a few words first, or start from an image.");
+    if (fitted.mode === "image" && !start) return setInputError("Add a start image to animate.");
+    if (fitted.mode === "reference" && !references.length) return setInputError("Add at least one reference image.");
+    if (fitted.mode === "reference" && !prompt) return needsPrompt("Describe how your references come together, e.g. “the person in image 1…”.");
+    if (fitted.mode === "motion" && !start) return setInputError("Add a character image to animate.");
+    if (fitted.mode === "motion" && !clip) return setInputError("Add a motion clip to copy.");
+
+    const usedReferences = fitted.mode === "reference" ? references.slice(0, model.maxReferences) : [];
     const request: VideoGenerationRequest = {
-      ...fitted, prompt: composed,
-      frames: { start: fitted.mode === "text" ? null : descriptor(frames.start), end: fitted.mode === "frames" ? descriptor(frames.end) : null },
+      ...fitted, prompt, duration: effectiveDuration(fitted, clip),
+      inputs: {
+        start: (fitted.mode === "image" || fitted.mode === "motion") && start ? descriptor(start) : null,
+        end: fitted.mode === "image" && model.endFrame && end ? descriptor(end) : null,
+        references: usedReferences.map(descriptor),
+        clip: fitted.mode === "motion" && clip ? { id: clip.id, mimeType: clip.mimeType, size: clip.size, duration: Math.round(clip.duration * 10) / 10 } : null,
+      },
     };
     setError(null);
-    setFrameError("");
-    startRender({ request, prompt: fitted.prompt.trim(), frameUrl: fitted.mode === "text" ? undefined : frames.start?.url });
+    setInputError("");
+    const frameUrl = fitted.mode === "reference" ? usedReferences[0]?.url : fitted.mode === "text" ? undefined : start?.url;
+    startRender({ request, prompt, frameUrl });
     if (window.matchMedia("(max-width: 900px)").matches) {
       requestAnimationFrame(() => stageRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }));
     }
@@ -253,22 +327,21 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
   }
 
   function reuse(item: VideoResult) {
-    const keepFrames = item.mode !== "text" && Boolean(frames.start) && (item.mode !== "frames" || Boolean(frames.end));
     const { settings: next } = fitSettingsToModel({
-      ...settings, model: item.model, prompt: item.prompt, mode: keepFrames ? item.mode : "text", aspectRatio: item.aspectRatio,
-      resolution: item.resolution, duration: item.duration, motion: item.motion, audio: item.audio, seed: item.seed,
+      ...settings, model: item.model, prompt: item.prompt, mode: item.mode, aspectRatio: item.aspectRatio,
+      resolution: item.resolution, duration: item.duration, audio: item.audio,
     });
     setSettings(next);
     setError(null);
-    notify(`Settings restored, with seed ${item.seed} locked for a similar result.`, { label: "Unlock seed", run: () => update({ seed: null }) });
-    formWrapRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" });
+    notify(item.mode === "text" ? "Prompt and settings restored." : `Settings restored. Check your ${item.mode === "reference" ? "references" : "uploads"} before rendering again.`);
+    revealPanel();
     focusPrompt();
   }
 
   function upscale(item: VideoResult) {
     const snapshot = snapshots.current.get(item.batchId);
     if (!snapshot) { reuse(item); update({ resolution: "1080p" }); return; }
-    startRender({ request: { ...snapshot.request, resolution: "1080p", count: 1, seed: item.seed }, prompt: snapshot.prompt, frameUrl: item.poster });
+    startRender({ request: { ...snapshot.request, resolution: "1080p", count: 1 }, prompt: snapshot.prompt, frameUrl: item.poster });
     notify("Rendering this shot again in 1080p.");
   }
 
@@ -287,7 +360,7 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
   // ⌘/Ctrl + Enter generates from anywhere; "/" jumps to the prompt.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (document.querySelector("dialog[open]")) return;
+      if (document.querySelector("dialog[open], [popover]:popover-open")) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
         formWrapRef.current?.querySelector("form")?.requestSubmit();
@@ -300,33 +373,26 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  function pasteFrame(files: readonly File[]) {
-    const images = files.filter((file) => file.type.startsWith("image/"));
-    if (!images.length) return false;
-    const slot: FrameSlot = settings.mode === "frames" && frames.start && !frames.end ? "end" : "start";
-    void addFrameFiles(slot, images);
-    return true;
-  }
-
   const rendering = jobs.filter((job) => job.status === "rendering").length;
   const favorites = items.filter((item) => item.favorite).length;
   const visible = filter === "favorites" ? items.filter((item) => item.favorite) : items;
   const empty = items.length === 0 && jobs.length === 0;
+  const toggleFavorite = (id: string) => setItems((current) => current.map((item) => item.id === id ? { ...item, favorite: !item.favorite } : item));
 
   return <main className={styles.workspace} id="main-content" tabIndex={-1}
-    onPaste={(event) => { if (pasteFrame(Array.from(event.clipboardData.files))) event.preventDefault(); }}>
+    onPaste={(event) => { if (event.clipboardData.files.length && routeFiles(Array.from(event.clipboardData.files))) event.preventDefault(); }}>
     <h1 className={styles.srOnly}>Pixel Magic video studio</h1>
 
     <div ref={formWrapRef} className={styles.panelWrap}>
-      <DirectorPanel settings={settings} frames={frames} frameBusy={frameBusy} frameError={frameError} activeRenders={rendering} error={error} promptRef={promptRef}
-        onChange={update} onModeChange={changeMode} onModelChange={changeModel} onFrameFiles={(slot, files) => void addFrameFiles(slot, files)}
-        onRemoveFrame={(slot) => setFrame(slot, null)} onSwapFrames={swapFrames} onSurprise={surprise} onSubmit={generate} />
+      <DirectorPanel settings={settings} inputs={inputs} inputBusy={inputBusy} inputError={inputError} activeRenders={rendering} error={error} promptRef={promptRef}
+        onChange={update} onModeChange={changeMode} onModelChange={changeModel} onFiles={(target, files) => void addFiles(target, files)}
+        onRemove={removeInput} onSwap={swapFrames} onClearInputs={clearInputs} onSurprise={surprise} onSubmit={generate} />
     </div>
 
     <section ref={stageRef} className={styles.stage} aria-label="Your videos" aria-busy={rendering > 0}
       style={{ "--feed-row-height": rowHeights[rowSize] } as CSSProperties}
       onDragOver={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
-      onDrop={(event) => { if (pasteFrame(Array.from(event.dataTransfer.files))) event.preventDefault(); }}>
+      onDrop={(event) => { if (routeFiles(Array.from(event.dataTransfer.files))) event.preventDefault(); }}>
       <div className={styles.toolbar}>
         <div className={styles.tabs} role="group" aria-label="Filter videos">
           <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All<span>{items.length}</span></button>
@@ -344,8 +410,8 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
       </div>
 
       <div className={styles.content}>
-        {empty ? <VideoWelcome autoplay={motionEnabled} onSelectInspiration={(id) => applyInspiration(id)} onSelectMotion={selectMotion}
-          onStartFromImage={() => { changeMode("image"); formWrapRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }); }} />
+        {empty ? <VideoWelcome autoplay={motionEnabled} onSelectInspiration={(id) => applyInspiration(id)}
+          onSelectMode={(mode) => { changeMode(mode); revealPanel(); }} />
           : filter === "favorites" && !visible.length ? <div className={styles.emptyFavorites}>
             <Heart size={26} strokeWidth={1.4} aria-hidden="true" />
             <h2>Keep the takes you love.</h2>
@@ -353,7 +419,7 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
             <button type="button" onClick={() => setFilter("all")}>Show all videos</button>
           </div>
           : <VideoFeed items={visible} jobs={filter === "all" ? jobs : []} motionEnabled={motionEnabled}
-            onOpen={setViewerId} onFavorite={(id) => setItems((current) => current.map((item) => item.id === id ? { ...item, favorite: !item.favorite } : item))}
+            onOpen={setViewerId} onFavorite={toggleFavorite}
             onUseFrame={(item) => void startFromResult(item)} onReuse={reuse} onUpscale={upscale} onCopyPrompt={(prompt) => copy(prompt, "Prompt")}
             onDeleteBatch={(batchId) => { const ids = new Set(items.filter((item) => item.batchId === batchId).map((item) => item.id)); remove(ids, ids.size === 1 ? "Video deleted." : `${ids.size} videos deleted.`); }}
             onCancel={cancelJob} onRetry={retryJob} onDismiss={(id) => setJobs((current) => current.filter((job) => job.id !== id))} />}
@@ -368,8 +434,8 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
     </section>
 
     <VideoViewer items={visible} activeId={viewerId} autoplay={motionEnabled} onNavigate={setViewerId} onClose={() => setViewerId(null)}
-      onFavorite={(id) => setItems((current) => current.map((item) => item.id === id ? { ...item, favorite: !item.favorite } : item))}
-      onReuse={reuse} onUpscale={upscale} onAnimateFrame={(frame) => applyStartFrame(frame, "Frame captured. Describe what happens next.")}
+      onFavorite={toggleFavorite} onReuse={reuse} onUpscale={upscale}
+      onAnimateFrame={(frame) => takeFrame(frame, "Frame captured. Describe what happens next.")}
       onDelete={(id) => remove(new Set([id]), "Video deleted.")} onCopy={copy} onError={(message) => notify(message)} />
 
     <p className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
@@ -379,12 +445,12 @@ export function VideoWorkspace({ initialModel, initialPreset }: { initialModel: 
         <span className={styles.helpMark}><Sparkles size={24} aria-hidden="true" /></span>
         <h2>From a single frame<br />to a <em>moving story.</em></h2>
         <ol>
-          <li><span>01</span><div><strong>Start with words or a still.</strong><p>Write a scene, or switch to Image to animate a start frame. Frames lets you choose where the shot lands, too.</p></div></li>
-          <li><span>02</span><div><strong>Direct the camera.</strong><p>Pick a camera move and its intensity, then choose the model, length, shape, resolution and sound. Settings adapt to what each model supports.</p></div></li>
+          <li><span>01</span><div><strong>Pick a mode and a model.</strong><p>Text, Image, Motion Control or Reference to Video. The model list shows only models that support your mode, and the uploads adapt to the model.</p></div></li>
+          <li><span>02</span><div><strong>Add your inputs and prompt.</strong><p>Drop, paste or upload images and clips. Then set the duration, shape, resolution and number of videos.</p></div></li>
           <li><span>03</span><div><strong>Render, compare, refine.</strong><p>Up to {MAX_ACTIVE_RENDERS} renders run at once while you keep working. Reuse settings, pause on a moment to animate from it, or render a favorite in 1080p.</p></div></li>
         </ol>
-        <div className={styles.helpKeys}><span><kbd>⌘</kbd><kbd>↵</kbd> Generate</span><span><kbd>/</kbd> Focus prompt</span><span><kbd>⌘</kbd><kbd>V</kbd> Paste a frame</span></div>
-        <div className={styles.helpNotice}><Info size={16} aria-hidden="true" /><p>This is a design preview. Results are pre-existing sample clips, not AI-generated video, and no credits are charged. Credit and time estimates are indicative. Frames stay in this browser.</p></div>
+        <div className={styles.helpKeys}><span><kbd>⌘</kbd><kbd>↵</kbd> Generate</span><span><kbd>/</kbd> Focus prompt</span><span><kbd>⌘</kbd><kbd>V</kbd> Paste an image or clip</span></div>
+        <div className={styles.helpNotice}><Info size={16} aria-hidden="true" /><p>This is a design preview. Results are pre-existing sample clips, not AI-generated video, and no credits are charged. Credit and time estimates are indicative. Your uploads stay in this browser.</p></div>
         <button type="button" className="button-primary" onClick={() => { setHelpOpen(false); focusPrompt(); }}>Start directing <ArrowDownLeft size={16} aria-hidden="true" /></button>
       </div>
     </Modal>

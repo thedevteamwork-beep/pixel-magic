@@ -1,11 +1,19 @@
-import { defaultVideoSettings, motionPresets, videoModels } from "@/constants/video-generator";
-import type { VideoModel, VideoResolution, VideoSettings } from "@/types/video-generator";
+import { videoModels, videoModes } from "@/constants/video-generator";
+import type { MotionClip, VideoMode, VideoModel, VideoResolution, VideoSettings } from "@/types/video-generator";
 
 export function getVideoModel(id: string): VideoModel {
   return videoModels.find((model) => model.id === id) ?? videoModels[0];
 }
 
-function nearest(options: readonly number[], value: number): number {
+export function modelsForMode(mode: VideoMode): readonly VideoModel[] {
+  return videoModels.filter((model) => model.modes.includes(mode));
+}
+
+export function modeName(mode: VideoMode): string {
+  return videoModes.find((option) => option.id === mode)?.name ?? mode;
+}
+
+export function nearestDuration(options: readonly number[], value: number): number {
   return options.reduce((best, option) => Math.abs(option - value) < Math.abs(best - value) ? option : best, options[0]);
 }
 
@@ -16,16 +24,20 @@ function nearest(options: readonly number[], value: number): number {
 export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = getVideoModel(settings.model)): { settings: VideoSettings; adjustments: string[] } {
   const next = { ...settings, model: model.id };
   const adjustments: string[] = [];
+  if (!model.modes.includes(next.mode)) {
+    adjustments.push(`${modeName(next.mode)} → ${modeName(model.modes[0])}`);
+    next.mode = model.modes[0];
+  }
   if (!model.durations.includes(next.duration)) {
-    const duration = nearest(model.durations, next.duration);
+    const duration = nearestDuration(model.durations, next.duration);
     adjustments.push(`${next.duration}s → ${duration}s`);
     next.duration = duration;
   }
   if (!model.resolutions.includes(next.resolution)) {
     const order: readonly VideoResolution[] = ["480p", "720p", "1080p"];
-    const resolution = nearest(model.resolutions.map((value) => order.indexOf(value)), order.indexOf(next.resolution));
-    adjustments.push(`${next.resolution} → ${order[resolution]}`);
-    next.resolution = order[resolution];
+    const index = nearestDuration(model.resolutions.map((value) => order.indexOf(value)), order.indexOf(next.resolution));
+    adjustments.push(`${next.resolution} → ${order[index]}`);
+    next.resolution = order[index];
   }
   if (!model.aspectRatios.includes(next.aspectRatio)) {
     adjustments.push(`${next.aspectRatio} → ${model.aspectRatios[0]}`);
@@ -35,11 +47,13 @@ export function fitSettingsToModel(settings: VideoSettings, model: VideoModel = 
     adjustments.push("sound off");
     next.audio = false;
   }
-  if (next.mode === "frames" && !model.endFrame) {
-    adjustments.push("end frame not supported");
-    next.mode = "image";
-  }
   return { settings: next, adjustments };
+}
+
+/** Motion control follows the length of the clip, within what the model supports. */
+export function effectiveDuration(settings: Pick<VideoSettings, "mode" | "duration" | "model">, clip: Pick<MotionClip, "duration"> | null): number {
+  if (settings.mode !== "motion" || !clip) return settings.duration;
+  return nearestDuration(getVideoModel(settings.model).durations, clip.duration);
 }
 
 const resolutionTime: Record<VideoResolution, number> = { "480p": 0.6, "720p": 1, "1080p": 1.8 };
@@ -74,17 +88,15 @@ export function formatTimecode(seconds: number): string {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
-export function motionIntensity(strength: number): "subtle" | "moderate" | "strong" {
-  return strength < 34 ? "subtle" : strength < 67 ? "moderate" : "strong";
+/** "4s–30s" for a range, "5s · 10s" for a short list. */
+export function durationLabel(model: VideoModel): string {
+  const values = model.durations;
+  const contiguous = values.length > 3 && values.every((value, index) => index === 0 || value - values[index - 1] === 1);
+  return contiguous ? `${values[0]}s–${values.at(-1)}s` : values.map((value) => `${value}s`).join(" · ");
 }
 
-/** Keep the brief first; camera direction is appended once, in plain language. */
-export function composeVideoPrompt(prompt: string, motion: string, strength = defaultVideoSettings.motionStrength): string {
-  const brief = prompt.trim();
-  const instruction = motionPresets.find((preset) => preset.id === motion)?.instruction;
-  if (!instruction) return brief;
-  const camera = `Camera: ${instruction} Keep the movement ${motionIntensity(strength)}.`;
-  return brief ? `${brief}\n\n${camera}` : camera;
+export function resolutionLabel(model: VideoModel): string {
+  return model.resolutions.length > 1 ? `${model.resolutions[0]}–${model.resolutions.at(-1)}` : model.resolutions[0];
 }
 
 /** "16:9" → 16/9; anything unexpected falls back to landscape. */
