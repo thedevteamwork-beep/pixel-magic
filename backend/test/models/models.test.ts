@@ -22,9 +22,46 @@ const kling = getOperation("kling21", "generate")!;
 
 describe("model registry", () => {
   it("lists each operation with its plugin, operation and key", () => {
-    expect(listModels().map((m) => [m.plugin, m.operation, m.key])).toEqual([
-      ["fluxSchnell", "generate", "fluxSchnell_generate"],
-      ["kling21", "generate", "kling21_generate"],
+    const image = [
+      "fluxSchnell",
+      "flux2Pro",
+      "nanoBananaPro",
+      "nanoBanana2",
+      "gpt2",
+      "seedream5Pro",
+      "qwen3",
+      "grokImagineImage",
+      "krea2",
+    ];
+    const video = [
+      "kling21",
+      "kling25",
+      "klingv3",
+      "seedance2",
+      "seedance25",
+      "veo31Fast",
+      "hailuo23",
+      "wan25",
+      "wan26",
+      "sora2",
+      "ltx2Fast",
+      "pixverse6",
+    ];
+    expect(
+      listModels().map((m) => [m.plugin, m.operation, m.key, m.kind]),
+    ).toEqual([
+      ...image.map((plugin) => [
+        plugin,
+        "generate",
+        `${plugin}_generate`,
+        "image",
+      ]),
+      ...video.map((plugin) => [
+        plugin,
+        "generate",
+        `${plugin}_generate`,
+        "video",
+      ]),
     ]);
   });
 
@@ -119,7 +156,7 @@ describe("model registry", () => {
   });
 
   it.each([[true], [false]])(
-    "kling21 status/result/cancel use the same endpoint as submit (hasImage %s)",
+    "kling21 status/result/cancel reach the request through its fal app (hasImage %s)",
     async (hasImage) => {
       const fal = new FakeFal();
       fal.statuses.set("req_1", "COMPLETED");
@@ -142,7 +179,15 @@ describe("model registry", () => {
         "result",
         "cancel",
       ]);
-      expect(new Set(fal.calls.map((c) => c.args[0])).size).toBe(1);
+      // fal tracks a request by its app (owner/name) and ignores the sub-path,
+      // so follow-up calls use the app whichever endpoint the job was submitted to.
+      const [submit, ...followUps] = fal.calls.map((c) => c.args[0] as string);
+      expect(submit.startsWith("fal-ai/kling-video/")).toBe(true);
+      expect(followUps).toEqual([
+        "fal-ai/kling-video",
+        "fal-ai/kling-video",
+        "fal-ai/kling-video",
+      ]);
     },
   );
 

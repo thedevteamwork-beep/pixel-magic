@@ -91,9 +91,10 @@ type FactType = "string" | "number" | "boolean";
 /**
  * The facts a model can be priced on, with their types: its options (every
  * input but the prompt and the image), its units, which are numbers, and
- * `image`, true when the job has an upload. A unit or `image` replaces an
- * input of the same name, as billingInputs does: kling21's `duration` option
- * is a string, but its `duration` fact is a number of seconds.
+ * `image`, true when the job has an upload, and any fact the model's
+ * billingInputs adds. A unit, `image` or a billing fact replaces an input of
+ * the same name, as billingInputs does: kling21's `duration` option is a
+ * string, but its `duration` fact is a number of seconds.
  */
 function factTypes(model: ModelDefinition): Record<string, FactType> {
   const types: Record<string, FactType> = {};
@@ -105,6 +106,18 @@ function factTypes(model: ModelDefinition): Record<string, FactType> {
   }
   for (const unit of model.schema.billing.units) types[unit] = "number";
   types.image = "boolean";
+  // Facts a model's billing adds or renames (e.g. a video's `resolution`
+  // priced as `output_resolution`), typed by the values it really produces.
+  const produced = model.billingInputs({
+    options: model.options.parse({}),
+    uploadCount: 0,
+  });
+  for (const [name, value] of Object.entries(produced)) {
+    const type = typeof value;
+    if (type === "string" || type === "number" || type === "boolean") {
+      types[name] = type;
+    }
+  }
   return types;
 }
 

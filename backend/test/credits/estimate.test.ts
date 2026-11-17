@@ -31,9 +31,9 @@ function fluxMeter(meter: object): TieredCreditMapping {
 }
 
 describe("creditRange", () => {
-  it("with the default mapping: kling21 30 to 60, flux 1 to 4", () => {
+  it("with the default mapping: kling21 100 to 200, flux 1 to 4", () => {
     const deps = { creditMapping: DEFAULT_TIERED_CREDIT_MAPPING };
-    expect(creditRange(deps, kling21)).toEqual({ min: 30, max: 60 });
+    expect(creditRange(deps, kling21)).toEqual({ min: 100, max: 200 });
     expect(creditRange(deps, fluxSchnell)).toEqual({ min: 1, max: 4 });
   });
 
@@ -71,8 +71,9 @@ describe("creditRange with an option that can be left out", () => {
         ],
       },
     };
+    // The default tier: Pixelbin's 20 credits a second, 5 s at least.
     expect(creditRange({ creditMapping }, klingWithStyle())).toEqual({
-      min: 30,
+      min: 100,
       max: 1000,
     });
   });

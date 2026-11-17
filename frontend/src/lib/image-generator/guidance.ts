@@ -30,19 +30,22 @@ export function composeImagePrompt(prompt: string, additions: string): string {
   return additions ? `${brief}\n\nOptional visual guidance:\n${additions}` : brief;
 }
 
-/** Mentions refer to upload IDs, not whatever happens to occupy the old index. */
-export function rebindReferenceMentions(
-  prompt: string,
-  originalIds: readonly string[],
-  currentIds: readonly string[],
-): { prompt: string; removed: boolean } {
-  let removed = false;
-  const updated = prompt.replace(/@image(\d+)\b/g, (_token, number: string) => {
-    const id = originalIds[Number(number) - 1];
-    const index = id === undefined ? -1 : currentIds.indexOf(id);
-    if (index >= 0) return `@image${index + 1}`;
-    removed = true;
-    return "";
-  });
-  return { prompt: updated, removed };
+const GUIDANCE_HEADING = "\n\nOptional visual guidance:\n";
+
+/** Undoes `composeImagePrompt`: the brief the user typed, and the guidance appended to it. */
+export function splitImagePrompt(prompt: string): { brief: string; guidance: string } {
+  const at = prompt.indexOf(GUIDANCE_HEADING);
+  return at < 0
+    ? { brief: prompt.trim(), guidance: "" }
+    : { brief: prompt.slice(0, at).trim(), guidance: prompt.slice(at + GUIDANCE_HEADING.length) };
+}
+
+/** The style, lighting and palette whose exact instructions appear in composed guidance. */
+export function parseImageGuidance(guidance: string): { style: string } & CreativeGuidance {
+  const lines = new Set(guidance.split("\n"));
+  return {
+    style: stylePresets.find((preset) => lines.has(preset.instruction))?.value ?? "None",
+    lighting: lightingOptions.find((option) => option.instruction && lines.has(option.instruction))?.value ?? "none",
+    palette: paletteOptions.find((option) => option.instruction && lines.has(option.instruction))?.value ?? "none",
+  };
 }

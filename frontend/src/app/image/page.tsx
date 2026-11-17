@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ImageWorkspace } from "@/components/image-generator";
-import { defaultImageSettings, imageInspirations, imageModels } from "@/constants/image-generator";
+import { imageInspirations } from "@/components/image-generator/constants";
 
 export const metadata: Metadata = {
   title: "Image studio — Pixel Magic",
   description:
-    "A little idea. Your way. Explore image creation, references, and creative direction in Pixel Magic’s image studio.",
+    "A little idea. Your way. Create images, guide them with references and creative direction, in Pixel Magic’s image studio.",
 };
 
 type ImageSearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -27,13 +27,14 @@ export default function ImagePage({ searchParams }: { searchParams: ImageSearchP
 
 async function WorkspaceFromQuery({ searchParams }: { searchParams: ImageSearchParams }) {
   const { model, preset } = await searchParams;
-  const selectedModel = imageModels.find((item) => item.id === model)?.id ?? defaultImageSettings.model;
-  const selectedPreset = imageInspirations.find((item) => item.id === preset)?.id ?? null;
+  // Models come from the API at runtime: an unknown `?model=` falls back to the first image model there.
+  const initialModel = typeof model === "string" ? model : null;
+  const initialPreset = imageInspirations.find((item) => item.id === preset)?.id ?? null;
   return (
     <ImageWorkspace
-      key={`${selectedModel}:${selectedPreset ?? ""}`}
-      initialModel={selectedModel}
-      initialPreset={selectedPreset}
+      key={`${initialModel ?? ""}:${initialPreset ?? ""}`}
+      initialModel={initialModel}
+      initialPreset={initialPreset}
     />
   );
 }

@@ -6,6 +6,7 @@ import {
   listUserJobs,
 } from "../../../db/repositories/jobs.repo.js";
 import { AppError } from "../../../lib/errors.js";
+import { listModels } from "../../../models/registry.js";
 import { decodeCursor, encodeCursor } from "../../../services/jobs/cursor.js";
 import { createJob, jobView, jobViews } from "../../../services/jobs/jobs.js";
 import { validate } from "../../middlewares/validate.js";
@@ -23,7 +24,15 @@ const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().min(1).optional(),
   projectId: z.string().uuid().optional(),
+  kind: z.enum(["image", "video"]).optional(),
 });
+
+/** The model keys of one kind; jobs store the key, not the kind. */
+function modelKeysOf(kind: "image" | "video"): string[] {
+  return listModels()
+    .filter((model) => model.kind === kind)
+    .map((model) => model.key);
+}
 
 export function jobsRoutes(deps: Deps): Router {
   const router = Router();
@@ -56,12 +65,13 @@ export function jobsRoutes(deps: Deps): Router {
   );
 
   router.get("/jobs", async (req, res) => {
-    const { limit, cursor, projectId } = listQuery.parse(req.query);
+    const { limit, cursor, projectId, kind } = listQuery.parse(req.query);
     // One extra row tells us whether another page exists.
     const rows = await listUserJobs(deps.db, req.user!.id, {
       limit: limit + 1,
       before: cursor ? decodeCursor(cursor) : undefined,
       projectId,
+      modelKeys: kind ? modelKeysOf(kind) : undefined,
     });
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];

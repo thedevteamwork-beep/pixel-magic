@@ -27,14 +27,15 @@ describe("GET /v1/jobs", () => {
     minutes: number,
     status: "queued" | "completed" = "queued",
     projectId: string | null = null,
+    modelKey = "fluxSchnell_generate",
   ): Promise<string> {
     const id = randomUUID();
     await testDb(T.jobs).insert({
       id,
       user_id: owner,
       project_id: projectId,
-      model_key: "fluxSchnell_generate",
-      input: {},
+      model_key: modelKey,
+      input: { prompt: `job ${minutes}` },
       credit_cost: 1,
       status,
       idempotency_key: randomUUID(),
@@ -64,6 +65,29 @@ describe("GET /v1/jobs", () => {
     res.body.jobs.map((j: { jobId: string }) => j.jobId);
   const cursorOf = (value: unknown) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
+
+  it("filters by model kind, keeping kind-filtered pages consistent", async () => {
+    const image1 = await addJob(userId, 1);
+    await addJob(userId, 2, "queued", null, "kling21_generate");
+    const image2 = await addJob(userId, 3);
+    const images = await list("?kind=image&limit=1");
+    expect(ids(images)).toEqual([image2]);
+    const next = await list(
+      `?kind=image&limit=1&cursor=${images.body.nextCursor}`,
+    );
+    expect(ids(next)).toEqual([image1]);
+    expect(next.body.nextCursor).toBeNull();
+    const videos = await list("?kind=video");
+    expect(videos.body.jobs).toHaveLength(1);
+    expect(videos.body.jobs[0].model).toBe("kling21_generate");
+    expect((await list("?kind=audio")).status).toBe(422);
+  });
+
+  it("returns each job's input so a client can show and reuse it", async () => {
+    await addJob(userId, 5);
+    const res = await list();
+    expect(res.body.jobs[0].input).toEqual({ prompt: "job 5" });
+  });
 
   it("lists the caller's jobs newest first", async () => {
     const a = await addJob(userId, 1);

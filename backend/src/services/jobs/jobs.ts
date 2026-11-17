@@ -26,6 +26,8 @@ export type JobView = {
   jobId: string;
   status: JobStatus;
   model: string;
+  /** The validated input the job was created with, so a client can show or reuse it. */
+  input: Record<string, unknown>;
   /** The project the job belongs to, if any. */
   projectId: string | null;
   creditCost: number;
@@ -54,6 +56,7 @@ export async function jobViews(deps: Deps, jobs: JobRow[]): Promise<JobView[]> {
     jobId: job.id,
     status: job.status,
     model: job.model_key,
+    input: (job.input ?? {}) as Record<string, unknown>,
     projectId: job.project_id,
     creditCost: job.credit_cost,
     createdAt: job.created_at,

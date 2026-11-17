@@ -156,11 +156,15 @@ export async function runGenerate(
         ),
       );
     }
-    // The model gets the job's input with its uploads as a signed URL.
+    // The model gets the job's input with its uploads as signed URLs: one URL
+    // for a single-image field, the whole list for a field that takes several.
     const input: PredictionInput = {
       ...(job.input as Record<string, unknown>),
     };
-    if (model.uploads.field) input[model.uploads.field] = inputUrls[0];
+    if (model.uploads.field) {
+      input[model.uploads.field] =
+        model.uploads.max > 1 ? inputUrls : inputUrls[0];
+    }
     const leaseEnd = job.lease_expires_at?.getTime() ?? 0;
     if (deps.clock.now().getTime() >= leaseEnd - SUBMIT_LEASE_MARGIN_MS) {
       deps.logger.warn("Lease nearly expired; not submitting", {

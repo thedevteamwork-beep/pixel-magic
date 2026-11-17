@@ -15,7 +15,6 @@ import {
 import { Media } from "@/ui/Media";
 import { Accordion, AccordionItem } from "@/ui/Accordion";
 import { useId } from "react";
-import { MAX_REFERENCE_IMAGES } from "@/constants/image-generator";
 import { lightingOptions, paletteOptions, stylePresets } from "@/components/image-generator/constants";
 import { landingAssets } from "@/constants/landing-media";
 import type { ReferenceImage } from "@/types/image-generator";
@@ -36,7 +35,8 @@ export type CreativePanelProps = {
   onUpload: (role: ReferenceRole) => void;
   onRemove: (id: string) => void;
   onClose: () => void;
-  maxReferences?: number;
+  /** How many references the selected model takes; 0 hides uploads. */
+  maxReferences: number;
   inDialog?: boolean;
   uploadError?: string;
 };
@@ -130,7 +130,7 @@ export function CreativePanel({
   onUpload,
   onRemove,
   onClose,
-  maxReferences = MAX_REFERENCE_IMAGES,
+  maxReferences,
   inDialog = false,
   uploadError = "",
 }: CreativePanelProps) {
@@ -165,76 +165,78 @@ export function CreativePanel({
       )}
       <p className={styles.introduction}>Shape the subject, mood, and visual direction. Every choice is optional.</p>
 
-      <section className={styles.referenceSection} aria-labelledby={`${id}-references`}>
-        <div className={styles.sectionHeading}>
-          <h3 id={`${id}-references`}>Your references</h3>
-          <span>
-            {references.length}/{maxReferences}
-          </span>
-        </div>
-        <div className={styles.referenceSlots}>
-          <ReferenceSlot
-            role="subject"
-            reference={subjectReference}
-            canAdd={canAdd}
-            onUpload={onUpload}
-            onRemove={onRemove}
-            onRoleChange={onRoleChange}
-          />
-          <ReferenceSlot
-            role="style"
-            reference={styleReference}
-            canAdd={canAdd}
-            onUpload={onUpload}
-            onRemove={onRemove}
-            onRoleChange={onRoleChange}
-          />
-        </div>
-        {additionalReferences.length > 0 && (
-          <ul className={styles.additionalReferences} aria-label="Additional references">
-            {additionalReferences.map((reference) => (
-              <li key={reference.id}>
-                <span className={styles.additionalImage}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={reference.url} alt="" />
-                </span>
-                <div className={styles.additionalIdentity}>
-                  <span title={reference.name}>{reference.name}</span>
-                  <span className={styles.roleSelect}>
-                    <select
-                      aria-label={`Reference role for ${reference.name}`}
-                      value={reference.role ?? "subject"}
-                      onChange={(event) => onRoleChange(reference.id, event.target.value as ReferenceRole)}
-                    >
-                      <option value="subject">Subject</option>
-                      <option value="style">Style</option>
-                    </select>
-                    <ChevronDown size={12} aria-hidden="true" />
+      {maxReferences > 0 && (
+        <section className={styles.referenceSection} aria-labelledby={`${id}-references`}>
+          <div className={styles.sectionHeading}>
+            <h3 id={`${id}-references`}>Your references</h3>
+            <span>
+              {references.length}/{maxReferences}
+            </span>
+          </div>
+          <div className={styles.referenceSlots}>
+            <ReferenceSlot
+              role="subject"
+              reference={subjectReference}
+              canAdd={canAdd}
+              onUpload={onUpload}
+              onRemove={onRemove}
+              onRoleChange={onRoleChange}
+            />
+            <ReferenceSlot
+              role="style"
+              reference={styleReference}
+              canAdd={canAdd}
+              onUpload={onUpload}
+              onRemove={onRemove}
+              onRoleChange={onRoleChange}
+            />
+          </div>
+          {additionalReferences.length > 0 && (
+            <ul className={styles.additionalReferences} aria-label="Additional references">
+              {additionalReferences.map((reference) => (
+                <li key={reference.id}>
+                  <span className={styles.additionalImage}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={reference.url} alt="" />
                   </span>
-                </div>
-                <button
-                  type="button"
-                  className={styles.removeAdditional}
-                  onClick={() => onRemove(reference.id)}
-                  aria-label={`Remove reference: ${reference.name}`}
-                >
-                  <X size={14} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className={styles.note}>
-          {canAdd
-            ? "Reference files stay in this browser."
-            : "Your reference set is full. Remove an image to add another."}
-        </p>
-        {uploadError && (
-          <p className={styles.uploadError} role="alert">
-            {uploadError}
+                  <div className={styles.additionalIdentity}>
+                    <span title={reference.name}>{reference.name}</span>
+                    <span className={styles.roleSelect}>
+                      <select
+                        aria-label={`Reference role for ${reference.name}`}
+                        value={reference.role ?? "subject"}
+                        onChange={(event) => onRoleChange(reference.id, event.target.value as ReferenceRole)}
+                      >
+                        <option value="subject">Subject</option>
+                        <option value="style">Style</option>
+                      </select>
+                      <ChevronDown size={12} aria-hidden="true" />
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.removeAdditional}
+                    onClick={() => onRemove(reference.id)}
+                    aria-label={`Remove reference: ${reference.name}`}
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className={styles.note}>
+            {canAdd
+              ? "Reference files stay in this browser."
+              : "Your reference set is full. Remove an image to add another."}
           </p>
-        )}
-      </section>
+          {uploadError && (
+            <p className={styles.uploadError} role="alert">
+              {uploadError}
+            </p>
+          )}
+        </section>
+      )}
 
       <section className={styles.styleSection} aria-labelledby={`${id}-style`}>
         <div className={styles.sectionHeading}>

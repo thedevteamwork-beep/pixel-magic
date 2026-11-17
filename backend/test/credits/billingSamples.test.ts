@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { billingSamples } from "../../src/credits/billingSamples.js";
+import {
+  billingSamples,
+  MAX_BILLING_SAMPLES,
+} from "../../src/credits/billingSamples.js";
 import { fluxSchnellGenerate as fluxSchnell } from "../../src/models/plugins/fluxSchnell/generate/index.js";
 import { kling21Generate as kling21 } from "../../src/models/plugins/kling21/generate/index.js";
 import {
@@ -171,18 +174,23 @@ describe("billingSamples", () => {
     ]);
   });
 
-  it("allows exactly 10000 combinations", () => {
-    const model = testModel({ a: integer(1, 100), b: integer(1, 100) });
-    expect(billingSamples(model)).toHaveLength(10000);
+  it("allows exactly MAX_BILLING_SAMPLES combinations", () => {
+    // 500 x 100 = MAX_BILLING_SAMPLES.
+    const model = testModel({ a: integer(1, 500), b: integer(1, 100) });
+    expect(billingSamples(model)).toHaveLength(MAX_BILLING_SAMPLES);
   });
 
-  it("throws, naming the model, above 10000 combinations", () => {
-    const model = testModel({ a: integer(1, 100), b: integer(1, 101) });
-    expect(() => billingSamples(model)).toThrow(/test-model.*10000/);
+  it("throws, naming the model, above MAX_BILLING_SAMPLES combinations", () => {
+    const model = testModel({ a: integer(1, 500), b: integer(1, 101) });
+    expect(() => billingSamples(model)).toThrow(
+      new RegExp(`test-model.*${MAX_BILLING_SAMPLES}`),
+    );
   });
 
   it("throws quickly on a huge integer range instead of listing it", () => {
     const model = testModel({ a: integer(0, 1e12) });
-    expect(() => billingSamples(model)).toThrow(/test-model.*10000/);
+    expect(() => billingSamples(model)).toThrow(
+      new RegExp(`test-model.*${MAX_BILLING_SAMPLES}`),
+    );
   });
 });

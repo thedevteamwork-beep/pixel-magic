@@ -1,25 +1,19 @@
+import type { PublicModel } from "@/lib/api/types";
 import type { MediaId } from "./landing";
 
-export type GeneratorMode = "create" | "edit";
-export type QueueMode = "credits" | "unlimited";
-export type OutputFormat = "png" | "jpeg" | "webp";
+/** An option value the studio sends: the model's own field names, e.g. `image_size`, `num_images`. */
+export type ImageOptionValue = string | number;
 
+/** What the composer holds. */
 export type ImageSettings = {
-  model: string;
+  /** The backend model key; `null` means "the first image model". */
+  model: string | null;
   prompt: string;
-  mode: GeneratorMode;
-  aspectRatio: string;
-  resolution: string;
-  quality: string;
-  count: number;
-  queue: QueueMode;
   style: string;
-  seed: number | null;
-  negativePrompt: string;
-  enhancePrompt: boolean;
-  private: boolean;
-  format: OutputFormat;
-  background: "auto" | "opaque" | "transparent";
+  /** The preferred shape, e.g. "3:4"; mapped to the model's closest size option. */
+  ratio: string;
+  /** Values for the model's own input fields, keyed by field name. */
+  options: Record<string, ImageOptionValue>;
 };
 
 export type ReferenceImage = {
@@ -28,36 +22,35 @@ export type ReferenceImage = {
   name: string;
   mimeType: string;
   size: number;
-  source: "upload" | "sample";
+  source: "upload" | "result";
+  /** The bytes that are uploaded when the image is used. */
+  file: File;
   /** Local art-direction role, converted to prompt guidance before submission. */
   role?: "subject" | "style";
 };
-export type ReferenceDescriptor = Pick<ReferenceImage, "id" | "mimeType" | "size">;
 
-export type ImageGenerationRequest = ImageSettings & { references: ReferenceDescriptor[] };
-
+/** One generated image: a job output with the settings that made it. */
 export type ImageResult = {
+  /** `<jobId>:<output index>`. */
   id: string;
+  jobId: string;
   url: string;
+  expiresAt: string | null;
+  mimeType: string;
   alt: string;
+  /** The user's brief, without the creative guidance the studio appended. */
   prompt: string;
+  /** The creative guidance sent with the brief, if any. */
+  guidance: string;
   model: string;
+  modelName: string;
+  /** e.g. "3:4"; drives the card's shape. */
   aspectRatio: string;
-  resolution: string;
-  quality: string;
+  /** How the model names the size, e.g. "1:1 HD". */
+  sizeLabel: string;
+  options: Record<string, unknown>;
   createdAt: string;
   favorite: boolean;
-  seed: number;
-  style: string;
-  format: string;
-  demo: true;
-};
-
-export type ImageGenerationResponse = {
-  id: string;
-  demo: true;
-  creditsCharged: 0;
-  images: ImageResult[];
 };
 
 export type InspirationItem = {
@@ -69,11 +62,29 @@ export type InspirationItem = {
   aspectRatio: string;
 };
 
-export type ImageModel = {
-  id: string;
+export type ShapeOption = { value: string; label: string; ratio: string };
+
+/** A backend image model, described by the controls the studio shows for it. */
+export type StudioModel = {
+  key: string;
   name: string;
-  maker: string;
   description: string;
+  maker: string;
   symbol: string;
   tag?: string;
+  credits: { min: number; max: number };
+  promptMaxLength: number;
+  /** The size or aspect-ratio field, if the model has one. */
+  shape?: { field: string; options: ShapeOption[]; default: string };
+  /** How many images one job makes, if the model lets you choose. */
+  count?: { field: string; min: number; max: number; default: number };
+  /** Reference images, if the model takes any. */
+  references?: { field: string; max: number; required: boolean; mimeTypes: readonly string[] };
+  /** Other choices the model declares, shown as small selects. */
+  choices: { field: string; label: string; options: readonly string[]; default?: string }[];
+  /** The model as `GET /v1/models` returned it; jobs are built from this. */
+  source: PublicModel;
 };
+
+/** Display details the backend doesn't carry, keyed by model key. */
+export type ModelPresentation = { maker: string; symbol: string; tag?: string };

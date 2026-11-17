@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { ModelSchema } from "../../../types.js";
 
 export const schema: ModelSchema = {
@@ -49,13 +48,3 @@ export const schema: ModelSchema = {
   output: { description: "The generated video", mimeTypes: ["video/mp4"] },
   billing: { units: ["duration"] },
 };
-
-// What fal returns. Extra fields are tolerated and ignored.
-export const falResponse = z.object({
-  video: z.object({
-    url: z.string().url(),
-    content_type: z.string().optional(),
-    file_name: z.string().optional(),
-    file_size: z.number().optional(),
-  }),
-});

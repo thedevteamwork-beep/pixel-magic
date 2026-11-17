@@ -24,16 +24,16 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       model: "kling21_generate",
       count: 1,
       tier: "Basic",
-      creditsPerJob: 60,
-      totalCredits: 60,
+      creditsPerJob: 200,
+      totalCredits: 200,
       baseCredits: 0,
       breakdown: [
         {
           unit: "duration",
           label: "seconds",
           quantity: 10,
-          rate: 6,
-          credits: 60,
+          rate: 20,
+          credits: 200,
         },
       ],
     });
@@ -44,8 +44,8 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       .post("/v1/credits/estimate/kling21/generate")
       .send({ input: { prompt: "waves", duration: "5" }, count: 3 });
     expect(res.body).toMatchObject({
-      creditsPerJob: 30,
-      totalCredits: 90,
+      creditsPerJob: 100,
+      totalCredits: 300,
       count: 3,
     });
   });
@@ -288,7 +288,7 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     const byKey = Object.fromEntries(
       res.body.map((m: { key: string }) => [m.key, m]),
     );
-    expect(byKey.kling21_generate.credits).toEqual({ min: 30, max: 60 });
+    expect(byKey.kling21_generate.credits).toEqual({ min: 100, max: 200 });
     expect(byKey["fluxSchnell_generate"].credits).toEqual({ min: 1, max: 4 });
     expect(byKey.kling21_generate.creditCost).toBeUndefined();
   });

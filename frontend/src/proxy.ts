@@ -8,7 +8,7 @@ function setHeaders(response: NextResponse, headers: Record<string, string>) {
 }
 
 /** Stateless UI previews that never need a session or a real provider connection. */
-const DEMO_API_PATHS = new Set(["/api/demo/image-generation", "/api/demo/video-generation", "/api/demo/image-upscale"]);
+const DEMO_API_PATHS = new Set(["/api/demo/video-generation", "/api/demo/image-upscale"]);
 
 /** Pages that need a signed-in user. */
 const PROTECTED_PREFIXES = ["/generate", "/account", "/checkout", "/creations", "/test"];

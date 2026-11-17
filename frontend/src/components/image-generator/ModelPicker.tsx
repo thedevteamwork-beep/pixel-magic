@@ -1,21 +1,31 @@
 "use client";
 
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, ImagePlus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { imageModels } from "@/constants/image-generator";
+import type { StudioModel } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import styles from "./main.module.css";
 
-type ModelPickerProps = { value: string; onChange: (model: string) => void; disabled?: boolean; compact?: boolean };
-const modelMakers = ["All models", ...new Set(imageModels.map((model) => model.maker))];
+type ModelPickerProps = {
+  models: readonly StudioModel[];
+  value: string;
+  onChange: (model: string) => void;
+  disabled?: boolean;
+  compact?: boolean;
+};
 
-export function ModelPicker({ value, onChange, disabled = false, compact = false }: ModelPickerProps) {
+function creditLabel({ credits }: StudioModel) {
+  return credits.min === credits.max ? `${credits.min} credits` : `${credits.min}–${credits.max} credits`;
+}
+
+export function ModelPicker({ models, value, onChange, disabled = false, compact = false }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [maker, setMaker] = useState("All models");
-  const selected = imageModels.find((model) => model.id === value) ?? imageModels[0];
+  const modelMakers = ["All models", ...new Set(models.map((model) => model.maker))];
+  const selected = models.find((model) => model.key === value) ?? models[0];
   const query = search.trim().toLowerCase();
-  const filtered = imageModels.filter(
+  const filtered = models.filter(
     (model) =>
       (maker === "All models" || model.maker === maker) &&
       `${model.name} ${model.maker} ${model.description}`.toLowerCase().includes(query),
@@ -67,11 +77,11 @@ export function ModelPicker({ value, onChange, disabled = false, compact = false
               <button
                 type="button"
                 className={styles.modelCard}
-                key={model.id}
-                aria-pressed={value === model.id}
+                key={model.key}
+                aria-pressed={value === model.key}
                 disabled={disabled}
                 onClick={() => {
-                  onChange(model.id);
+                  onChange(model.key);
                   setOpen(false);
                 }}
               >
@@ -80,11 +90,21 @@ export function ModelPicker({ value, onChange, disabled = false, compact = false
                     {model.symbol}
                   </span>
                   {model.tag && <span className={styles.modelTag}>{model.tag}</span>}
-                  {value === model.id && <Check className={styles.selectedCheck} size={17} aria-hidden="true" />}
+                  {value === model.key && <Check className={styles.selectedCheck} size={17} aria-hidden="true" />}
                 </span>
                 <strong>{model.name}</strong>
                 <span className={styles.makerName}>{model.maker}</span>
                 <p>{model.description}</p>
+                <span className={styles.modelMeta}>
+                  <Sparkles size={11} aria-hidden="true" /> {creditLabel(model)}
+                  {model.references && (
+                    <>
+                      {" · "}
+                      <ImagePlus size={11} aria-hidden="true" /> Up to {model.references.max}{" "}
+                      {model.references.max === 1 ? "reference" : "references"}
+                    </>
+                  )}
+                </span>
               </button>
             ))}
           </div>
@@ -94,7 +114,7 @@ export function ModelPicker({ value, onChange, disabled = false, compact = false
             </p>
           )}
           <p className={styles.dialogNote}>
-            Explore a creative direction. All models use sample results in this preview.
+            Prices are per generation and shown on the Generate button before you create.
           </p>
         </div>
       </Modal>

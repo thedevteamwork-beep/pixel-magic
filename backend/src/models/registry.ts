@@ -1,13 +1,53 @@
 import type { FieldSchema, ModelDefinition, ModelKind } from "./types.js";
 import { validateModelSchema } from "./metaSchema.js";
-import { fluxSchnell } from "./plugins/fluxSchnell/index.js";
-import { kling21 } from "./plugins/kling21/index.js";
 import { publicInput } from "./schemaGenerator.js";
+import { flux2Pro } from "./plugins/flux2Pro/index.js";
+import { fluxSchnell } from "./plugins/fluxSchnell/index.js";
+import { gpt2 } from "./plugins/gpt2/index.js";
+import { grokImagineImage } from "./plugins/grokImagineImage/index.js";
+import { hailuo23 } from "./plugins/hailuo23/index.js";
+import { kling21 } from "./plugins/kling21/index.js";
+import { kling25 } from "./plugins/kling25/index.js";
+import { klingv3 } from "./plugins/klingv3/index.js";
+import { krea2 } from "./plugins/krea2/index.js";
+import { ltx2Fast } from "./plugins/ltx2Fast/index.js";
+import { nanoBanana2 } from "./plugins/nanoBanana2/index.js";
+import { nanoBananaPro } from "./plugins/nanoBananaPro/index.js";
+import { pixverse6 } from "./plugins/pixverse6/index.js";
+import { qwen3 } from "./plugins/qwen3/index.js";
+import { seedance2 } from "./plugins/seedance2/index.js";
+import { seedance25 } from "./plugins/seedance25/index.js";
+import { seedream5Pro } from "./plugins/seedream5Pro/index.js";
+import { sora2 } from "./plugins/sora2/index.js";
+import { veo31Fast } from "./plugins/veo31Fast/index.js";
+import { wan25 } from "./plugins/wan25/index.js";
+import { wan26 } from "./plugins/wan26/index.js";
 
 /** Every plugin and its operations, like jiraiya's `predictionBackends`. */
 const PLUGINS: Record<string, Record<string, ModelDefinition>> = {
+  // Image
   fluxSchnell,
+  flux2Pro,
+  nanoBananaPro,
+  nanoBanana2,
+  gpt2,
+  seedream5Pro,
+  qwen3,
+  grokImagineImage,
+  krea2,
+  // Video
   kling21,
+  kling25,
+  klingv3,
+  seedance2,
+  seedance25,
+  veo31Fast,
+  hailuo23,
+  wan25,
+  wan26,
+  sora2,
+  ltx2Fast,
+  pixverse6,
 };
 
 const MODELS: ModelDefinition[] = Object.values(PLUGINS).flatMap((operations) =>

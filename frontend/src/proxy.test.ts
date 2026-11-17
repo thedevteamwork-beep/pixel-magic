@@ -32,7 +32,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("auth proxy", () => {
-  it.each(["/api/demo/image-generation", "/api/demo/video-generation", "/api/demo/image-upscale"])(
+  it.each(["/api/demo/video-generation", "/api/demo/image-upscale"])(
     "keeps %s independent of authentication",
     async (path) => {
       const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { method: "POST" }));

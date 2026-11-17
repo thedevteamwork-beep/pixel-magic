@@ -236,33 +236,39 @@ describe("runReconcile", () => {
       status: "failed",
       error_code: "TIMED_OUT",
     });
+    // A reservation can span grants (one allocation row each); releasing once
+    // returns exactly the job's cost, and a second run changes nothing.
     const released = () =>
       testDb(T.creditAllocations).where({ job_id: id, status: "released" });
-    expect(await released()).toHaveLength(1);
+    const cost = (await row(id)).credit_cost as number;
+    const total = (rows: { amount: number }[]) =>
+      rows.reduce((sum, r) => sum + r.amount, 0);
+    const first = await released();
+    expect(total(first)).toBe(cost);
     expect((await runReconcile(h.deps)).timedOut).toBe(0);
-    expect(await released()).toHaveLength(1);
+    expect(await released()).toEqual(first);
     expect(h.fal.calls.filter((c) => c.method === "cancel")).toHaveLength(1);
   });
 
-  it("polls and cancels a text-to-video job on the text-to-video endpoint", async () => {
+  it("polls and cancels a text-to-video job through its fal app", async () => {
     await submittedJob("kling21_generate", false);
     h.fal.calls.length = 0;
     h.clock.advance(61 * MIN);
     expect((await runReconcile(h.deps)).timedOut).toBe(1);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
-      ["status", "fal-ai/kling-video/v2.1/master/text-to-video"],
-      ["cancel", "fal-ai/kling-video/v2.1/master/text-to-video"],
+      ["status", "fal-ai/kling-video"],
+      ["cancel", "fal-ai/kling-video"],
     ]);
   });
 
-  it("polls and cancels an image-to-video job on the image-to-video endpoint", async () => {
+  it("polls and cancels an image-to-video job through its fal app", async () => {
     await submittedJob("kling21_generate");
     h.fal.calls.length = 0;
     h.clock.advance(61 * MIN);
     expect((await runReconcile(h.deps)).timedOut).toBe(1);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
-      ["status", "fal-ai/kling-video/v2.1/master/image-to-video"],
-      ["cancel", "fal-ai/kling-video/v2.1/master/image-to-video"],
+      ["status", "fal-ai/kling-video"],
+      ["cancel", "fal-ai/kling-video"],
     ]);
   });
 

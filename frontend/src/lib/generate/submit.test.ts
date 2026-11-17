@@ -44,7 +44,7 @@ describe("submitGeneration", () => {
   it("uploads then creates the job with the same key", async () => {
     const t = setup();
     const file = new File(["x"], "cat.png", { type: "image/png" });
-    const job = await submitGeneration({ ...t.base, file });
+    const job = await submitGeneration({ ...t.base, files: [file] });
     expect(job.status).toBe("queued");
     expect(t.uploaded).toEqual(["cat.png"]);
     expect(t.calls[0]).toMatchObject({
@@ -83,11 +83,32 @@ describe("submitGeneration", () => {
     expect(t.calls[1]).toEqual(t.calls[0]);
   });
 
+  it("uploads several images in order and resumes after the last kept one", async () => {
+    const t = setup();
+    const files = ["a.png", "b.png", "c.png"].map((name) => new File(["x"], name, { type: "image/png" }));
+    const multi = {
+      ...kling21,
+      input: { ...kling21.input, image: { ...kling21.input.image, maxItems: 3 } },
+    } as typeof kling21;
+    const kept: string[] = [];
+    await submitGeneration({
+      ...t.base,
+      model: multi,
+      files,
+      uploadIds: ["kept-a"],
+      onUploaded: (id, i) => (kept[i] = id),
+    });
+    expect(t.uploaded).toEqual(["b.png", "c.png"]);
+    expect(kept).toEqual([undefined, "up-1", "up-2"]);
+    expect(t.calls.at(-1)?.body).toMatchObject({ input: { image: ["kept-a", "up-1", "up-2"] } });
+  });
+
   it("a retry with an image reuses the kept upload and sends the same body", async () => {
     const t = setup();
     const file = new File(["x"], "cat.png", { type: "image/png" });
     let kept: string | undefined;
-    const attempt = () => submitGeneration({ ...t.base, file, uploadId: kept, onUploaded: (id) => (kept = id) });
+    const attempt = () =>
+      submitGeneration({ ...t.base, files: [file], uploadIds: [kept], onUploaded: (id) => (kept = id) });
     await attempt();
     await attempt();
     expect(t.uploaded).toEqual(["cat.png"]);

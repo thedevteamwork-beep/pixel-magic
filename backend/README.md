@@ -117,7 +117,7 @@ An optional key set to an empty value (`KEY=`) counts as unset. One trailing sla
 
 ## Credit pricing
 
-Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry per model key. When it is set it replaces the built-in default completely (defaults live in `src/credits/defaultTieredCreditMapping.ts`, marked `TODO(pricing)`). The app checks it at startup and refuses to start if a model has no entry, an entry names an unknown model, a tier setup is wrong, or any property is unknown. A bad value (invalid JSON, a negative rate) fails config loading with a message naming `TIERED_CREDIT_MAPPING`.
+Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry per model key. When it is set it replaces the built-in default completely, so it needs an entry for every model (start from the default file); the example below shows only two (defaults live in `src/credits/defaultTieredCreditMapping.ts`, copied from Pixelbin's production mapping). The app checks it at startup and refuses to start if a model has no entry, an entry names an unknown model, a tier setup is wrong, or any property is unknown. A bad value (invalid JSON, a negative rate) fails config loading with a message naming `TIERED_CREDIT_MAPPING`.
 
 ```json
 {
@@ -190,7 +190,27 @@ Public. Body (strict): `{ "input": { "prompt": "waves", "duration": "10" }, "cou
 
 ## Models and jobs
 
-Models are laid out like jiraiya's prediction plugins: `src/models/plugins/<plugin>/<operation>/` holds an operation's `schema.ts` (its `info` and `input` fields), `requests.ts` (its fal calls), `billing.ts` and `index.ts`, and each plugin's `index.ts` lists its operations. `src/models/registry.ts` registers the plugins; at startup it checks every schema and that each operation's key is `<plugin>_<operation>` (for example `kling21_generate`). Jobs store that key as `model_key`, and `GET /v1/models` lists each model's `key`, `plugin`, `operation` and `input`.
+Models are laid out like jiraiya's prediction plugins: `src/models/plugins/<plugin>/<operation>/` holds an operation's `schema.ts` (its `info` and `input` fields) and `index.ts`, and each plugin's `index.ts` lists its operations. `src/models/registry.ts` registers the plugins; at startup it checks every schema and that each operation's key is `<plugin>_<operation>` (for example `kling21_generate`). Jobs store that key as `model_key`, and `GET /v1/models` lists each model's `key`, `plugin`, `operation` and `input`.
+
+Every model runs on fal's queue, so an operation's `index.ts` is one `defineFalModel({...})` call (`src/models/falModel.ts`) that declares only what differs per model:
+
+- `endpoint`: the fal endpoint, or a function of the input when it differs (an edit endpoint when there are references, a Pro tier for 1080p). A function needs `app`, the fal app (`owner/name`): fal tracks a request by its app, so status, result and cancel use it.
+- `payload`: the fal request body built from the job's input. The image field holds signed URLs: one URL when it takes one image, the full list when it takes several.
+- `output`: `"images"` (images flagged by fal's safety checker are dropped and counted) or `"video"`.
+- `billing`: the facts the credit mapping prices on. The default is the options plus `image`; add `duration` or `images` for metered units and rename facts the mapping names differently.
+
+### Models
+
+| Kind  | Models (plugin)                                                                                                                                                                                                                                                                                           |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image | FLUX Schnell (`fluxSchnell`), Flux.2 Pro (`flux2Pro`), Nano Banana Pro (`nanoBananaPro`), Nano Banana 2 (`nanoBanana2`), GPT Image 2 (`gpt2`), Seedream 5.0 Pro (`seedream5Pro`), Qwen Image 3 (`qwen3`), Grok Imagine Image 2.0 (`grokImagineImage`), Krea V2 (`krea2`)                                  |
+| Video | Kling 2.1 Master (`kling21`), Kling 2.5 Turbo (`kling25`), Kling 3.0 (`klingv3`), Seedance 2.0 (`seedance2`), Seedance 2.5 (`seedance25`), Veo 3.1 Fast (`veo31Fast`), Hailuo 2.3 (`hailuo23`), Wan 2.5 (`wan25`), Wan 2.6 (`wan26`), Sora 2 (`sora2`), LTX-2 Fast (`ltx2Fast`), PixVerse 6 (`pixverse6`) |
+
+Video models take one start frame. Pixelbin's end frames, reference images, and reference video or audio inputs are not ported, because a model takes one upload field.
+
+### Adding a model from Pixelbin
+
+Most models are ported from Pixelbin's jiraiya service (`app/transformationSchemas/<key>.schema.js` for the input, `app/predictionBackends/plugins/<plugin>/<operation>/requests.js` for the fal call, and its `getBillingDetails` for the pricing facts). Port the fal path even where jiraiya tries another provider first. A model takes one upload field: keep the main image input (`image` or `images`) and leave out extra uploads such as end frames or reference videos. Add the plugin to `src/models/registry.ts` and its tiers (Pixelbin's `TIERED_CREDIT_MAPPING` entry for the same model) to `src/credits/defaultTieredCreditMapping.ts`; startup refuses a model without a price, or a price without a model.
 
 `POST /v1/jobs/:plugin/:operation` takes `{ "input": { ... } }`, every field flat, for example:
 
@@ -256,7 +276,7 @@ fal webhooks carry `?jobId=<id>` in the URL. The normal path matches the request
 
 - `FAL_KEY`: fal dashboard API key.
 - Set `FAL_WEBHOOK_USER_ID` in production to our fal account's user id. fal signs webhooks for every fal customer with the same keys; until it is set, any fal customer's signed webhook passes the signature check (they still can't link to our jobs, but set it anyway). To find it: read `X-Fal-Webhook-User-Id` of our first real webhook (while the key is unset, the API logs it at info as `falUserId`), or look in the fal dashboard.
-- The two models (`fluxSchnell/generate`, `kling21/generate`) are placeholders (`TODO(pricing)`): their fal input/output schemas and prices were not checked against fal's model pages. Check them, and the credit costs, before launch.
+- Model inputs and fal requests are ported from Pixelbin's production plugins, and their default prices from Pixelbin's production `TIERED_CREDIT_MAPPING` (fluxSchnell has no Pixelbin entry and keeps 1 credit per image). Credits here may not be worth what they are in Pixelbin; set `TIERED_CREDIT_MAPPING` to price for this product before launch.
 
 ## Local end-to-end run
 

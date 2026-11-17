@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { composeImageGuidance, composeImagePrompt, defaultCreativeGuidance, rebindReferenceMentions } from "./guidance";
+import {
+  composeImageGuidance,
+  composeImagePrompt,
+  defaultCreativeGuidance,
+  parseImageGuidance,
+  splitImagePrompt,
+} from "./guidance";
 
 describe("creative guidance composition", () => {
   it("leaves a plain brief free of additional instructions", () => {
@@ -47,19 +53,16 @@ describe("creative guidance composition", () => {
     expect(composeImagePrompt("Place @image1 beside @image2", "")).toBe("Place image 1 beside image 2");
   });
 
-  it("rebinds mentions to their original image IDs after references are reordered", () => {
-    expect(rebindReferenceMentions("Place @image1 beside @image2", ["bottle", "orange"], ["orange", "bottle"])).toEqual(
-      { prompt: "Place @image2 beside @image1", removed: false },
-    );
+  it("splits a composed prompt back into the brief and its guidance", () => {
+    const guidance = composeImageGuidance("Analog", { lighting: "golden-hour", palette: "none" }, []);
+    const composed = composeImagePrompt("  A rose  ", guidance);
+    expect(splitImagePrompt(composed)).toEqual({ brief: "A rose", guidance });
+    expect(splitImagePrompt("Just a brief")).toEqual({ brief: "Just a brief", guidance: "" });
   });
 
-  it("does not silently bind missing references to newly attached images", () => {
-    expect(
-      rebindReferenceMentions("Restyle @image1 using @image2", ["bottle", "style"], ["unrelated", "style"]),
-    ).toEqual({ prompt: "Restyle  using @image2", removed: true });
-  });
-
-  it("clears unresolved mentions when their original reference set is unavailable", () => {
-    expect(rebindReferenceMentions("Edit @image1", [], ["unrelated"])).toEqual({ prompt: "Edit ", removed: true });
+  it("recovers the selected style, lighting and palette from composed guidance", () => {
+    const guidance = composeImageGuidance("Cinematic", { lighting: "studio", palette: "earthy" }, [{ role: "style" }]);
+    expect(parseImageGuidance(guidance)).toEqual({ style: "Cinematic", lighting: "studio", palette: "earthy" });
+    expect(parseImageGuidance("")).toEqual({ style: "None", lighting: "none", palette: "none" });
   });
 });

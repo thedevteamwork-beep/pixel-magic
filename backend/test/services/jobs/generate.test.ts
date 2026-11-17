@@ -147,6 +147,41 @@ describe("runGenerate", () => {
     expect(h.fal.calls[0]?.args[1]).not.toHaveProperty("aspect_ratio");
   });
 
+  it("gives a model that takes several images every upload, in order", async () => {
+    const uploads = [];
+    for (const name of ["a.png", "b.png"]) {
+      const up = await createUpload(h.deps, userId, {
+        filename: name,
+        mimeType: "image/png",
+        sizeBytes: 100,
+      });
+      h.storage.put("inputs", up.path, {
+        sizeBytes: 100,
+        mimeType: "image/png",
+      });
+      uploads.push(up);
+    }
+    const { job } = await createJob(
+      h.deps,
+      userId,
+      jobBody("nanoBananaPro_generate", {
+        prompt: "combine",
+        uploadIds: uploads.map((up) => up.uploadId),
+        options: {},
+      }),
+      "k-multi",
+    );
+    expect(await runGenerate(h.deps, job.jobId)).toBe(200);
+    const [endpoint, payload] = h.fal.calls[0]!.args as [
+      string,
+      { image_urls: string[] },
+    ];
+    expect(endpoint).toBe("fal-ai/nano-banana-pro/edit");
+    expect(payload.image_urls).toHaveLength(2);
+    expect(payload.image_urls[0]).toContain(uploads[0]!.path);
+    expect(payload.image_urls[1]).toContain(uploads[1]!.path);
+  });
+
   it("ignores a second delivery once submitted", async () => {
     const id = await fluxJob();
     expect(await runGenerate(h.deps, id)).toBe(200);

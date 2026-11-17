@@ -63,7 +63,13 @@ export async function getUserJob(
 export async function listUserJobs(
   db: Db,
   userId: string,
-  p: { limit: number; before?: PageCursor; projectId?: string },
+  p: {
+    limit: number;
+    before?: PageCursor;
+    projectId?: string;
+    /** Only jobs of these models, for example every image model. */
+    modelKeys?: readonly string[];
+  },
 ): Promise<JobRow[]> {
   const query = db(T.jobs)
     .where("user_id", userId)
@@ -73,6 +79,7 @@ export async function listUserJobs(
     ])
     .limit(p.limit);
   if (p.projectId) query.where("project_id", p.projectId);
+  if (p.modelKeys) query.whereIn("model_key", p.modelKeys);
   if (p.before) {
     query.whereRaw("(created_at, id) < (?, ?)", [p.before.at, p.before.id]);
   }

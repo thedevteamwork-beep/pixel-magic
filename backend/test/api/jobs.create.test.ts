@@ -264,6 +264,7 @@ describe("POST /v1/jobs", () => {
     expect(own.body).toMatchObject({
       jobId: created.body.jobId,
       status: "queued",
+      input: expect.objectContaining({ prompt: "a cat" }),
       outputs: [],
     });
     expect(JSON.stringify(own.body)).not.toMatch(/bucket|path|fal/i);

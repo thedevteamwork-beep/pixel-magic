@@ -41,18 +41,18 @@ type Loose = Record<string, any>;
 const defaults = () => structuredClone(DEFAULT_TIERED_CREDIT_MAPPING) as Loose;
 
 describe("priceTier", () => {
-  it("uses the default tier's meter: kling21 5 s → 30, 10 s → 60", () => {
+  it("uses the default tier's meter: kling21 5 s → 100, 10 s → 200 (Pixelbin's 20 a second)", () => {
     const entry = DEFAULT_TIERED_CREDIT_MAPPING.kling21_generate!;
     const five = priceTier(entry, { duration: 5, image: false });
     expect(five).toEqual({
       tier: "Basic",
-      total: 30,
+      total: 100,
       baseCredits: 0,
       breakdown: [
-        { unit: "duration", quantity: 5, units: 5, rate: 6, credits: 30 },
+        { unit: "duration", quantity: 5, units: 5, rate: 20, credits: 100 },
       ],
     });
-    expect(priceTier(entry, { duration: 10, image: false }).total).toBe(60);
+    expect(priceTier(entry, { duration: 10, image: false }).total).toBe(200);
   });
 
   it("picks the first matching conditional tier by ascending priority", () => {

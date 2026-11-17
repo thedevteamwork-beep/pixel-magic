@@ -8,6 +8,7 @@ function job(jobId: string, status: JobView["status"] = "queued"): JobView {
     projectId: null,
     status,
     model: "m",
+    input: {},
     creditCost: 1,
     createdAt: "2026-01-01T00:00:00Z",
     completedAt: null,

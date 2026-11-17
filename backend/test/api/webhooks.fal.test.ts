@@ -140,32 +140,23 @@ describe("fal webhook", () => {
     ]);
   });
 
-  it("verifies a text-to-video job on the text-to-video endpoint", async () => {
-    const job = await jobWith("submitting", null, "kling21_generate");
-    const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
-    expect(res.status).toBe(200);
-    expect(ctx.fal.calls).toEqual([
-      {
-        method: "status",
-        args: ["fal-ai/kling-video/v2.1/master/text-to-video", "req_1"],
-      },
-    ]);
-  });
-
-  it("verifies an image-to-video job on the image-to-video endpoint", async () => {
-    const job = await jobWith("submitting", null, "kling21_generate");
-    await testDb(T.jobs)
-      .where({ id: job.id })
-      .update({ upload_ids: [randomUUID()] });
-    const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
-    expect(res.status).toBe(200);
-    expect(ctx.fal.calls).toEqual([
-      {
-        method: "status",
-        args: ["fal-ai/kling-video/v2.1/master/image-to-video", "req_1"],
-      },
-    ]);
-  });
+  it.each([false, true])(
+    "verifies a job through its fal app, whichever endpoint it used (image %s)",
+    async (withImage) => {
+      const job = await jobWith("submitting", null, "kling21_generate");
+      if (withImage) {
+        await testDb(T.jobs)
+          .where({ id: job.id })
+          .update({ upload_ids: [randomUUID()] });
+      }
+      const res = await post(signFalWebhook(OK_BODY), `?jobId=${job.id}`);
+      expect(res.status).toBe(200);
+      // fal tracks a request by its app, so text- and image-to-video jobs are checked the same way.
+      expect(ctx.fal.calls).toEqual([
+        { method: "status", args: ["fal-ai/kling-video", "req_1"] },
+      ]);
+    },
+  );
 
   it("logs an orphan and answers 200 when the job already has another request", async () => {
     const job = await jobWith("submitted", "req_2");

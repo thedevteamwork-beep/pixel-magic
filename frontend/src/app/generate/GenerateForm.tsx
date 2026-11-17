@@ -3,23 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
-import type { ModelKind, PublicModel, UploadResponse } from "@/lib/api/types";
+import type { ModelKind, PublicModel } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
 import { defaultOptions, imageField, optionFields } from "@/lib/generate/formFromSchema";
 import { messageForError } from "@/lib/generate/messages";
 import { submitGeneration } from "@/lib/generate/submit";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uploadFile } from "@/lib/generate/uploadFile";
 import { fieldClasses } from "@/app/generate/fieldClasses";
 import { JobResult } from "@/app/generate/JobResult";
 import { OptionField } from "@/app/generate/OptionField";
 import { useJobPolling } from "@/app/generate/useJobPolling";
 import { Button } from "@/ui/Button";
-
-async function uploadFile(upload: UploadResponse, file: File): Promise<void> {
-  const storage = createSupabaseBrowserClient().storage;
-  const { error } = await storage.from(upload.bucket).uploadToSignedUrl(upload.path, upload.token, file);
-  if (error) throw error;
-}
 
 function isSessionEnded(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
@@ -125,9 +119,9 @@ export function GenerateForm({ initialJobId }: { initialJobId: string | null }) 
         model,
         prompt,
         values,
-        file,
+        files: file ? [file] : [],
         idempotencyKey: attempt.key,
-        uploadId: attempt.uploadId,
+        uploadIds: [attempt.uploadId],
         onUploaded: (uploadId) => (attempt.uploadId = uploadId),
       });
       edited();

@@ -1,34 +1,24 @@
-import {
-  inputValidator,
-  optionsValidator,
-  uploadRule,
-} from "../../../schemaGenerator.js";
-import type { ModelDefinition } from "../../../types.js";
-import { billingInputs } from "./billing.js";
-import {
-  cancelPrediction,
-  checkPredictionStatus,
-  getPredictionResult,
-  parseOutput,
-  requestPrediction,
-} from "./requests.js";
+import { defineFalModel } from "../../../falModel.js";
 import { schema } from "./schema.js";
 
-export const fluxSchnellGenerate: ModelDefinition = {
+export const fluxSchnellGenerate = defineFalModel({
   plugin: "fluxSchnell",
   operation: "generate",
-  key: schema.info.name,
-  kind: schema.info.kind,
-  displayName: schema.info.displayName,
   schema,
-  input: inputValidator(schema),
-  uploads: uploadRule(schema),
-  options: optionsValidator(schema),
-  billingInputs,
-  requestPrediction,
-  checkPredictionStatus,
-  getPredictionResult,
-  cancelPrediction,
-  parseOutput,
+  endpoint: "fal-ai/flux/schnell",
+  payload: (input) => ({
+    prompt: input.prompt,
+    image_size: input.image_size,
+    num_images: input.num_images,
+    // Always on: the safety checker is never user-controllable.
+    enable_safety_checker: true,
+  }),
+  output: "images",
+  // Facts: the options, `image` (never: this model takes no upload) and `images`.
+  billing: ({ options }) => ({
+    ...(options as { image_size: string; num_images: number }),
+    image: false,
+    images: options.num_images as number,
+  }),
   timeoutMinutes: 10,
-};
+});

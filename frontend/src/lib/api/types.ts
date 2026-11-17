@@ -66,6 +66,8 @@ export type JobView = {
   projectId: string | null;
   status: JobStatus;
   model: string;
+  /** The validated input the job was created with. */
+  input: Record<string, unknown>;
   creditCost: number;
   createdAt: string;
   completedAt: string | null;

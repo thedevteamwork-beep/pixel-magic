@@ -1,3 +1,4 @@
+import { listModels } from "../src/models/registry.js";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { DEFAULT_TIERED_CREDIT_MAPPING } from "../src/credits/defaultTieredCreditMapping.js";
@@ -62,10 +63,12 @@ describe("createDeps", () => {
 
   it("uses the default mapping when none is set", async () => {
     const deps = createDeps(loadConfig(env));
-    expect(Object.keys(deps.creditMapping).sort()).toEqual([
-      "fluxSchnell_generate",
-      "kling21_generate",
-    ]);
+    // One entry for every registered model, and nothing else.
+    expect(Object.keys(deps.creditMapping).sort()).toEqual(
+      listModels()
+        .map((m) => m.key)
+        .sort(),
+    );
     await deps.db.destroy();
   });
 });

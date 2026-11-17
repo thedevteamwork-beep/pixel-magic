@@ -316,25 +316,25 @@ describe("runFinalize", () => {
     expect(h.storage.copies[0]?.path).toBe(`${userId}/${id}/0.mp4`);
   });
 
-  it("finalizes a text-to-video job against the text-to-video endpoint", async () => {
+  it("finalizes a text-to-video job: submitted to text-to-video, followed up through the fal app", async () => {
     const id = await submittedJob("kling21_generate", "k1", false);
     h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
       ["submit", "fal-ai/kling-video/v2.1/master/text-to-video"],
-      ["status", "fal-ai/kling-video/v2.1/master/text-to-video"],
-      ["result", "fal-ai/kling-video/v2.1/master/text-to-video"],
+      ["status", "fal-ai/kling-video"],
+      ["result", "fal-ai/kling-video"],
     ]);
   });
 
-  it("finalizes an image-to-video job against the image-to-video endpoint", async () => {
+  it("finalizes an image-to-video job: submitted to image-to-video, followed up through the fal app", async () => {
     const id = await submittedJob("kling21_generate");
     h.fal.results.set("req_1", { ok: true, data: fixture("kling21") });
     expect(await runFinalize(h.deps, id)).toBe(200);
     expect(h.fal.calls.map((c) => [c.method, c.args[0]])).toEqual([
       ["submit", "fal-ai/kling-video/v2.1/master/image-to-video"],
-      ["status", "fal-ai/kling-video/v2.1/master/image-to-video"],
-      ["result", "fal-ai/kling-video/v2.1/master/image-to-video"],
+      ["status", "fal-ai/kling-video"],
+      ["result", "fal-ai/kling-video"],
     ]);
   });
 

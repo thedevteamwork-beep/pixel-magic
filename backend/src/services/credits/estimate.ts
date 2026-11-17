@@ -71,6 +71,14 @@ export function estimateCredits(
   return { creditsPerJob: credits, tier, baseCredits, breakdown };
 }
 
+// Ranges by mapping, then model key. A mapping is fixed once loaded, and
+// pricing every job takes a while (PixVerse alone has ~11k combinations), so
+// each range is worked out once, at startup, not on every GET /v1/models.
+const rangeCache = new WeakMap<
+  TieredCreditMapping,
+  Map<string, { min: number; max: number }>
+>();
+
 /**
  * The cheapest and the dearest job for `GET /v1/models`: the lowest and the
  * highest price over every option combination and upload count.
@@ -79,6 +87,10 @@ export function creditRange(
   deps: PricingDeps,
   model: ModelDefinition,
 ): { min: number; max: number } {
+  let ranges = rangeCache.get(deps.creditMapping);
+  if (!ranges) rangeCache.set(deps.creditMapping, (ranges = new Map()));
+  const cached = ranges.get(model.key);
+  if (cached) return cached;
   let min = Infinity;
   let max = -Infinity;
   for (const facts of billingSamples(model)) {
@@ -86,7 +98,9 @@ export function creditRange(
     min = Math.min(min, credits);
     max = Math.max(max, credits);
   }
-  return { min, max };
+  const range = { min, max };
+  ranges.set(model.key, range);
+  return range;
 }
 
 /**

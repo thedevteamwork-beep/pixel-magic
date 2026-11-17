@@ -2,8 +2,7 @@
 
 import { Media } from "@/ui/Media";
 import { ArrowUpRight } from "lucide-react";
-import { imageInspirations } from "@/constants/image-generator";
-import { imageTemplateArtwork } from "@/components/image-generator/constants";
+import { imageInspirations, imageTemplateArtwork } from "./constants";
 import { landingAssets } from "@/constants/landing-media";
 import styles from "./main.module.css";
 

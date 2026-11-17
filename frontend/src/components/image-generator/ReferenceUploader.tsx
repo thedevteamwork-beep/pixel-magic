@@ -2,7 +2,7 @@
 
 import { ImagePlus, LoaderCircle, Plus, Upload, X } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent } from "react";
-import { MAX_REFERENCE_BYTES, MAX_REFERENCE_IMAGES, REFERENCE_MIME_TYPES } from "@/constants/image-generator";
+import { MAX_REFERENCE_BYTES, REFERENCE_MIME_TYPES } from "@/constants/image-generator";
 import type { ReferenceImage } from "@/types/image-generator";
 import styles from "./main.module.css";
 
@@ -13,6 +13,10 @@ export type ReferenceUploadHandle = {
 };
 type ReferenceUploaderProps = {
   items: readonly ReferenceImage[];
+  /** How many references the selected model takes. */
+  max: number;
+  /** File types the selected model accepts; the studio's own limits still apply. */
+  mimeTypes?: readonly string[];
   onAdd: (items: readonly ReferenceImage[]) => void;
   onRemove: (id: string) => void;
   onError?: (message: string) => void;
@@ -23,10 +27,22 @@ type ReferenceUploaderProps = {
 };
 
 export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUploaderProps>(function ReferenceUploader(
-  { items, onAdd, onRemove, onError, disabled = false, editing = false, variant = "panel", className = "" },
+  {
+    items,
+    max,
+    mimeTypes = REFERENCE_MIME_TYPES,
+    onAdd,
+    onRemove,
+    onError,
+    disabled = false,
+    editing = false,
+    variant = "panel",
+    className = "",
+  },
   ref,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const acceptedTypes: string[] = REFERENCE_MIME_TYPES.filter((type) => mimeTypes.includes(type));
   const mounted = useRef(true);
   const reading = useRef(false);
   const inputRole = useRef<ReferenceRole>("subject");
@@ -46,9 +62,13 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
   async function addFiles(files: readonly File[], role: ReferenceRole = "subject") {
     if (disabled || reading.current || !files.length) return;
     setError("");
-    const capacity = MAX_REFERENCE_IMAGES - items.length;
+    const capacity = max - items.length;
     if (capacity <= 0) {
-      setError(`You can use up to ${MAX_REFERENCE_IMAGES} references. Remove one to add another.`);
+      setError(
+        max > 0
+          ? `This model takes up to ${max} ${max === 1 ? "reference" : "references"}. Remove one to add another.`
+          : "This model doesn’t use reference images.",
+      );
       return;
     }
     reading.current = true;
@@ -57,7 +77,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
     const issues: string[] = files.length > capacity ? [`Only the first ${capacity} images fit in this set.`] : [];
     try {
       for (const file of files.slice(0, capacity)) {
-        if (!REFERENCE_MIME_TYPES.some((type) => type === file.type)) {
+        if (!acceptedTypes.includes(file.type)) {
           issues.push(`${file.name}: choose a JPG, PNG, or WebP image.`);
           continue;
         }
@@ -86,6 +106,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
             mimeType: file.type,
             size: file.size,
             source: "upload",
+            file,
             role,
           });
         } catch {
@@ -105,7 +126,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
     }
   }
   function openFilePicker(role: ReferenceRole = "subject") {
-    if (disabled || reading.current || items.length >= MAX_REFERENCE_IMAGES) return;
+    if (disabled || reading.current || items.length >= max) return;
     inputRole.current = role;
     inputRef.current?.click();
   }
@@ -131,7 +152,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
           Reference images <span>{editing ? "Required" : "Optional"}</span>
         </h3>
         <small>
-          {items.length}/{MAX_REFERENCE_IMAGES}
+          {items.length}/{max}
         </small>
       </div>
       <div
@@ -153,7 +174,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
         <input
           ref={inputRef}
           type="file"
-          accept={REFERENCE_MIME_TYPES.join(",")}
+          accept={acceptedTypes.join(",")}
           multiple
           hidden
           disabled={disabled || busy}
@@ -181,7 +202,7 @@ export const ReferenceUploader = forwardRef<ReferenceUploadHandle, ReferenceUplo
                 </button>
               </div>
             ))}
-            {items.length < MAX_REFERENCE_IMAGES && (
+            {items.length < max && (
               <button
                 type="button"
                 className={styles.add}

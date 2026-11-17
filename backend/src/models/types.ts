@@ -66,7 +66,8 @@ export type ModelSchema = {
 
 /**
  * What a model needs to start a prediction: the job's validated input, with
- * the image field's upload ids replaced by a signed URL to the first upload.
+ * the image field's upload ids replaced by signed URLs: a single URL when the
+ * field takes one image, a list of every upload when it takes several.
  */
 export type PredictionInput = Record<string, unknown>;
 

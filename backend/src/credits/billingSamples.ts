@@ -8,7 +8,7 @@ import type {
 // that every job is priced in range, by pricing every job a model can take:
 // each option combination at each upload count. A model with more
 // combinations than this is a startup error.
-export const MAX_BILLING_SAMPLES = 10_000;
+export const MAX_BILLING_SAMPLES = 50_000;
 
 type OptionValue = string | number | boolean;
 

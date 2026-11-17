@@ -1,36 +1,40 @@
 "use client";
 
 import { ArrowDownLeft, AtSign, ImagePlus, Info, LoaderCircle, Plus, RotateCcw, Sparkles, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import {
-  defaultImageSettings,
-  imageInspirations,
-  imageModels,
-  MAX_PROMPT_LENGTH,
-  MAX_REFERENCE_IMAGES,
-  qualities,
-  REFERENCE_MIME_TYPES,
-} from "@/constants/image-generator";
-import { landingAssets } from "@/constants/landing-media";
+import { useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { REFERENCE_MIME_TYPES } from "@/constants/image-generator";
+import { ApiError } from "@/lib/api/client";
+import { useSignedIn } from "@/lib/auth/useSignedIn";
+import { messageForError } from "@/lib/generate/messages";
+import { resultAsFile } from "@/lib/image-generator/download";
 import {
   composeImageGuidance,
   composeImagePrompt,
   defaultCreativeGuidance,
-  rebindReferenceMentions,
+  parseImageGuidance,
   type CreativeGuidance,
 } from "@/lib/image-generator/guidance";
-import { lightingOptions, paletteOptions } from "@/components/image-generator/constants";
-import { ImagePreviewError, requestImagePreview } from "@/lib/image-generator/client";
-import type { ImageResult, ImageSettings, ReferenceImage } from "@/types/image-generator";
+import { resolveOptions, shapeOf, shapeOption } from "@/lib/image-generator/models";
+import type { ImageOptionValue, ImageResult, ImageSettings, ReferenceImage } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
+import { defaultImageSettings, imageInspirations, lightingOptions, paletteOptions } from "./constants";
 import { CreativePanel } from "./CreativePanel";
 import { DockSettings } from "./DockSettings";
 import { ImageResults } from "./ImageResults";
 import { ReferenceUploader, type ReferenceUploadHandle } from "./ReferenceUploader";
+import { useCreditEstimate } from "./useCreditEstimate";
+import { useImageJobs } from "./useImageJobs";
+import { useImageModels } from "./useImageModels";
+import { useLibraryPrefs } from "./useLibraryPrefs";
 import styles from "./main.module.css";
 
-type Feedback = { text: string; deleted?: ImageResult[] };
+type Feedback = { text: string; action?: { label: string; run: () => void } };
+type Draft = { settings: ImageSettings; guidance: CreativeGuidance };
+
+/** The composer survives the trip to sign in and back; references can't, they are local files. */
+const DRAFT_KEY = "pixelmagic:image-draft";
 
 function fitPromptHeight(prompt: HTMLTextAreaElement | null) {
   if (!prompt || !prompt.getClientRects().length) return;
@@ -38,25 +42,44 @@ function fitPromptHeight(prompt: HTMLTextAreaElement | null) {
   prompt.style.height = `${Math.min(prompt.scrollHeight, 104)}px`;
 }
 
+function sessionEnded(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
+}
+
+function generationError(error: unknown): string {
+  if (error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS") {
+    return "You don’t have enough credits for this. Add credits on the Pricing page, or create fewer images.";
+  }
+  return messageForError(error);
+}
+
+/** Only the plain option values a result was made with, ready to put back in the composer. */
+function optionValues(input: Record<string, unknown>): Record<string, ImageOptionValue> {
+  return Object.fromEntries(
+    Object.entries(input).filter(
+      (entry): entry is [string, ImageOptionValue] =>
+        entry[0] !== "prompt" && (typeof entry[1] === "string" || typeof entry[1] === "number"),
+    ),
+  );
+}
+
 export function ImageWorkspace({
   initialModel,
   initialPreset,
 }: {
-  initialModel: string;
+  initialModel: string | null;
   initialPreset: string | null;
 }) {
   const { motionEnabled } = useLandingMotion();
+  const router = useRouter();
   const preset = imageInspirations.find((item) => item.id === initialPreset);
   const [settings, setSettings] = useState<ImageSettings>({
     ...defaultImageSettings,
     model: initialModel,
     prompt: preset?.prompt ?? "",
-    aspectRatio: preset?.aspectRatio ?? defaultImageSettings.aspectRatio,
+    ratio: preset?.aspectRatio ?? defaultImageSettings.ratio,
   });
   const [references, setReferences] = useState<ReferenceImage[]>([]);
-  const [items, setItems] = useState<ImageResult[]>([]);
-  const [pending, setPending] = useState(false);
-  const [pendingCount, setPendingCount] = useState(1);
   const [generationKey, setGenerationKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -71,8 +94,6 @@ export function ImageWorkspace({
   const [uploadError, setUploadError] = useState("");
   const panelUploadInput = useRef<HTMLInputElement>(null);
   const pendingReferenceRole = useRef<"subject" | "style">("subject");
-  const generationGuidance = useRef(new Map<string, { guidance: CreativeGuidance; referenceIds: string[] }>());
-  const requestRef = useRef<AbortController | null>(null);
   const urlsRef = useRef(new Set<string>());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const uploadRef = useRef<ReferenceUploadHandle>(null);
@@ -83,6 +104,27 @@ export function ImageWorkspace({
   const dockRef = useRef<HTMLElement>(null);
   const referencePickerRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef({ start: 0, end: 0 });
+
+  const { models, error: modelsError, retry: retryModels } = useImageModels();
+  const signedIn = useSignedIn();
+  const jobs = useImageJobs(models, signedIn);
+  const { favorites, hidden, toggleFavorite, hide, unhide } = useLibraryPrefs();
+  // An unknown or missing model key (an old link, say) means the first image model.
+  const model = models?.find((item) => item.key === settings.model) ?? models?.[0];
+  const options = useMemo(
+    () => (model ? resolveOptions(model, settings.options, settings.ratio) : {}),
+    [model, settings.options, settings.ratio],
+  );
+  const maxReferences = model?.references?.max ?? 0;
+  const credits = useCreditEstimate(model, options, Math.min(references.length, maxReferences));
+  const items = useMemo(() => {
+    const hiddenIds = new Set(hidden);
+    const favoriteIds = new Set(favorites);
+    return jobs.results
+      .filter((item) => !hiddenIds.has(item.id))
+      .map((item) => (favoriteIds.has(item.id) ? { ...item, favorite: true } : item));
+  }, [jobs.results, hidden, favorites]);
+  const pending = jobs.render !== null;
 
   useLayoutEffect(() => {
     fitPromptHeight(promptRef.current);
@@ -119,11 +161,28 @@ export function ImageWorkspace({
     return () => observer.disconnect();
   }, []);
 
+  // Back from signing in: put the composer back as it was.
+  useEffect(() => {
+    let draft: Draft | null = null;
+    try {
+      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+      window.sessionStorage.removeItem(DRAFT_KEY);
+      draft = raw ? (JSON.parse(raw) as Draft) : null;
+    } catch {
+      return;
+    }
+    if (!draft?.settings) return;
+    // A one-time restore from storage the server can't see, so it can only happen after mounting.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSettings({ ...defaultImageSettings, ...draft.settings });
+    setGuidance({ ...defaultCreativeGuidance, ...draft.guidance });
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
   useEffect(() => {
     const urls = urlsRef.current;
     const localFetches = localRequests.current;
     return () => {
-      requestRef.current?.abort();
       if (toastTimer.current) clearTimeout(toastTimer.current);
       for (const url of urls) URL.revokeObjectURL(url);
       for (const controller of localFetches) controller.abort();
@@ -131,7 +190,7 @@ export function ImageWorkspace({
   }, []);
 
   useEffect(() => {
-    const activeUrls = new Set(references.filter((item) => item.source === "upload").map((item) => item.url));
+    const activeUrls = new Set(references.map((item) => item.url));
     for (const url of urlsRef.current) {
       if (!activeUrls.has(url)) {
         URL.revokeObjectURL(url);
@@ -140,10 +199,10 @@ export function ImageWorkspace({
     }
   }, [references]);
 
-  function notify(text: string, deleted?: ImageResult[]) {
+  function notify(text: string, action?: Feedback["action"]) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    setFeedback({ text, deleted });
-    toastTimer.current = setTimeout(() => setFeedback(null), deleted ? 9000 : 4500);
+    setFeedback({ text, action });
+    toastTimer.current = setTimeout(() => setFeedback(null), action ? 9000 : 4500);
   }
 
   function focusPrompt(position?: number) {
@@ -159,31 +218,38 @@ export function ImageWorkspace({
   }
 
   function updateSettings(patch: Partial<ImageSettings>) {
-    setSettings((current) => {
-      const next = { ...current, ...patch };
-      return {
-        ...next,
-        quality: qualities.some((quality) => quality === next.quality) ? next.quality : defaultImageSettings.quality,
-        // Removed preferences are fixed transport defaults, never hidden UI choices.
-        queue: defaultImageSettings.queue,
-        seed: null,
-        negativePrompt: "",
-        enhancePrompt: false,
-        private: true,
-        format: defaultImageSettings.format,
-        background: defaultImageSettings.background,
-      };
-    });
+    setSettings((current) => ({ ...current, ...patch }));
     setError(null);
     setRequestError(null);
   }
 
+  /** A picked size also becomes the preferred shape, so it carries over to another model. */
+  function changeOption(field: string, value: ImageOptionValue) {
+    setSettings((current) => ({
+      ...current,
+      options: { ...current.options, [field]: value },
+      ...(field === model?.shape?.field ? { ratio: shapeOption(String(value)).ratio } : {}),
+    }));
+    setError(null);
+    setRequestError(null);
+  }
+
+  function goToSignIn() {
+    try {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ settings, guidance } satisfies Draft));
+    } catch {
+      // Without storage the prompt is lost, but signing in still works.
+    }
+    const back = model ? `/image?model=${encodeURIComponent(model.key)}` : "/image";
+    router.push(`/sign-in?next=${encodeURIComponent(back)}`);
+  }
+
   function addReferences(incoming: readonly ReferenceImage[]) {
-    for (const item of incoming) if (item.source === "upload") urlsRef.current.add(item.url);
+    for (const item of incoming) urlsRef.current.add(item.url);
     setReferences((current) =>
       [...current, ...incoming.map((item) => ({ ...item, role: item.role ?? ("subject" as const) }))].slice(
         0,
-        MAX_REFERENCE_IMAGES,
+        Math.max(maxReferences, current.length),
       ),
     );
     pendingReferenceRole.current = "subject";
@@ -236,7 +302,7 @@ export function ImageWorkspace({
     const after = settings.prompt.slice(end);
     const token = `${before && !/\s$/.test(before) ? " " : ""}@image${index + 1}${after && /^\s/.test(after) ? "" : " "}`;
     const prompt = before + token + after;
-    if (prompt.length > MAX_PROMPT_LENGTH) {
+    if (model && prompt.length > model.promptMaxLength) {
       notify("Make a little room in your prompt before adding a reference.");
       return;
     }
@@ -245,10 +311,13 @@ export function ImageWorkspace({
     focusPrompt(before.length + token.length);
   }
 
-  function useInspiration(id: string) {
+  function applyInspiration(id: string) {
     const inspiration = imageInspirations.find((item) => item.id === id);
     if (!inspiration) return;
-    updateSettings({ prompt: inspiration.prompt, aspectRatio: inspiration.aspectRatio });
+    // Drop any picked size so the inspiration's shape applies.
+    const options = { ...settings.options };
+    if (model?.shape) delete options[model.shape.field];
+    updateSettings({ prompt: inspiration.prompt, ratio: inspiration.aspectRatio, options });
     setWorkspaceView("canvas");
     focusPrompt();
     notify(`“${inspiration.title}” is your new starting point.`);
@@ -257,143 +326,104 @@ export function ImageWorkspace({
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (document.activeElement instanceof Element && document.activeElement.closest("dialog")) return;
-    if (requestRef.current) return;
+    if (pending) return;
+    if (!model) {
+      setError(modelsError ? "The image models couldn’t load. Retry, then generate." : "Loading image models…");
+      return;
+    }
     if (!settings.prompt.trim()) {
       setError("Give your idea a few words first.");
       promptRef.current?.focus();
       return;
     }
-    const submittedSettings: ImageSettings = {
-      ...settings,
-      mode: references.length ? "edit" : "create",
-      quality: qualities.some((quality) => quality === settings.quality)
-        ? settings.quality
-        : defaultImageSettings.quality,
-      queue: defaultImageSettings.queue,
-      seed: null,
-      negativePrompt: "",
-      enhancePrompt: false,
-      private: true,
-      format: defaultImageSettings.format,
-      background: defaultImageSettings.background,
-    };
-    const submittedGuidance = { ...guidance };
-    const submittedPrompt = composeImagePrompt(
-      settings.prompt,
-      composeImageGuidance(settings.style, guidance, references),
-    );
-    if (submittedPrompt.length > MAX_PROMPT_LENGTH) {
+    if (references.length > maxReferences) {
+      const extra = references.length - maxReferences;
+      setError(
+        maxReferences
+          ? `${model.name} takes up to ${maxReferences} reference ${maxReferences === 1 ? "image" : "images"}. Remove ${extra} to continue.`
+          : `${model.name} doesn’t use reference images. Remove them, or choose a model that does.`,
+      );
+      return;
+    }
+    if (model.references?.required && references.length === 0) {
+      setError(`${model.name} needs a reference image. Add one to continue.`);
+      return;
+    }
+    const prompt = composeImagePrompt(settings.prompt, composeImageGuidance(settings.style, guidance, references));
+    if (prompt.length > model.promptMaxLength) {
       setError(
         "Your brief and creative guidance are a little too long together. Shorten the brief or remove a creative option.",
       );
       promptRef.current?.focus();
       return;
     }
-    const controller = new AbortController();
-    requestRef.current = controller;
-    setPending(true);
-    setPendingCount(settings.count);
+    if (signedIn === false) {
+      goToSignIn();
+      return;
+    }
     setGenerationKey((current) => current + 1);
     setWorkspaceView("canvas");
     setError(null);
     setRequestError(null);
-    setAnnouncement(`Preparing ${settings.count === 1 ? "a sample preview" : `${settings.count} sample previews`}.`);
+    setAnnouncement(`Creating with ${model.name}.`);
     try {
-      const response = await requestImagePreview(
-        {
-          ...submittedSettings,
-          prompt: submittedPrompt,
-          references: references.map(({ id, mimeType, size }) => ({ id, mimeType, size })),
-        },
-        controller.signal,
-      );
-      if (controller.signal.aborted || requestRef.current !== controller) return;
-      for (const image of response.images)
-        generationGuidance.current.set(image.id, {
-          guidance: submittedGuidance,
-          referenceIds: references.map((reference) => reference.id),
-        });
-      // Keep a bounded snapshot so reusing a preview never appends stale guidance.
-      while (generationGuidance.current.size > 200)
-        generationGuidance.current.delete(generationGuidance.current.keys().next().value!);
-      const previews = response.images.map((image) => ({ ...image, prompt: submittedSettings.prompt }));
-      setItems((current) => [...previews, ...current].slice(0, 60));
-      setAnnouncement(
-        `${response.images.length} sample ${response.images.length === 1 ? "preview is" : "previews are"} ready. No credits were used.`,
-      );
+      const created = await jobs.generate({ model, prompt, options, files: references.map((item) => item.file) });
+      setAnnouncement(`${created.length === 1 ? "Your image is" : `${created.length} images are`} ready.`);
       if (window.matchMedia("(max-width: 780px)").matches) {
         requestAnimationFrame(() =>
           resultsRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }),
         );
       }
     } catch (caught) {
-      if (controller.signal.aborted) return;
-      setRequestError(
-        caught instanceof ImagePreviewError ? caught.message : "Something interrupted your preview. Please try again.",
-      );
-      setAnnouncement("");
-    } finally {
-      if (requestRef.current === controller) {
-        requestRef.current = null;
-        setPending(false);
+      // Leaving the page stops waiting; the job finishes and appears in history.
+      if (caught instanceof Error && caught.name === "AbortError") return;
+      if (sessionEnded(caught)) {
+        goToSignIn();
+        return;
       }
+      setRequestError(generationError(caught));
+      setAnnouncement("");
     }
-  }
-
-  function cancel() {
-    requestRef.current?.abort();
-    requestRef.current = null;
-    setPending(false);
-    setAnnouncement("Preview canceled. Your prompt and settings are still here.");
   }
 
   function reuse(item: ImageResult) {
-    const model = imageModels.find((candidate) => candidate.id === item.model || candidate.name === item.model);
-    const snapshot = generationGuidance.current.get(item.id);
-    const rebound = rebindReferenceMentions(
-      item.prompt,
-      snapshot?.referenceIds ?? [],
-      references.map((reference) => reference.id),
+    const parsed = parseImageGuidance(item.guidance);
+    const shape = shapeOf(
+      models?.find((candidate) => candidate.key === item.model),
+      item.options,
     );
     updateSettings({
-      prompt: rebound.prompt,
-      model: model?.id ?? settings.model,
-      aspectRatio: item.aspectRatio,
-      resolution: item.resolution,
-      quality: item.quality,
-      style: item.style,
+      prompt: item.prompt,
+      model: item.model,
+      style: parsed.style,
+      ratio: shape?.ratio ?? settings.ratio,
+      options: optionValues(item.options),
     });
-    setGuidance({ ...(snapshot?.guidance ?? defaultCreativeGuidance) });
+    setGuidance({ lighting: parsed.lighting, palette: parsed.palette });
     setWorkspaceView("canvas");
     focusPrompt();
-    notify(
-      rebound.removed
-        ? "Prompt reused. Missing reference mentions were removed; add those images again or update the brief."
-        : "Prompt and settings are ready for another direction.",
-    );
+    notify("Prompt and settings are ready for another direction.");
   }
 
-  async function useReference(item: ImageResult) {
-    if (references.length >= MAX_REFERENCE_IMAGES) {
+  async function addResultAsReference(item: ImageResult) {
+    if (references.length >= maxReferences) {
       notify("Remove a reference before adding another.");
       return;
     }
-    if (!Object.values(landingAssets).some((asset) => asset.image === item.url)) return;
     const controller = new AbortController();
     localRequests.current.add(controller);
     try {
-      const response = await fetch(item.url, { signal: controller.signal });
-      if (!response.ok) throw new Error("Sample unavailable");
-      const sample = await response.blob();
+      const file = await resultAsFile(item, controller.signal);
       if (controller.signal.aborted) return;
       addReferences([
         {
           id: crypto.randomUUID(),
-          url: item.url,
-          name: "Sample reference",
-          mimeType: "image/jpeg",
-          size: sample.size,
-          source: "sample",
+          url: URL.createObjectURL(file),
+          name: "Generated image",
+          mimeType: file.type,
+          size: file.size,
+          source: "result",
+          file,
           role: "subject",
         },
       ]);
@@ -401,32 +431,25 @@ export function ImageWorkspace({
       focusPrompt();
       notify("Reference added. Describe what you’d like to change.");
     } catch {
-      if (!controller.signal.aborted) notify("That sample couldn’t be added. Please try again.");
+      if (!controller.signal.aborted) notify("That image couldn’t be added. Please try again.");
     } finally {
       localRequests.current.delete(controller);
     }
   }
 
   function deleteItems(ids: readonly string[]) {
-    const selected = new Set(ids);
-    const deleted = items.filter((item) => selected.has(item.id));
-    setItems((current) => current.filter((item) => !selected.has(item.id)));
-    notify(`${deleted.length === 1 ? "Preview" : `${deleted.length} previews`} removed.`, deleted);
+    hide(ids);
+    notify(`${ids.length === 1 ? "Image" : `${ids.length} images`} removed from your history.`, {
+      label: "Undo",
+      run: () => unhide(ids),
+    });
   }
 
-  function undoDelete() {
-    if (!feedback?.deleted) return;
-    const deleted = feedback.deleted;
-    setItems((current) => [...deleted, ...current].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 60));
-    setFeedback(null);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-  }
-
-  const selectedModel = imageModels.find((item) => item.id === settings.model) ?? imageModels[0];
   const editing = references.length > 0;
   const guidancePrompt = composeImageGuidance(settings.style, guidance, references);
   const creativeCount =
     Number(settings.style !== "None") + Number(guidance.lighting !== "none") + Number(guidance.palette !== "none");
+  const priceLabel = credits === null ? "…" : `${credits} ${credits === 1 ? "credit" : "credits"}`;
   const creativePanel = (
     <CreativePanel
       references={references}
@@ -443,7 +466,7 @@ export function ImageWorkspace({
       onUpload={uploadReference}
       onRemove={removeReference}
       onClose={() => setCreativeOpen(false)}
-      maxReferences={MAX_REFERENCE_IMAGES}
+      maxReferences={maxReferences}
     />
   );
   return (
@@ -459,7 +482,7 @@ export function ImageWorkspace({
         <section ref={resultsRef} className={styles.results} aria-label="Image canvas">
           <ImageResults
             variant="canvas"
-            modelName={selectedModel.name}
+            modelName={model?.name}
             workspaceView={workspaceView}
             onViewChange={setWorkspaceView}
             onOpenCreative={() => setCreativeOpen((current) => !current)}
@@ -468,17 +491,14 @@ export function ImageWorkspace({
             creativeCount={creativeCount}
             items={items}
             pending={pending}
-            pendingCount={pendingCount}
+            pendingCount={jobs.render?.count ?? 1}
+            pendingModel={jobs.render?.modelName}
             generationKey={generationKey}
             onReuse={reuse}
-            onReference={useReference}
-            onFavorite={(id) =>
-              setItems((current) =>
-                current.map((item) => (item.id === id ? { ...item, favorite: !item.favorite } : item)),
-              )
-            }
+            onReference={maxReferences > 0 ? addResultAsReference : undefined}
+            onFavorite={toggleFavorite}
             onDelete={deleteItems}
-            onSelectInspiration={useInspiration}
+            onSelectInspiration={applyInspiration}
             error={requestError}
             onRetry={() => formRef.current?.requestSubmit()}
           />
@@ -520,6 +540,8 @@ export function ImageWorkspace({
                 variant="compact"
                 className={styles.referenceRail}
                 items={references}
+                max={maxReferences}
+                mimeTypes={model?.references?.mimeTypes}
                 onAdd={addReferences}
                 onRemove={removeReference}
                 onError={setUploadError}
@@ -534,7 +556,7 @@ export function ImageWorkspace({
                   id="image-prompt"
                   name="prompt"
                   value={settings.prompt}
-                  maxLength={MAX_PROMPT_LENGTH}
+                  maxLength={model?.promptMaxLength}
                   rows={1}
                   aria-describedby="prompt-preview-note"
                   aria-invalid={Boolean(error)}
@@ -594,29 +616,55 @@ export function ImageWorkspace({
                 </div>
               )}
               <div className={styles.dockToolbar}>
-                <div className={styles.attachments} role="group" aria-label="Add image references">
-                  <button
-                    type="button"
-                    onClick={() => uploadReference()}
-                    aria-label="Upload reference images"
-                    title="Add reference images"
-                  >
-                    <Plus size={19} aria-hidden="true" />
-                  </button>
-                  <span className={styles.attachmentDivider} aria-hidden="true" />
-                  <button
-                    type="button"
-                    popoverTarget="image-reference-picker"
-                    aria-haspopup="dialog"
-                    onPointerDown={rememberSelection}
-                    aria-label="Mention a reference image"
-                    title="Mention a reference image"
-                  >
-                    <AtSign size={17} aria-hidden="true" />
-                  </button>
-                </div>
+                {maxReferences > 0 && (
+                  <div className={styles.attachments} role="group" aria-label="Add image references">
+                    <button
+                      type="button"
+                      onClick={() => uploadReference()}
+                      aria-label="Upload reference images"
+                      title="Add reference images"
+                    >
+                      <Plus size={19} aria-hidden="true" />
+                    </button>
+                    <span className={styles.attachmentDivider} aria-hidden="true" />
+                    <button
+                      type="button"
+                      popoverTarget="image-reference-picker"
+                      aria-haspopup="dialog"
+                      onPointerDown={rememberSelection}
+                      aria-label="Mention a reference image"
+                      title="Mention a reference image"
+                    >
+                      <AtSign size={17} aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
                 <div className={styles.toolbarScroll}>
-                  <DockSettings settings={settings} onChange={updateSettings} />
+                  {model && models ? (
+                    <DockSettings
+                      models={models}
+                      model={model}
+                      options={options}
+                      onModelChange={(key) => updateSettings({ model: key })}
+                      onOptionChange={changeOption}
+                    />
+                  ) : (
+                    <p className={styles.modelStatus} role={modelsError ? "alert" : "status"}>
+                      {modelsError ? (
+                        <>
+                          The image models couldn’t load.
+                          <button type="button" onClick={retryModels}>
+                            Retry
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <LoaderCircle size={13} className={styles.spinner} aria-hidden="true" />
+                          Loading models…
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -624,28 +672,29 @@ export function ImageWorkspace({
                 <button
                   type="submit"
                   className={styles.generate}
-                  disabled={pending}
-                  title="Generate a sample preview · 0 credits"
-                  aria-label={pending ? "Preparing sample preview" : "Generate sample preview, zero credits"}
+                  disabled={pending || !model}
+                  title={model ? `Uses ${priceLabel}` : undefined}
+                  aria-label={
+                    pending
+                      ? "Creating your images"
+                      : signedIn === false
+                        ? "Sign in to generate"
+                        : `Generate, ${credits === null ? "price loading" : priceLabel}`
+                  }
                 >
                   {pending ? (
                     <>
                       <LoaderCircle size={16} className={styles.spinner} aria-hidden="true" />
-                      <span>Preparing…</span>
+                      <span>Creating…</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={16} aria-hidden="true" />
-                      <span>Generate</span>
+                      <span>{signedIn === false ? "Sign in to generate" : "Generate"}</span>
                     </>
                   )}
-                  {!pending && <span className={styles.generatePrice}>0 credits</span>}
+                  {!pending && model && <span className={styles.generatePrice}>{priceLabel}</span>}
                 </button>
-                {pending && (
-                  <button type="button" className={styles.cancel} onClick={cancel}>
-                    Cancel preview
-                  </button>
-                )}
               </div>
               {error && (
                 <div className={styles.error} id="image-prompt-error" role="alert">
@@ -654,7 +703,8 @@ export function ImageWorkspace({
                 </div>
               )}
               <p className={styles.srOnly} id="prompt-preview-note">
-                Sample image preview. No credits are used. Press Command or Control and Enter to submit.
+                Each generation uses the credits shown on the Generate button. Press Command or Control and Enter to
+                submit.
               </p>
             </form>
           </section>
@@ -717,7 +767,7 @@ export function ImageWorkspace({
         <div className={styles.referencePickerHeader}>
           <h2 id="reference-picker-title">Reference an image</h2>
           <span>
-            {references.length}/{MAX_REFERENCE_IMAGES}
+            {references.length}/{maxReferences}
           </span>
         </div>
         {references.length ? (
@@ -744,7 +794,7 @@ export function ImageWorkspace({
           type="button"
           className={styles.addReference}
           onClick={() => uploadReference()}
-          disabled={references.length >= MAX_REFERENCE_IMAGES}
+          disabled={references.length >= maxReferences}
         >
           <ImagePlus size={15} aria-hidden="true" />
           Add reference images
@@ -757,9 +807,15 @@ export function ImageWorkspace({
       {feedback && (
         <div className={styles.toast} role="status">
           <span>{feedback.text}</span>
-          {feedback.deleted && (
-            <button type="button" onClick={undoDelete}>
-              <RotateCcw size={13} aria-hidden="true" /> Undo
+          {feedback.action && (
+            <button
+              type="button"
+              onClick={() => {
+                feedback.action?.run();
+                setFeedback(null);
+              }}
+            >
+              <RotateCcw size={13} aria-hidden="true" /> {feedback.action.label}
             </button>
           )}
           <button type="button" onClick={() => setFeedback(null)} aria-label="Dismiss notification">
@@ -796,8 +852,8 @@ export function ImageWorkspace({
               <div>
                 <strong>Find your direction.</strong>
                 <p>
-                  Add references and choose your model, frame, quality, resolution, and image count in the prompt bar.
-                  Creative options adds optional style guidance.
+                  Choose a model in the prompt bar, then its size and image count. Creative options adds optional style,
+                  light and palette guidance; models that take references let you add images too.
                 </p>
               </div>
             </li>
@@ -805,15 +861,15 @@ export function ImageWorkspace({
               <span>03</span>
               <div>
                 <strong>See the possibilities.</strong>
-                <p>Create sample previews, save favorites, reuse a prompt, or bring an image back as a reference.</p>
+                <p>Generate, save favorites, reuse a prompt, and find everything you’ve made in History.</p>
               </div>
             </li>
           </ol>
           <div className={styles.helpNotice}>
             <Info size={17} aria-hidden="true" />
             <p>
-              This is a design preview. Results use existing sample photographs, not AI-generated images. No credits are
-              charged. References stay in this browser. Downloads are the original sample JPGs.
+              Each generation uses the credits shown on the Generate button, and failed generations return them. Your
+              images are saved to your account; favorites and removals are kept in this browser.
             </p>
           </div>
           <button

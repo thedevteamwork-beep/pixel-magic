@@ -80,6 +80,7 @@ export function jobView(status: JobView["status"], extra: Partial<JobView> = {})
     projectId: null,
     status,
     model: "fluxSchnell_generate",
+    input: { prompt: "a cat" },
     creditCost: 2,
     createdAt: "2026-11-07T10:00:00.000Z",
     completedAt: null,
