@@ -10,7 +10,15 @@ import { uploadFile } from "@/lib/generate/uploadFile";
 import { imageCount } from "@/lib/image-generator/models";
 import { isActiveJob, jobToResults, mergeResults, urlExpired } from "@/lib/image-generator/results";
 import type { ImageOptionValue, ImageResult, StudioModel } from "@/types/image-generator";
-import { HISTORY_PAGE_SIZE, IMAGE_POLL_INTERVAL_MS } from "./constants";
+import { HISTORY_PAGE_SIZE, IMAGE_POLL_INTERVAL_MS, IMAGE_WAIT_LIMIT_MS } from "./constants";
+
+/** The studio stopped waiting on a job that is still running; it will show up in History. */
+export class StillRunningError extends Error {
+  constructor() {
+    super("The job is still running");
+    this.name = "StillRunningError";
+  }
+}
 
 /** A job being made right now, shown as placeholders. */
 export type ActiveRender = { count: number; modelName: string };
@@ -57,16 +65,30 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
     const controller = new AbortController();
     polling.current = controller;
     setRender(active);
+    // The wait is measured from the job's creation, so a resumed old job is checked briefly, not for another 12 minutes.
+    const created = Date.parse(job.createdAt);
+    const waited = Number.isFinite(created) ? Date.now() - created : 0;
+    let outOfTime = false;
+    const deadline = setTimeout(
+      () => {
+        outOfTime = true;
+        controller.abort();
+      },
+      Math.max(IMAGE_WAIT_LIMIT_MS - waited, IMAGE_POLL_INTERVAL_MS * 2),
+    );
     try {
       const done = await pollJob(job.jobId, {
         get: api.get,
         intervalMs: IMAGE_POLL_INTERVAL_MS,
         signal: controller.signal,
+      }).catch((error: unknown) => {
+        throw outOfTime ? new StillRunningError() : error;
       });
       const fresh = jobToResults(done, modelsRef.current ?? []);
       setResults((current) => mergeResults(current, fresh));
       return fresh;
     } finally {
+      clearTimeout(deadline);
       if (polling.current === controller) {
         polling.current = null;
         setRender(null);

@@ -25,7 +25,7 @@ import { DockSettings } from "./DockSettings";
 import { ImageResults } from "./ImageResults";
 import { ReferenceUploader, type ReferenceUploadHandle } from "./ReferenceUploader";
 import { useCreditEstimate } from "./useCreditEstimate";
-import { useImageJobs } from "./useImageJobs";
+import { StillRunningError, useImageJobs } from "./useImageJobs";
 import { useImageModels } from "./useImageModels";
 import { useLibraryPrefs } from "./useLibraryPrefs";
 import styles from "./main.module.css";
@@ -377,6 +377,11 @@ export function ImageWorkspace({
     } catch (caught) {
       // Leaving the page stops waiting; the job finishes and appears in history.
       if (caught instanceof Error && caught.name === "AbortError") return;
+      if (caught instanceof StillRunningError) {
+        setAnnouncement("");
+        notify("This is taking longer than usual. Your image will appear in History when it’s ready.");
+        return;
+      }
       if (sessionEnded(caught)) {
         goToSignIn();
         return;

@@ -141,6 +141,12 @@ export const defaultImageSettings: Readonly<ImageSettings> = {
 
 /** How often a running job is checked. Image jobs usually finish in seconds. */
 export const IMAGE_POLL_INTERVAL_MS = 2500;
+/**
+ * How long the studio waits on one job, from its creation. Past the backend's
+ * 10-minute image timeout a job should have ended; if not, stop polling and
+ * let it appear in History whenever it does.
+ */
+export const IMAGE_WAIT_LIMIT_MS = 12 * 60_000;
 /** How many recent image jobs the history loads. */
 export const HISTORY_PAGE_SIZE = 30;
 

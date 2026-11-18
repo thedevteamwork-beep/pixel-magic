@@ -7,6 +7,7 @@ import {
 } from "../../../db/repositories/jobs.repo.js";
 import { AppError } from "../../../lib/errors.js";
 import { listModels } from "../../../models/registry.js";
+import { checkSubmittedJob } from "../../../services/jobs/checkJob.js";
 import { decodeCursor, encodeCursor } from "../../../services/jobs/cursor.js";
 import { createJob, jobView, jobViews } from "../../../services/jobs/jobs.js";
 import { validate } from "../../middlewares/validate.js";
@@ -90,6 +91,8 @@ export function jobsRoutes(deps: Deps): Router {
       ? await getUserJob(deps.db, req.user!.id, id.data)
       : null;
     if (!job) throw new AppError(404, "NOT_FOUND", "Job not found");
+    // The app's polling drives a job fal is still working on toward finalize.
+    await checkSubmittedJob(deps, job);
     res.json(await jobView(deps, job));
   });
   return router;
