@@ -19,9 +19,34 @@ implementation: copy its layout when in doubt.
 | Shared CSS helpers       | `src/assets/styles/shared.module.css`   | Repeated class patterns, pulled in with `composes`.                                                    |
 | Bundled images           | `src/assets/images/`                    | Raster images, imported from code. Never put images in `public/`; only videos stay in `public/media/`. |
 | SVG files                | `src/assets/svg/`                       | Standalone `.svg` files. Inline icon components live in `src/ui/Icon`.                                 |
+| Landing page sections    | `src/widgets/<Widget>/index.tsx`        | Rendered from a list by `WidgetRenderer`. See "Landing page widgets" below.                            |
 
 Constants live in one `constants.ts` at the root of the feature folder (`components/<feature>/constants.ts`), not in
 each component folder. Helpers and types stay out of component folders.
+
+Pictures that show what an option means (a hairstyle, a body type, a style preset) are real images, not hand-drawn SVG
+components. Put them in a subfolder of `src/assets/images/<feature>/` (for example `ai-influencer/hair/`), map them in
+the feature's `constants.ts`, and render them with `Media`.
+
+## Landing page widgets
+
+The landing page is built from widgets. A page passes an ordered list of `{ id, type, props }` to `WidgetRenderer`,
+which looks each `type` up in `src/widgets/registry.ts` and renders that component with its `props`.
+
+1. **Each widget is a folder** with a plain `index.tsx` (`widgets/HeroBanner/index.tsx`) that exports the component and
+   its `Props` type.
+2. **Content comes from constants**, not from text written inside the widget. The widget only renders the props it gets.
+3. **To add a widget,** add its props to `WidgetPropsMap` in `widgets/types.ts` and its component to `widgetRegistry` in
+   `widgets/registry.ts`. TypeScript then checks every list entry's `props` against its `type`.
+4. **Unknown types are skipped** with a console warning, so a list from a CMS that is ahead of this build does not break
+   the page.
+
+## Validating input
+
+Do not write validation as inline `if` checks in a component. Declare each field's checks as an array of validators from
+`src/lib/validation/validators.ts` (`trimmed`, `isNotEmpty`, `isTextLength`, `isInRange`, `isOneOf`, `when`, …) next to
+the field's state or in the feature's `constants.ts`. Run them on submit with `runValidators` (one field) or
+`validateFields` (a whole form), and show the returned message. Add a new rule to `validators.ts` only if it is generic.
 
 ## Shared UI: `src/ui/`
 
@@ -84,6 +109,27 @@ Rules:
    in `src/lib/` or the nearest shared folder.
 6. **Components without styles have no CSS file** (`InfluencerContext/index.tsx`).
 7. **File names:** components `PascalCase.tsx`, hooks `useThing.ts`, helpers `camelCase.ts`.
+
+### A feature's main screen
+
+The component a route renders (the "workspace") may use either of two layouts. Both are allowed; pick one per feature.
+
+```
+Own folder                              Feature root
+video-generator/                        image-generator/
+  VideoWorkspace/                         index.tsx          ← the workspace
+    index.tsx       ← the workspace       main.module.css
+    main.module.css                       CreativePanel.tsx  ← flat sub-components
+  DirectorPanel/    ← sibling folders     ImageResults.tsx
+  VideoFeed/                              useImageJobs.ts
+  constants.ts                            constants.ts
+```
+
+- **Own folder** (`ai-influencer`, `image-upscaler`, `video-generator`): `<feature>/<Name>Workspace/index.tsx`. Do not
+  nest the workspace's pieces inside it; each piece is its own component folder next to it. The page imports
+  `@/components/<feature>/<Name>Workspace`.
+- **Feature root** (`image-generator`): the feature folder is the workspace. `index.tsx`, flat sub-components, hooks and
+  one `main.module.css` sit directly in `<feature>/`. The page imports `@/components/<feature>`.
 
 ### `"use client"`
 
@@ -191,4 +237,5 @@ some feature components still use their own styles and can move to `ui/Button` w
 **Folder structure:**
 
 Every component folder (`ai-influencer`, `auth`, `image-generator`, `image-upscaler`, `landing`, `layout`,
-`video-generator`) follows this structure.
+`video-generator`) follows this structure. `image-generator` uses the feature-root layout for its workspace; the others
+use their own folder.
