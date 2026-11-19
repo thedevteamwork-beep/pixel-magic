@@ -1,6 +1,6 @@
 "use client";
 
-import { Media, type MediaImageProps } from "@/ui/Media";
+import { Media } from "@/ui/Media";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   List,
   LoaderCircle,
-  Maximize2,
   Search,
   SearchX,
   SlidersHorizontal,
@@ -22,13 +21,14 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { imageInspirations, imageTemplateArtwork } from "./constants";
+import { imageInspirations, imageTemplateArtwork, REMOTE_IMAGE } from "./constants";
 import { downloadResult } from "@/lib/image-generator/download";
 import { parseImageGuidance } from "@/lib/image-generator/guidance";
 import { landingAssets } from "@/constants/landing-media";
-import type { ImageResult, InspirationItem } from "@/types/image-generator";
+import type { ImageResult, InspirationItem, NextStep, NextStepOption, StudioModel } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { ImageWelcome } from "./ImageWelcome";
+import { ResultStage } from "./ResultStage";
 import styles from "./main.module.css";
 
 export type ImageResultsProps = {
@@ -46,7 +46,14 @@ export type ImageResultsProps = {
   onHelp?: () => void;
   creativeOpen?: boolean;
   creativeCount?: number;
+  /** The studio's models, for naming a result's model. */
+  models?: readonly StudioModel[];
   onReuse: (item: ImageResult) => void;
+  /** Generates a result's prompt and settings again. */
+  onRerun?: (item: ImageResult) => void;
+  /** What a result can become next, offered beside it on the canvas. */
+  nextSteps?: readonly NextStepOption[];
+  onNextStep?: (item: ImageResult, step: NextStep) => void;
   /** Absent when the selected model takes no reference images. */
   onReference?: (item: ImageResult) => void;
   onFavorite: (id: string) => void;
@@ -58,9 +65,6 @@ export type ImageResultsProps = {
 
 type LibraryTab = "all" | "favorites";
 type Layout = "grid" | "list";
-
-/** Results are signed storage URLs: served as they are, not through the image optimizer. */
-const REMOTE_IMAGE: MediaImageProps = { unoptimized: true };
 
 function imageRatio(value: string) {
   return /^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(value) ? value.replace(":", " / ") : "1 / 1";
@@ -213,130 +217,6 @@ function CanvasPending({ count, model }: { count: number; model?: string }) {
   );
 }
 
-function CanvasPreview({
-  active,
-  items,
-  onSelect,
-  onFavorite,
-  onExpand,
-  onReuse,
-  onReference,
-}: {
-  active: ImageResult;
-  items: readonly ImageResult[];
-  onSelect: (id: string) => void;
-  onFavorite: (id: string) => void;
-  onExpand: () => void;
-  onReuse: (item: ImageResult) => void;
-  onReference?: (item: ImageResult) => void;
-}) {
-  const canvasId = useId();
-  const variationRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const activeIndex = items.findIndex((item) => item.id === active.id);
-
-  function selectVariation(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next: number;
-    if (event.key === "ArrowRight") next = (index + 1) % items.length;
-    else if (event.key === "ArrowLeft") next = (index - 1 + items.length) % items.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = items.length - 1;
-    else return;
-    event.preventDefault();
-    onSelect(items[next].id);
-    variationRefs.current[next]?.focus();
-    variationRefs.current[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-
-  return (
-    <div className={styles.canvasPreview}>
-      <div role="tabpanel" id={`${canvasId}-image`} aria-labelledby={`${canvasId}-${active.id}`}>
-        <div className={styles.activeImage}>
-          <Media
-            media={{ kind: "image", src: active.url, alt: active.alt }}
-            fill
-            sizes="(max-width: 750px) 90vw, (max-width: 1200px) 75vw, 1050px"
-            imageProps={REMOTE_IMAGE}
-          />
-          <div className={styles.canvasImageActions}>
-            <button
-              type="button"
-              className={active.favorite ? styles.isFavorite : ""}
-              onClick={() => onFavorite(active.id)}
-              aria-label={`${active.favorite ? "Remove image from" : "Add image to"} favorites`}
-              aria-pressed={active.favorite}
-            >
-              <Heart size={17} fill={active.favorite ? "currentColor" : "none"} aria-hidden="true" />
-            </button>
-            <button type="button" onClick={onExpand} aria-label="Expand image and view details" aria-haspopup="dialog">
-              <Maximize2 size={17} aria-hidden="true" />
-            </button>
-            <a href={active.url} onClick={download(active)} aria-label="Download image">
-              <ArrowDownToLine size={17} aria-hidden="true" />
-            </a>
-          </div>
-        </div>
-        <div className={styles.canvasImageInfo}>
-          <div className={styles.canvasImageCopy}>
-            <p>{active.modelName}</p>
-            <button
-              type="button"
-              onClick={onExpand}
-              className={styles.canvasPrompt}
-              aria-label={`View image details and prompt: ${active.prompt}`}
-            >
-              {active.prompt}
-            </button>
-          </div>
-          <div className={styles.canvasReuseActions}>
-            <button type="button" onClick={() => onReuse(active)}>
-              <Undo2 size={14} aria-hidden="true" />
-              Reuse prompt
-            </button>
-            {onReference && (
-              <button type="button" onClick={() => onReference(active)}>
-                <ImagePlus size={14} aria-hidden="true" />
-                Use as reference
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className={styles.variationHeader}>
-        <h3>Your variations</h3>
-        <span>
-          {activeIndex + 1} / {items.length}
-        </span>
-      </div>
-      <div className={styles.variationStrip} role="tablist" aria-label="Variations">
-        {items.map((item, index) => (
-          <button
-            type="button"
-            key={item.id}
-            role="tab"
-            id={`${canvasId}-${item.id}`}
-            ref={(element) => {
-              variationRefs.current[index] = element;
-            }}
-            aria-controls={`${canvasId}-image`}
-            aria-selected={item.id === active.id}
-            tabIndex={item.id === active.id ? 0 : -1}
-            onClick={() => onSelect(item.id)}
-            onKeyDown={(event) => selectVariation(event, index)}
-            aria-label={`View variation ${index + 1} of ${items.length}: ${item.alt}`}
-          >
-            <Media media={{ kind: "image", src: item.url, alt: "" }} fill sizes="68px" imageProps={REMOTE_IMAGE} />
-            {item.favorite && (
-              <span className={styles.variationFavorite} aria-hidden="true">
-                <Heart size={9} fill="currentColor" />
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function ImageResults({
   items,
   pending,
@@ -351,7 +231,11 @@ export function ImageResults({
   onHelp,
   creativeOpen = false,
   creativeCount = 0,
+  models,
   onReuse,
+  onRerun,
+  nextSteps = [],
+  onNextStep = () => undefined,
   onReference,
   onFavorite,
   onDelete,
@@ -380,6 +264,7 @@ export function ImageResults({
   const favorites = items.filter((item) => item.favorite).length;
   const preview = items.find((item) => item.id === previewId) ?? null;
   const active = items.find((item) => item.id === activeId) ?? items[0] ?? null;
+  // The canvas shows one generation; older ones are in History.
   const variations = active ? items.filter((item) => item.jobId === active.jobId) : [];
   const selected = items.filter((item) => selectedIds.has(item.id));
   const filtered = useMemo(
@@ -673,14 +558,17 @@ export function ImageResults({
             {pending ? (
               <CanvasPending count={pendingCount} model={pendingModel} />
             ) : active ? (
-              <CanvasPreview
+              <ResultStage
                 active={active}
-                items={variations}
+                variations={variations}
+                models={models}
+                nextSteps={nextSteps}
                 onSelect={setActiveId}
                 onFavorite={onFavorite}
-                onExpand={() => setPreviewId(active.id)}
+                onRerun={onRerun}
                 onReuse={onReuse}
-                onReference={onReference}
+                onNextStep={onNextStep}
+                onDelete={(id) => deleteItems([id])}
               />
             ) : (
               <ImageWelcome

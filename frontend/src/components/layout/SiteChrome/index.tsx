@@ -2,8 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { StudioShell } from "@/components/layout/StudioShell";
 
 const authRoutes = new Set(["/sign-in", "/sign-up", "/forgot-password", "/reset-password"]);
+/** Full-height tools: the studio rail beside them, no footer. */
+const studioRoutes = new Set(["/image", "/video", "/upscale", "/influencer"]);
 
 /** Server-rendered page content remains a slot; only chrome selection is client-side. */
 export function SiteChrome({
@@ -17,11 +20,11 @@ export function SiteChrome({
 }) {
   const pathname = usePathname();
   if (authRoutes.has(pathname)) return children;
-  if (pathname === "/image" || pathname === "/video" || pathname === "/upscale")
+  if (studioRoutes.has(pathname))
     return (
       <>
         {header}
-        {children}
+        <StudioShell>{children}</StudioShell>
       </>
     );
   return (

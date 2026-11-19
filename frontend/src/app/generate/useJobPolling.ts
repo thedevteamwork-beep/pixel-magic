@@ -6,7 +6,7 @@ import type { JobView, ModelKind } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
 import { PollLostError, pollJob } from "@/lib/generate/pollJob";
 
-const INTERVAL_MS: Record<ModelKind, number> = { image: 4000, video: 8000 };
+const INTERVAL_MS: Record<ModelKind, number> = { image: 4000, video: 8000, upscale: 4000 };
 
 type Polling = {
   job: JobView | null;

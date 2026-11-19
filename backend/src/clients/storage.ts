@@ -24,6 +24,15 @@ export interface StorageClient {
     paths: string[],
     expiresInSeconds: number,
   ): Promise<string[]>;
+  /**
+   * Up to the first `maxBytes` of an object (e.g. an image's header), or
+   * null when it doesn't exist.
+   */
+  readObjectStart(
+    bucket: string,
+    path: string,
+    maxBytes: number,
+  ): Promise<Buffer | null>;
   /** Streams sourceUrl into the bucket, overwriting any existing object. */
   copyFromUrl(
     bucket: string,
@@ -41,6 +50,7 @@ export class StorageError extends Error {
 }
 
 export const STORAGE_COPY_TIMEOUT_MS = 600_000;
+export const STORAGE_READ_TIMEOUT_MS = 30_000;
 
 function isNotFound(err: unknown): boolean {
   const e = err as { status?: unknown; statusCode?: unknown };
@@ -116,6 +126,29 @@ export function createSupabaseStorage(
           }
           return item.signedUrl;
         });
+      }),
+
+    readObjectStart: (bucket, path, maxBytes) =>
+      wrap("readObjectStart", async () => {
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(path, 60);
+        if (error) {
+          if (isNotFound(error)) return null;
+          throw error;
+        }
+        // A range request: only the header is needed, however large the file.
+        const res = await fetchFn(data.signedUrl, {
+          headers: { Range: `bytes=0-${maxBytes - 1}` },
+          signal: AbortSignal.timeout(STORAGE_READ_TIMEOUT_MS),
+        });
+        if (res.status === 404) return null;
+        if (!res.ok) {
+          throw new StorageError(`object read returned HTTP ${res.status}`);
+        }
+        const bytes = Buffer.from(await res.arrayBuffer());
+        // A server that ignores Range sends the whole file; keep the start.
+        return bytes.subarray(0, maxBytes);
       }),
 
     copyFromUrl: (bucket, path, sourceUrl, mimeType) =>

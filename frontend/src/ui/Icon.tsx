@@ -1,4 +1,19 @@
-import { ArrowRight, ImageIcon, Mic, Play, Plus, Sparkles, User, Video, Zap, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Clapperboard,
+  ImageIcon,
+  Images,
+  ImageUpscale,
+  Mic,
+  Play,
+  Plus,
+  Sparkles,
+  User,
+  Video,
+  WandSparkles,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -16,6 +31,10 @@ const icons = {
   mic: Mic,
   user: User,
   bolt: Zap,
+  film: Clapperboard,
+  upscale: ImageUpscale,
+  wand: WandSparkles,
+  images: Images,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof icons;

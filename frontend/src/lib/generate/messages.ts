@@ -12,6 +12,15 @@ function validationField(meta: unknown): string | undefined {
   return Array.isArray(issue?.path) && issue.path.length > 0 ? issue.path.join(".") : undefined;
 }
 
+// Why an upload was refused (`meta.reason`), for the cases a user can fix.
+function uploadNotReadyMessage(meta: unknown): string {
+  const reason = (meta as { reason?: unknown } | undefined)?.reason;
+  if (reason === "too_large") return "This image is too large to work with; try a smaller one";
+  if (reason === "unreadable") return "We couldn't read this image; try a PNG, JPG or WebP";
+  if (reason === "mime_type") return "This model doesn't take that type of image";
+  return "The image didn't finish uploading; try again";
+}
+
 function messageForApiError(error: ApiError): string {
   if (error.status === 401) return "Your session ended — sign in again";
   switch (error.code) {
@@ -20,7 +29,7 @@ function messageForApiError(error: ApiError): string {
     case "TOO_MANY_ACTIVE_JOBS":
       return "You have too many jobs running; wait for one to finish";
     case "UPLOAD_NOT_READY":
-      return "The image didn't finish uploading; try again";
+      return uploadNotReadyMessage(error.meta);
     case "VALIDATION_FAILED": {
       const field = validationField(error.meta);
       return field ? `${error.message} (${field})` : error.message;
@@ -49,4 +58,9 @@ export function messageForError(error: unknown): string {
   if (error instanceof JobFailedError) return failedJobMessage(error.message);
   if (error instanceof ApiError) return messageForApiError(error);
   return "Something went wrong";
+}
+
+/** The user is no longer signed in: send them to sign in rather than show an error. */
+export function isSessionEnded(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
 }

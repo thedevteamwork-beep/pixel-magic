@@ -10,7 +10,8 @@ import { uploadFile } from "@/lib/generate/uploadFile";
 import { imageCount } from "@/lib/image-generator/models";
 import { isActiveJob, jobToResults, mergeResults, urlExpired } from "@/lib/image-generator/results";
 import type { ImageOptionValue, ImageResult, StudioModel } from "@/types/image-generator";
-import { HISTORY_PAGE_SIZE, IMAGE_POLL_INTERVAL_MS, IMAGE_WAIT_LIMIT_MS } from "./constants";
+import { HISTORY_PAGE_SIZE, IMAGE_POLL_INTERVAL_MS, IMAGE_WAIT_LIMIT_MS, SAMPLE_RENDER_MS } from "./constants";
+import { sampleGeneration, sampleImageJobs } from "./fixtures/sampleJobs";
 
 /** The studio stopped waiting on a job that is still running; it will show up in History. */
 export class StillRunningError extends Error {
@@ -48,8 +49,11 @@ function signatureOf(request: GenerateRequest): string {
  * The studio's link to the jobs API: generating, following a job to its
  * images, the signed-in user's image history, and resuming a job still
  * running from an earlier visit.
+ *
+ * With `sample` (development only) the history is the sample JSON and
+ * Generate only pretends, so the UI can be worked on without calling the API.
  */
-export function useImageJobs(models: readonly StudioModel[] | null, signedIn: boolean | null) {
+export function useImageJobs(models: readonly StudioModel[] | null, signedIn: boolean | null, sample = false) {
   const [results, setResults] = useState<ImageResult[]>([]);
   const [render, setRender] = useState<ActiveRender | null>(null);
   const attempt = useRef<Attempt | null>(null);
@@ -109,9 +113,22 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
     return jobs;
   }, []);
 
+  // Sample mode: the sample history, named once the models are known.
+  useEffect(() => {
+    if (!sample) return;
+    // Fixtures stand in for the history request, so they are set the same way, from an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResults((current) =>
+      mergeResults(
+        current,
+        sampleImageJobs().flatMap((job) => jobToResults(job, models ?? [])),
+      ),
+    );
+  }, [sample, models]);
+
   // Once signed in and the models are known: load the history and pick up a job still running.
   useEffect(() => {
-    if (!signedIn || !models) return;
+    if (!signedIn || !models || sample) return;
     const controller = new AbortController();
     loadHistory(controller.signal)
       .then((jobs) => {
@@ -126,11 +143,11 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
       // History is a convenience: a failure leaves the studio usable, and a failed resumed job shows in history.
       .catch(() => undefined);
     return () => controller.abort();
-  }, [signedIn, models, loadHistory, follow]);
+  }, [signedIn, models, sample, loadHistory, follow]);
 
   // Signed URLs last an hour; coming back to the tab refreshes any that are about to expire.
   useEffect(() => {
-    if (!signedIn) return;
+    if (!signedIn || sample) return;
     const refresh = () => {
       if (document.visibilityState === "visible" && results.some((item) => urlExpired(item, Date.now()))) {
         void loadHistory().catch(() => undefined);
@@ -138,7 +155,7 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
     };
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
-  }, [signedIn, results, loadHistory]);
+  }, [signedIn, sample, results, loadHistory]);
 
   // Stop polling when the studio closes; the job keeps running and appears in history.
   useEffect(() => () => polling.current?.abort(), []);
@@ -153,6 +170,20 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
       const current = attempt.current;
       const active = { count: imageCount(request.model, request.options), modelName: request.model.name };
       setRender(active);
+      if (sample) {
+        await new Promise((resolve) => setTimeout(resolve, SAMPLE_RENDER_MS));
+        const job = sampleGeneration({
+          model: request.model.key,
+          prompt: request.prompt,
+          options: request.options,
+          count: active.count,
+          creditCost: request.model.credits.min,
+        });
+        const fresh = jobToResults(job, modelsRef.current ?? []);
+        setResults((current) => mergeResults(current, fresh));
+        setRender(null);
+        return fresh;
+      }
       let job: JobView;
       try {
         job = await submitGeneration({
@@ -178,7 +209,7 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
       notifyCreditsChanged();
       return follow(job, active);
     },
-    [follow],
+    [follow, sample],
   );
 
   return { results, render, generate };

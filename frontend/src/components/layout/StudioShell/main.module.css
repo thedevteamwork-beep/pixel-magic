@@ -1,0 +1,105 @@
+.shell {
+  --studio-rail-width: 76px;
+  display: grid;
+  flex: 1;
+  grid-template-columns: var(--studio-rail-width) minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* One row the studio's <main> fills. A full-height studio stays one screen; a longer one still scrolls the page. */
+.content {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.rail {
+  position: sticky;
+  z-index: 20;
+  top: var(--header-height);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: calc(100dvh - var(--header-height));
+  padding: 14px 8px 16px;
+  border-right: 1px solid var(--border);
+  background: var(--background);
+}
+
+.railList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.railLibrary {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.railLink {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 7px 0 8px;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.railIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 34px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.railLink:hover {
+  color: var(--foreground);
+}
+
+.railLink:hover .railIcon {
+  background: var(--overlay-hover);
+}
+
+.railLink[aria-current="page"] {
+  color: var(--foreground);
+}
+
+.railLink[aria-current="page"] .railIcon {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.railLink:focus-visible {
+  outline-offset: 0;
+}
+
+.railLabel {
+  line-height: 1;
+}
+
+/* Phones: the header lists the studios; the page gets the full width. */
+@media (max-width: 780px) {
+  .shell {
+    display: flex;
+    flex-direction: column;
+  }
+  .rail {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .railLink,
+  .railIcon {
+    transition: none;
+  }
+}

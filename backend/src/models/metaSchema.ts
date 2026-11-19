@@ -49,7 +49,7 @@ const fieldKey = z.string().regex(/^[a-zA-Z0-9_]+$/);
 const info = z.strictObject({
   name: z.string(),
   displayName: z.string(),
-  kind: z.enum(["image", "video"]),
+  kind: z.enum(["image", "video", "upscale"]),
   category: z.array(z.string()),
   description: z.string(),
   bannerImage: z.string().optional(),

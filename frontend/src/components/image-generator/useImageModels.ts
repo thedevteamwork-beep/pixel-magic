@@ -1,28 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api/client";
-import type { PublicModel } from "@/lib/api/types";
+import { fetchModels } from "@/lib/api/models";
 import { toStudioModel } from "@/lib/image-generator/models";
 import type { StudioModel } from "@/types/image-generator";
 import { modelPresentation } from "./constants";
 
-// One request per page load, shared by every caller; a failure is not cached.
-let cached: Promise<StudioModel[]> | null = null;
-
 function loadImageModels(): Promise<StudioModel[]> {
-  cached ??= api
-    .get<PublicModel[]>("/v1/models")
-    .then((models) =>
-      models
-        .filter((model) => model.kind === "image")
-        .map((model) => toStudioModel(model, modelPresentation[model.key])),
-    )
-    .catch((error: unknown) => {
-      cached = null;
-      throw error;
-    });
-  return cached;
+  return fetchModels().then((models) =>
+    models.filter((model) => model.kind === "image").map((model) => toStudioModel(model, modelPresentation[model.key])),
+  );
 }
 
 /** The backend's image models, as studio models. `models` is `null` while loading. */

@@ -148,3 +148,35 @@ describe("createSupabaseStorage createSignedUrls", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 });
+
+describe("createSupabaseStorage readObjectStart", () => {
+  const config = {
+    ...makeDeps().deps.config,
+    SUPABASE_URL: "http://supabase.test",
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("asks for a byte range and keeps only the start", async () => {
+    // Supabase signs a read URL; the bytes come from that URL.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ signedURL: "/object/sign/inputs/u/1?token=t" }),
+            { headers: { "content-type": "application/json" } },
+          ),
+      ),
+    );
+    const ranges: (string | null)[] = [];
+    const fetchFn = (async (_url: string, init?: RequestInit) => {
+      ranges.push(new Headers(init?.headers).get("range"));
+      // A server that ignores Range sends everything.
+      return new Response(new Uint8Array(20).map((_, i) => i));
+    }) as unknown as typeof fetch;
+    const storage = createSupabaseStorage(config, fetchFn);
+    const bytes = await storage.readObjectStart("inputs", "u/1", 10);
+    expect(ranges).toEqual(["bytes=0-9"]);
+    expect([...bytes!]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+});

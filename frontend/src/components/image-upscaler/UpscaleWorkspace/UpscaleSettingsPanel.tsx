@@ -1,77 +1,44 @@
 "use client";
 
+import { ArrowRight, Check, ChevronDown, LoaderCircle, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Info,
-  LoaderCircle,
-  RotateCcw,
-  SlidersHorizontal,
-  Sparkles,
-} from "lucide-react";
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { factorChoices, formatMegapixels, formatSize, outputSize, usesTarget } from "@/lib/image-upscaler/models";
+import type { ImageSize, UpscaleControl, UpscaleModel, UpscaleValue, UpscaleValues } from "@/lib/image-upscaler/types";
 import { Accordion, AccordionItem } from "@/ui/Accordion";
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { calculateUpscaleOutput } from "@/lib/image-upscaler/limits";
-import {
-  createUpscaleSettings,
-  getUpscaleModel,
-  normalizeUpscaleSettings,
-  supportsFaceEnhancement,
-  supportsUpscaleTuning,
-  upscaleModels,
-} from "@/lib/image-upscaler/models";
-import type { UpscaleFactor, UpscaleModelId, UpscaleSettings, UpscaleSource } from "@/lib/image-upscaler/types";
 import styles from "./main.module.css";
 
-export type UpscaleSettingsPanelProps = {
-  settings: UpscaleSettings;
-  onChange: (next: UpscaleSettings) => void;
-  onReset: () => void;
-  busy: boolean;
-  source: UpscaleSource | null;
-  onSubmit: () => void;
-  submitRef: RefObject<HTMLButtonElement | null>;
-  resultIsCurrent: boolean;
-};
+type PickerOption = { value: string; label: string; description?: string; symbol?: string; tag?: string };
 
-type PickerOption = { value: string; label: string; description: string; premium?: boolean };
-
-function ModelIcon({ model }: { model: string }) {
+function ModelGlyph({ symbol }: { symbol: string }) {
   return (
-    <span className={`${styles.modelIcon} ${model === "bytedance" ? styles.byteDanceIcon : ""}`} aria-hidden="true">
-      {model === "bytedance" ? (
-        <span className={styles.bars}>
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-      ) : (
-        <>
-          <span className={styles.pixelStep} />
-          {model === "topaz-generative" && <Sparkles size={10} className={styles.generativeSpark} />}
-        </>
-      )}
+    <span className={styles.modelIcon} aria-hidden="true">
+      {symbol}
     </span>
   );
 }
 
+/** A labelled dropdown of options, each with a line of description. */
 function SettingsPicker({
   label,
   value,
   options,
   onChange,
   disabled,
-  model = false,
 }: {
   label: string;
   value: string;
   options: readonly PickerOption[];
   onChange: (value: string) => void;
   disabled: boolean;
-  model?: boolean;
 }) {
   const pickerRef = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
@@ -107,6 +74,14 @@ function SettingsPicker({
   }, [open, close]);
 
   if (!selected) return null;
+  const icon = (option: PickerOption) =>
+    option.symbol ? (
+      <ModelGlyph symbol={option.symbol} />
+    ) : (
+      <span className={styles.presetOptionIcon} aria-hidden="true">
+        <SlidersHorizontal size={14} />
+      </span>
+    );
 
   return (
     <div className={styles.pickerField}>
@@ -123,13 +98,13 @@ function SettingsPicker({
             if (disabled && (event.key === "Enter" || event.key === " ")) event.preventDefault();
           }}
         >
-          {model ? (
-            <ModelIcon model={selected.value} />
+          {selected.symbol ? (
+            <ModelGlyph symbol={selected.symbol} />
           ) : (
             <SlidersHorizontal size={15} className={styles.presetIcon} aria-hidden="true" />
           )}
           <span className={styles.selectedName}>{selected.label}</span>
-          {selected.premium && <span className={styles.premium}>Premium</span>}
+          {selected.tag && <span className={styles.premium}>{selected.tag}</span>}
           <ChevronDown size={14} className={styles.chevron} aria-hidden="true" />
         </summary>
         <fieldset className={styles.pickerOptions} disabled={disabled}>
@@ -156,19 +131,13 @@ function SettingsPicker({
                   }
                 }}
               />
-              {model ? (
-                <ModelIcon model={option.value} />
-              ) : (
-                <span className={styles.presetOptionIcon} aria-hidden="true">
-                  <SlidersHorizontal size={14} />
-                </span>
-              )}
+              {icon(option)}
               <span className={styles.optionCopy}>
                 <span className={styles.optionName}>
                   {option.label}
-                  {option.premium && <span className={styles.premium}>Premium</span>}
+                  {option.tag && <span className={styles.premium}>{option.tag}</span>}
                 </span>
-                <span className={styles.optionDescription}>{option.description}</span>
+                {option.description && <span className={styles.optionDescription}>{option.description}</span>}
               </span>
               <span className={styles.optionCheck} aria-hidden="true">
                 {option.value === value && <Check size={14} />}
@@ -181,88 +150,194 @@ function SettingsPicker({
   );
 }
 
-function TuningSlider({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+/** Radio buttons laid out as a row of chips. */
+function ChipChoice<T extends string | number>({
+  legend,
+  options,
+  value,
+  label,
+  onChange,
+  columns,
+}: {
+  legend: string;
+  options: readonly T[];
+  value: T;
+  label: (option: T) => string;
+  onChange: (value: T) => void;
+  columns?: number;
+}) {
+  const name = useId();
+  return (
+    <fieldset className={styles.scaleField}>
+      <legend>{legend}</legend>
+      <div className={styles.scales} style={{ "--scale-columns": columns ?? options.length } as CSSProperties}>
+        {options.map((option) => (
+          <label key={option} className={styles.scale} data-selected={option === value}>
+            <input
+              type="radio"
+              name={name}
+              checked={option === value}
+              onChange={() => onChange(option)}
+              value={option}
+            />
+            <span>{label(option)}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function RangeSlider({
+  control,
+  value,
+  onChange,
+}: {
+  control: Extract<UpscaleControl, { kind: "slider" }>;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   const sliderId = useId();
+  const { min, max } = control;
+  const progress = ((value - min) / (max - min || 1)) * 100;
   function update(raw: string) {
     const next = Number(raw);
-    if (Number.isFinite(next)) onChange(Math.min(100, Math.max(0, Math.round(next))));
+    if (Number.isFinite(next)) onChange(Math.min(max, Math.max(min, Math.round(next))));
   }
   return (
     <div className={styles.tuningField}>
       <div className={styles.tuningLabel}>
-        <label htmlFor={sliderId}>{label}</label>
+        <label htmlFor={sliderId}>{control.label}</label>
         <input
           type="number"
-          min={0}
-          max={100}
+          min={min}
+          max={max}
           step={1}
           value={value}
           onChange={(event) => update(event.target.value)}
-          aria-label={`${label} value, 0 to 100`}
+          aria-label={`${control.label} value, ${min} to ${max}`}
         />
       </div>
       <input
         id={sliderId}
         className={styles.upscaleSettingsPanelRange}
         type="range"
-        min={0}
-        max={100}
+        min={min}
+        max={max}
         step={1}
         value={value}
         onChange={(event) => update(event.target.value)}
-        style={{ "--slider-progress": `${value}%` } as CSSProperties}
+        style={{ "--slider-progress": `${progress}%` } as CSSProperties}
       />
     </div>
   );
 }
 
-const scales: readonly UpscaleFactor[] = [1, 2, 4, 8, 16];
-const modelOptions: readonly PickerOption[] = upscaleModels.map((model) => ({
-  value: model.id,
-  label: model.name,
-  description: model.description,
-  premium: model.premium,
-}));
-const dimensions = (width: number, height: number) => `${width.toLocaleString()} × ${height.toLocaleString()}`;
+/** One of the model's other settings, drawn by its kind. */
+function ControlField({
+  control,
+  value,
+  onChange,
+  disabled,
+}: {
+  control: UpscaleControl;
+  value: UpscaleValue | undefined;
+  onChange: (value: UpscaleValue) => void;
+  disabled: boolean;
+}) {
+  const textId = useId();
+  switch (control.kind) {
+    case "choice":
+      return control.options.length <= 3 ? (
+        <ChipChoice
+          legend={control.label}
+          options={control.options}
+          value={String(value ?? control.default)}
+          label={(option) => (option.length <= 4 ? option.toUpperCase() : option)}
+          onChange={onChange}
+        />
+      ) : (
+        <SettingsPicker
+          label={control.label}
+          value={String(value ?? control.default)}
+          options={control.options.map((option) => ({ value: option, label: option }))}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
+    case "toggle":
+      return (
+        <label className={styles.faceEnhancement}>
+          <span>{control.label}</span>
+          <span className={styles.switch}>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={Boolean(value ?? control.default)}
+              onChange={(event) => onChange(event.target.checked)}
+            />
+            <span className={styles.switchTrack} aria-hidden="true" />
+          </span>
+        </label>
+      );
+    case "slider":
+      return <RangeSlider control={control} value={Number(value ?? control.default)} onChange={onChange} />;
+    case "text":
+      return (
+        <div className={styles.textControl}>
+          <label htmlFor={textId}>{control.label}</label>
+          <textarea
+            id={textId}
+            rows={2}
+            maxLength={control.maxLength}
+            value={String(value ?? control.default)}
+            placeholder={control.description}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </div>
+      );
+  }
+}
+
+export type UpscaleSettingsPanelProps = {
+  models: readonly UpscaleModel[];
+  model: UpscaleModel;
+  values: UpscaleValues;
+  onModelChange: (key: string) => void;
+  onValueChange: (field: string, value: UpscaleValue) => void;
+  onReset: () => void;
+  source: ImageSize | null;
+  /** The price of these settings; null while it loads. */
+  credits: number | null;
+  busy: boolean;
+  busyLabel: string;
+  onSubmit: () => void;
+  submitRef: RefObject<HTMLButtonElement | null>;
+  /** A result exists: the button upscales again. */
+  hasResult: boolean;
+  /** Shown above the settings, e.g. the result's summary. */
+  summary?: ReactNode;
+};
 
 export function UpscaleSettingsPanel({
-  settings,
-  onChange,
+  models,
+  model,
+  values,
+  onModelChange,
+  onValueChange,
   onReset,
-  busy,
   source,
+  credits,
+  busy,
+  busyLabel,
   onSubmit,
   submitRef,
-  resultIsCurrent,
+  hasResult,
+  summary,
 }: UpscaleSettingsPanelProps) {
-  const model = getUpscaleModel(settings.model) ?? upscaleModels[0];
-  const scaleHint = useId();
-  const tuning = supportsUpscaleTuning(model.id, settings.preset);
-  const faceEnhancement = supportsFaceEnhancement(model.id, settings.preset);
-  let output = null;
-  try {
-    if (source && model.factors.includes(settings.upscale_factor))
-      output = calculateUpscaleOutput(source, settings.upscale_factor, "png");
-  } catch {
-    /* The parent also presents the upload/output error. */
-  }
-
-  function update(patch: Partial<UpscaleSettings>) {
-    onChange(normalizeUpscaleSettings({ ...settings, ...patch }));
-  }
-
-  function scaleError(factor: UpscaleFactor) {
-    if (!model.factors.includes(factor))
-      return factor === 16 ? "16× is not available in this preview." : `${model.name} does not support ${factor}×.`;
-    if (source) {
-      try {
-        calculateUpscaleOutput(source, factor, "png");
-      } catch (cause) {
-        return cause instanceof Error ? cause.message : "This scale is too large for this image.";
-      }
-    }
-    return "";
-  }
+  const output = outputSize(model, values, source);
+  const target = usesTarget(model, values);
+  const price = credits === null ? "…" : `${credits} ${credits === 1 ? "credit" : "credits"}`;
 
   return (
     <aside className={styles.panel} aria-label="Upscale settings">
@@ -277,127 +352,92 @@ export function UpscaleSettingsPanel({
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!busy && source && output) onSubmit();
+          if (!busy && source) onSubmit();
         }}
       >
         <div className={styles.settingsScroll}>
+          {summary}
           <fieldset className={styles.settingsFields} disabled={busy}>
-            <legend className={styles.upscaleSettingsPanelSrOnly}>Image upscale settings</legend>
+            <legend className={styles.upscaleSettingsPanelSrOnly}>Upscale settings</legend>
+            {hasResult && <h3 className={styles.againTitle}>Try different settings</h3>}
             <SettingsPicker
               label="Model"
-              value={settings.model}
-              options={modelOptions}
-              onChange={(value) => onChange(createUpscaleSettings(value as UpscaleModelId))}
+              value={model.key}
+              options={models.map((option) => ({
+                value: option.key,
+                label: option.name,
+                description: option.bestFor,
+                symbol: option.symbol,
+                tag: option.tag,
+              }))}
+              onChange={onModelChange}
               disabled={busy}
-              model
             />
 
-            <fieldset className={styles.scaleField} aria-describedby={scaleHint}>
-              <legend>Scale factor</legend>
-              <span className={styles.upscaleSettingsPanelSrOnly} id={scaleHint}>
-                Available scales for {model.name}: {model.factors.map((factor) => `${factor} times`).join(", ")}.
-              </span>
-              <div className={styles.scales}>
-                {scales.map((factor) => {
-                  const unavailable = scaleError(factor);
-                  return (
-                    <label
-                      key={factor}
-                      className={styles.scale}
-                      data-selected={settings.upscale_factor === factor}
-                      data-disabled={Boolean(unavailable)}
-                      title={unavailable || `${factor} times original dimensions`}
-                    >
-                      <input
-                        type="radio"
-                        name="upscale-factor"
-                        checked={settings.upscale_factor === factor}
-                        onChange={() => update({ upscale_factor: factor })}
-                        disabled={Boolean(unavailable)}
-                        value={factor}
-                        aria-label={`${factor} times${unavailable ? ", unavailable" : ""}`}
-                      />
-                      <span aria-hidden="true">×{factor}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
+            {model.target && (
+              <ChipChoice
+                legend="Scale by"
+                options={["factor", "target"]}
+                value={target ? "target" : "factor"}
+                label={(mode) => (mode === "target" ? "Resolution" : "Factor")}
+                onChange={(mode) => onValueChange(model.target!.modeField, mode)}
+              />
+            )}
+            {target && model.target ? (
+              <ChipChoice
+                legend="Resolution"
+                options={model.target.options}
+                value={String(values[model.target.field])}
+                label={(option) => option}
+                onChange={(option) => onValueChange(model.target!.field, option)}
+              />
+            ) : (
+              model.factor && (
+                <ChipChoice
+                  legend="Scale factor"
+                  options={factorChoices(model)}
+                  value={Number(values[model.factor.field])}
+                  label={(factor) => `×${factor}`}
+                  onChange={(factor) => onValueChange(model.factor!.field, factor)}
+                />
+              )
+            )}
 
             <div className={styles.dimensions}>
               <div>
                 <span>Original</span>
-                <strong>{source ? dimensions(source.width, source.height) : "—"}</strong>
+                <strong>{source ? formatSize(source) : "—"}</strong>
+                {source && <small>{formatMegapixels(source)}</small>}
               </div>
               <ArrowRight size={14} aria-hidden="true" />
               <div>
-                <span>
-                  Output <small>px</small>
-                </span>
-                <strong>{output ? dimensions(output.width, output.height) : "—"}</strong>
+                <span>Output</span>
+                <strong>{output ? formatSize(output) : source ? "Set by model" : "—"}</strong>
+                {output && <small>{formatMegapixels(output)}</small>}
               </div>
             </div>
-            {source && !output && (
-              <p className={styles.limitNote}>Try a smaller image or a lower scale for this preview.</p>
-            )}
 
-            {model.presets.length > 0 && (
+            {model.controls.length > 0 && (
               <Accordion>
                 <AccordionItem
-                  eventKey="advanced-settings"
-                  title="Advanced settings"
+                  eventKey={`more-${model.key}`}
+                  title="More settings"
                   variant="plain"
                   className={styles.advanced}
                   leadingIcon={<SlidersHorizontal size={13} aria-hidden="true" />}
                   showChevron={false}
                   trailingContent={<ChevronDown size={13} className={styles.advancedChevron} aria-hidden="true" />}
-                  summaryProps={{
-                    "aria-disabled": busy,
-                    tabIndex: busy ? -1 : 0,
-                    onClick: (event) => {
-                      if (busy) event.preventDefault();
-                    },
-                    onKeyDown: (event) => {
-                      if (busy && (event.key === "Enter" || event.key === " ")) event.preventDefault();
-                    },
-                  }}
                 >
                   <div className={styles.advancedContent}>
-                    <SettingsPicker
-                      label="Preset"
-                      value={settings.preset ?? model.presets[0].value}
-                      options={model.presets}
-                      onChange={(preset) => update({ preset })}
-                      disabled={busy}
-                    />
-                    {tuning && (
-                      <div className={styles.tuning}>
-                        <TuningSlider
-                          label="Sharpness"
-                          value={settings.sharpness ?? 50}
-                          onChange={(sharpness) => update({ sharpness })}
-                        />
-                        <TuningSlider
-                          label="Denoise"
-                          value={settings.denoise ?? 20}
-                          onChange={(denoise) => update({ denoise })}
-                        />
-                      </div>
-                    )}
-                    {faceEnhancement && (
-                      <label className={styles.faceEnhancement}>
-                        <span>Face enhancement</span>
-                        <span className={styles.switch}>
-                          <input
-                            type="checkbox"
-                            role="switch"
-                            checked={settings.face_enhancement ?? false}
-                            onChange={(event) => update({ face_enhancement: event.target.checked })}
-                          />
-                          <span className={styles.switchTrack} aria-hidden="true" />
-                        </span>
-                      </label>
-                    )}
+                    {model.controls.map((control) => (
+                      <ControlField
+                        key={control.field}
+                        control={control}
+                        value={values[control.field]}
+                        onChange={(value) => onValueChange(control.field, value)}
+                        disabled={busy}
+                      />
+                    ))}
                   </div>
                 </AccordionItem>
               </Accordion>
@@ -405,34 +445,22 @@ export function UpscaleSettingsPanel({
           </fieldset>
         </div>
 
-        <button type="submit" className={styles.submit} ref={submitRef} disabled={busy || !source || !output}>
+        <button
+          type="submit"
+          className={`${styles.submit} ${hasResult ? styles.submitAgain : ""}`}
+          ref={submitRef}
+          disabled={busy || !source}
+        >
           {busy ? (
             <LoaderCircle size={16} className={styles.upscaleSettingsPanelSpinner} aria-hidden="true" />
           ) : (
             <Sparkles size={16} aria-hidden="true" />
           )}
-          <span>{busy ? "Preparing preview…" : resultIsCurrent ? "Create preview again" : "Upscale image"}</span>
-          <ArrowUpRight size={15} aria-hidden="true" />
+          <span>{busy ? busyLabel : hasResult ? "Upscale again" : "Upscale image"}</span>
+          {!busy && source && <span className={styles.submitPrice}>{price}</span>}
         </button>
         {!source && <p className={styles.startHint}>Upload an image to get started.</p>}
       </form>
-
-      <Accordion className={styles.previewInfoAccordion}>
-        <AccordionItem
-          eventKey="preview-info"
-          title="Preview · resizing only · no credits"
-          variant="plain"
-          className={styles.previewInfo}
-          leadingIcon={<Info size={13} aria-hidden="true" />}
-          showChevron={false}
-          trailingContent={<ChevronDown size={12} aria-hidden="true" />}
-        >
-          <p>
-            Images are resized locally in your browser. AI model, preset, sharpness, denoise, and face enhancement
-            settings aren’t applied in this preview.
-          </p>
-        </AccordionItem>
-      </Accordion>
     </aside>
   );
 }

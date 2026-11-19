@@ -47,6 +47,13 @@ describe("model registry", () => {
       "ltx2Fast",
       "pixverse6",
     ];
+    const upscale = [
+      "topaz",
+      "seedvr",
+      "recraftCrisp",
+      "recraftCreative",
+      "ideogram",
+    ];
     expect(
       listModels().map((m) => [m.plugin, m.operation, m.key, m.kind]),
     ).toEqual([
@@ -61,6 +68,12 @@ describe("model registry", () => {
         "generate",
         `${plugin}_generate`,
         "video",
+      ]),
+      ...upscale.map((plugin) => [
+        plugin,
+        "upscale",
+        `${plugin}_upscale`,
+        "upscale",
       ]),
     ]);
   });

@@ -1,0 +1,22 @@
+{
+  "source": { "name": "perfume-bottle.jpg", "url": "sample:before" },
+  "job": {
+    "jobId": "9d1e2f30-4a5b-4c6d-8e7f-a0b1c2d3e4f5",
+    "projectId": null,
+    "status": "completed",
+    "model": "topaz_upscale",
+    "input": {
+      "image": ["7c0a1b2c-3d4e-4f50-8a1b-2c3d4e5f6a7b"],
+      "model": "Standard V2",
+      "upscale_factor": 4,
+      "face_enhancement": true,
+      "subject_detection": "All",
+      "crop_to_fill": false,
+      "output_format": "png"
+    },
+    "creditCost": 5,
+    "createdAt": "2026-11-19T10:00:00.000Z",
+    "completedAt": "2026-11-19T10:00:18.000Z",
+    "outputs": [{ "index": 0, "mimeType": "image/png", "url": "sample:after" }]
+  }
+}

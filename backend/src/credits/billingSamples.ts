@@ -1,3 +1,4 @@
+import type { ImageSize } from "../lib/imageSize.js";
 import type {
   BillingFacts,
   FieldSchema,
@@ -11,6 +12,18 @@ import type {
 export const MAX_BILLING_SAMPLES = 50_000;
 
 type OptionValue = string | number | boolean;
+
+/**
+ * Input sizes a model priced by image size is checked at: from a small
+ * photo to a very large scan, so every size tier is reached.
+ */
+export const SAMPLE_IMAGE_SIZES: readonly ImageSize[] = [
+  { width: 512, height: 512 },
+  { width: 1024, height: 1024 },
+  { width: 2048, height: 1536 },
+  { width: 4096, height: 3072 },
+  { width: 8192, height: 8192 },
+];
 
 /**
  * The whole numbers from min to max. It stops one past the cap: a longer
@@ -71,9 +84,12 @@ export function billingSamples(model: ModelDefinition): BillingFacts[] {
     options.push([name, optionChoices(field)]);
   }
   const uploadCounts = wholeNumbers(model.uploads.min, model.uploads.max);
+  const sizes: (ImageSize | undefined)[] = model.pricedByImageSize
+    ? [...SAMPLE_IMAGE_SIZES]
+    : [undefined];
 
   // Step 2: count the combinations before building any.
-  let count = uploadCounts.length;
+  let count = uploadCounts.length * sizes.length;
   for (const [, choices] of options) count *= choices.length;
   if (count > MAX_BILLING_SAMPLES) {
     throw new Error(
@@ -94,8 +110,14 @@ export function billingSamples(model: ModelDefinition): BillingFacts[] {
     );
   }
   return uploadCounts.flatMap((uploadCount) =>
-    combos.map((combo) =>
-      model.billingInputs({ options: model.options.parse(combo), uploadCount }),
+    sizes.flatMap((imageSize) =>
+      combos.map((combo) =>
+        model.billingInputs({
+          options: model.options.parse(combo),
+          uploadCount,
+          ...(imageSize ? { imageSize } : {}),
+        }),
+      ),
     ),
   );
 }

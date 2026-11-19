@@ -26,15 +26,18 @@ export default function ImagePage({ searchParams }: { searchParams: ImageSearchP
 }
 
 async function WorkspaceFromQuery({ searchParams }: { searchParams: ImageSearchParams }) {
-  const { model, preset } = await searchParams;
+  const { model, preset, sample } = await searchParams;
   // Models come from the API at runtime: an unknown `?model=` falls back to the first image model there.
   const initialModel = typeof model === "string" ? model : null;
   const initialPreset = imageInspirations.find((item) => item.id === preset)?.id ?? null;
+  // `?sample=1` (development only) shows sample results instead of calling the jobs API.
+  const sampleMode = process.env.NODE_ENV !== "production" && sample === "1";
   return (
     <ImageWorkspace
-      key={`${initialModel ?? ""}:${initialPreset ?? ""}`}
+      key={`${initialModel ?? ""}:${initialPreset ?? ""}:${sampleMode}`}
       initialModel={initialModel}
       initialPreset={initialPreset}
+      sample={sampleMode}
     />
   );
 }

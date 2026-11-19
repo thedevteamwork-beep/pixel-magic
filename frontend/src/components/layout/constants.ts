@@ -1,7 +1,22 @@
+import type { IconName } from "@/ui/Icon";
+
 export type NavLink = {
   label: string;
   href: string;
 };
+
+export type StudioLink = NavLink & { icon: IconName };
+
+/** The studios, in the left rail of every studio page. A studio is active on its own path. */
+export const studioTools: readonly StudioLink[] = [
+  { label: "Image", href: "/image", icon: "image" },
+  { label: "Video", href: "/video", icon: "video" },
+  { label: "Upscale", href: "/upscale", icon: "upscale" },
+  { label: "Influencer", href: "/influencer", icon: "user" },
+];
+
+/** Below the studios: where everything made in them is kept. */
+export const studioLibrary: readonly StudioLink[] = [{ label: "Creations", href: "/creations", icon: "images" }];
 
 type FooterColumn = {
   title: string;

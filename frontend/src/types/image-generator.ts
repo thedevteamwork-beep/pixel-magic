@@ -1,4 +1,5 @@
 import type { PublicModel } from "@/lib/api/types";
+import type { ActionTile } from "@/ui/ActionTiles";
 import type { MediaId } from "./landing";
 
 /** An option value the studio sends: the model's own field names, e.g. `image_size`, `num_images`. */
@@ -49,9 +50,18 @@ export type ImageResult = {
   /** How the model names the size, e.g. "1:1 HD". */
   sizeLabel: string;
   options: Record<string, unknown>;
+  /** Credits the whole generation (every image in it) cost. */
+  creditCost: number;
+  /** How many images the generation made. */
+  batchSize: number;
   createdAt: string;
   favorite: boolean;
 };
+
+/** What a generated image can become next. */
+export type NextStep = "animate" | "upscale" | "edit";
+
+export type NextStepOption = ActionTile<NextStep>;
 
 export type InspirationItem = {
   id: string;

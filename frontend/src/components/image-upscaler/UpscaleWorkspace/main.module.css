@@ -51,6 +51,8 @@
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1fr) 348px;
+  /* One row, as tall as the workspace: the panel scrolls, the page doesn't. */
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
 }
@@ -133,25 +135,25 @@
   color: var(--foreground);
 }
 
-.download {
+/* A labelled "New image": the next upscale is one click away, not hidden behind an icon. */
+.actions > .newImage {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 7px;
-  min-height: 32px;
-  margin-right: 4px;
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-size: 11px;
-  font-weight: 600;
-  text-decoration: none;
+  width: auto;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
 }
 
-.download:hover {
-  background: var(--primary-hover);
+.actions > .newImage:hover:enabled {
+  border-color: var(--subtle);
+}
+
+.actions > .newImage:disabled {
+  opacity: 0.45;
 }
 
 .imageStage {
@@ -306,6 +308,7 @@
     display: grid;
     flex: initial;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
     min-height: 0;
     gap: 12px;
   }
@@ -344,11 +347,6 @@
   }
   .actions > button {
     width: 30px;
-  }
-  .download {
-    gap: 5px;
-    padding: 8px;
-    font-size: 10px;
   }
   .imageStage {
     padding: 6px;
@@ -424,6 +422,28 @@
 .imageLayer {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+}
+
+/* Both images zoom the same way, toward the point the pointer is over; the clip stays on the divider. */
+.zoomLayer {
+  position: absolute;
+  inset: 0;
+  transform: scale(var(--zoom, 1));
+  transform-origin: var(--focus-x, 50%) var(--focus-y, 50%);
+  transition:
+    transform 0.25s ease,
+    transform-origin 0.12s linear;
+}
+
+.imageBounds[data-zoomed="true"] .range {
+  cursor: zoom-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoomLayer {
+    transition: none;
+  }
 }
 
 .labels {
@@ -753,52 +773,9 @@
   border-radius: 7px;
   background: var(--background);
   color: var(--primary);
-}
-
-.pixelStep {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: currentColor;
-  clip-path: polygon(0 0, 35% 0, 35% 34%, 67% 34%, 67% 66%, 100% 66%, 100% 100%, 0 100%);
-}
-
-.generativeSpark {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  color: var(--foreground);
-}
-
-.bars {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 19px;
-}
-
-.bars > i {
-  display: block;
-  width: 3px;
-  height: 12px;
-  border-radius: 1px;
-  background: currentColor;
-}
-
-.bars > i:nth-child(2) {
-  height: 18px;
-}
-
-.bars > i:nth-child(3) {
-  height: 14px;
-}
-
-.bars > i:nth-child(4) {
-  height: 9px;
-}
-
-.byteDanceIcon {
-  color: var(--subtle);
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .presetIcon {
@@ -897,7 +874,7 @@
 
 .scales {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--scale-columns, 5), minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -986,13 +963,6 @@
   color: var(--muted);
 }
 
-.limitNote {
-  margin: -6px 0 20px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.7;
-}
-
 .advanced {
   margin-top: 20px;
   border-top: 1px solid var(--border);
@@ -1037,12 +1007,6 @@
 
 .advancedContent .picker summary {
   min-height: 44px;
-}
-
-.tuning {
-  display: grid;
-  gap: 22px;
-  margin-top: 22px;
 }
 
 .tuningLabel {
@@ -1210,10 +1174,6 @@
   font-weight: 600;
 }
 
-.submit > svg:last-child {
-  margin-left: auto;
-}
-
 .submit > span {
   flex: 1;
   text-align: left;
@@ -1234,48 +1194,6 @@
   font-size: 10px;
   line-height: 1.6;
   text-align: center;
-}
-
-.previewInfo {
-  flex-shrink: 0;
-  margin-top: 11px;
-}
-
-.previewInfoAccordion {
-  gap: 0;
-}
-
-.previewInfo summary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 25px;
-  list-style: none;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.previewInfo summary::-webkit-details-marker {
-  display: none;
-}
-
-.previewInfo summary > svg {
-  flex-shrink: 0;
-}
-
-.previewInfo[open] summary > svg:last-child {
-  transform: rotate(180deg);
-}
-
-.previewInfo p {
-  max-height: 100px;
-  margin: 8px 0 0;
-  overflow-y: auto;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.75;
 }
 
 .upscaleSettingsPanelSpinner {
@@ -1600,5 +1518,334 @@
   }
   .upscaleUploadWelcomeSpinner {
     animation: none;
+  }
+}
+
+/* ---------- Settings additions ---------- */
+
+.againTitle {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.textControl {
+  display: grid;
+  gap: 8px;
+}
+
+.textControl label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.textControl textarea {
+  min-height: 60px;
+  padding: 9px 11px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.textControl textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.submitPrice {
+  flex: none !important;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-foreground) 12%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* With a result, upscaling again is the second choice; downloading is the first. */
+.submitAgain {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--foreground);
+}
+
+.submitAgain:hover:enabled {
+  border-color: var(--subtle);
+  background: var(--overlay-hover);
+}
+
+.submitAgain .submitPrice {
+  background: var(--surface-raised);
+  color: var(--subtle);
+}
+
+/* ---------- Result ---------- */
+
+.resultCard {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 60%),
+    var(--surface-raised);
+  animation: resultIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes resultIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.resultCheck {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.resultHeader h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-display), sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.resultHeader p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Before and after side by side; the after column carries the brand color. */
+.sizeCompare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sizeCompare > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.sizeCompare > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.sizeCompare dt {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sizeCompare dd {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sizeCompare dd.sizeMeta {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.sizeAfter {
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+
+.sizeAfter dt,
+.sizeAfter dd:not(.sizeMeta) {
+  color: var(--primary);
+}
+
+.pixelGain {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pixelGain strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.downloadResult {
+  font-size: 13px;
+}
+
+/* The next image: a drop target in look, a file picker on click (the page takes drops and pastes). */
+.nextImage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.nextImage:hover,
+.workspace[data-dragging="true"] .nextImage {
+  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+.nextImageIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.nextImage strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nextImage small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nextImage {
+    transition: none;
+  }
+}
+
+.staleNote {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sizeArrow {
+  color: var(--primary);
+}
+
+/* ---------- Working: the image stays visible under a gentle scan ---------- */
+
+.working {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 28px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--background) 35%, transparent);
+  pointer-events: none;
+}
+
+.scanLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 16%, transparent) 70%,
+    color-mix(in srgb, var(--primary) 34%, transparent) 99%,
+    transparent
+  );
+  animation: scan 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+.workingCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--on-media) 14%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--media-ink) 72%, transparent);
+  color: var(--on-media);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px -12px color-mix(in srgb, var(--shadow-color) 60%, transparent);
+}
+
+.workingCard > svg {
+  grid-row: span 2;
+  color: var(--primary);
+}
+
+.workingCard strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.workingCard span {
+  color: var(--on-media-muted);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resultCard,
+  .scanLine {
+    animation: none;
+  }
+  .scanLine {
+    display: none;
   }
 }
