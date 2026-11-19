@@ -1,52 +1,82 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadUpscaleFile, resizeUpscaleImage } from "@/lib/image-upscaler/browser";
-import { requestUpscalePreview } from "@/lib/image-upscaler/client";
-import { calculateUpscaleOutput } from "@/lib/image-upscaler/limits";
-import type { LoadedUpscaleFile, UpscaleOutput, UpscaleSettings } from "@/lib/image-upscaler/types";
+import { api, newIdempotencyKey } from "@/lib/api/client";
+import { notifyCreditsChanged } from "@/lib/balance";
+import { pollJob } from "@/lib/generate/pollJob";
+import { submitGeneration } from "@/lib/generate/submit";
+import { uploadFile } from "@/lib/generate/uploadFile";
+import { loadUpscaleFile } from "@/lib/image-upscaler/browser";
+import { jobToUpscaleResult, jobValues } from "@/lib/image-upscaler/models";
+import type { LoadedUpscaleFile, UpscaleModel, UpscaleResult, UpscaleValues } from "@/lib/image-upscaler/types";
+import { SAMPLE_UPSCALE_MS, UPSCALE_POLL_INTERVAL_MS, UPSCALE_WAIT_LIMIT_MS } from "../constants";
+import { sampleSourceFile, sampleUpscaleJob } from "../fixtures/sampleUpscale";
 
-type UpscaleResult = { url: string; output: UpscaleOutput; settings: UpscaleSettings };
-type UpscaleStage = "idle" | "loading" | "preparing" | "resizing";
+export type UpscaleStage = "idle" | "loading" | "uploading" | "upscaling";
 
-/** All image URLs and pending work belong to this workspace, including on navigation. */
-export function useUpscale() {
+/** The upscaler stopped waiting on a job that is still running. */
+export class UpscaleStillRunningError extends Error {
+  constructor() {
+    super("The upscale is still running");
+    this.name = "UpscaleStillRunningError";
+  }
+}
+
+const abortError = () => new DOMException("Canceled", "AbortError");
+const wait = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => (clearTimeout(timer), reject(abortError())), { once: true });
+  });
+
+/**
+ * The upscaler's image and job: the picked image (a local preview), its
+ * upload, the job that upscales it and the result. With `sample`
+ * (development only) it starts from a finished sample and only pretends to
+ * upscale, so the UI can be worked on without the API.
+ */
+export function useUpscale(models: readonly UpscaleModel[] | null, sample = false) {
   const [source, setSource] = useState<LoadedUpscaleFile | null>(null);
   const [result, setResult] = useState<UpscaleResult | null>(null);
   const [stage, setStage] = useState<UpscaleStage>("idle");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const sourceRef = useRef<LoadedUpscaleFile | null>(null);
-  const resultRef = useRef<UpscaleResult | null>(null);
   const operationRef = useRef<AbortController | null>(null);
+  /** The current image's upload, reused by "Upscale again". */
+  const uploadRef = useRef<{ sourceUrl: string; uploadId: string } | null>(null);
+  const modelsRef = useRef(models);
+  useEffect(() => {
+    modelsRef.current = models;
+  });
 
   useEffect(
     () => () => {
       operationRef.current?.abort();
       if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
-      if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
     },
     [],
   );
 
-  const begin = useCallback((nextStage: UpscaleStage) => {
+  const begin = useCallback((next: UpscaleStage) => {
     operationRef.current?.abort();
     const controller = new AbortController();
     operationRef.current = controller;
-    setError("");
-    setStage(nextStage);
+    setError(null);
+    setStage(next);
     return controller;
   }, []);
 
-  const acceptFile = useCallback(async (file: File, controller: AbortController) => {
-    const loaded = await loadUpscaleFile(file, controller.signal);
-    if (controller.signal.aborted) {
-      URL.revokeObjectURL(loaded.url);
-      return;
+  const finish = useCallback((controller: AbortController) => {
+    if (operationRef.current === controller) {
+      operationRef.current = null;
+      setStage("idle");
     }
+  }, []);
+
+  const replaceSource = useCallback((loaded: LoadedUpscaleFile | null) => {
     if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
-    if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
     sourceRef.current = loaded;
-    resultRef.current = null;
+    uploadRef.current = null;
     setSource(loaded);
     setResult(null);
   }, []);
@@ -55,61 +85,110 @@ export function useUpscale() {
     async (file: File) => {
       const controller = begin("loading");
       try {
-        await acceptFile(file, controller);
+        const loaded = await loadUpscaleFile(file, controller.signal);
+        if (controller.signal.aborted) {
+          URL.revokeObjectURL(loaded.url);
+          return;
+        }
+        replaceSource(loaded);
       } catch (cause) {
         if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "This image couldn’t be opened. Try another file.");
+          setError(cause instanceof Error ? cause : new Error("This image couldn’t be opened. Try another file."));
       } finally {
-        if (!controller.signal.aborted) setStage("idle");
+        finish(controller);
       }
     },
-    [acceptFile, begin],
+    [begin, finish, replaceSource],
   );
 
+  // Sample mode opens on a finished upscale.
+  useEffect(() => {
+    if (!sample || !models) return;
+    let current = true;
+    void sampleSourceFile()
+      .then((file) => loadUpscaleFile(file))
+      .then((loaded) => {
+        if (!current) return URL.revokeObjectURL(loaded.url);
+        replaceSource(loaded);
+        setResult(jobToUpscaleResult(sampleUpscaleJob(), models, loaded));
+      });
+    return () => {
+      current = false;
+    };
+  }, [sample, models, replaceSource]);
+
+  /** Uploads the image (once per image), creates the job and waits for the result. Failures set `error`. */
   const upscale = useCallback(
-    async (settings: UpscaleSettings) => {
+    async (model: UpscaleModel, values: UpscaleValues) => {
       const image = sourceRef.current;
       if (!image) return;
-      const controller = begin("preparing");
+      const size = { width: image.width, height: image.height };
+      const controller = begin(sample ? "upscaling" : "uploading");
       try {
-        const input = { width: image.width, height: image.height, contentType: image.file.type, size: image.file.size };
-        // Check before the request as well as on the server; pixels stay in the browser.
-        calculateUpscaleOutput(input, settings.upscale_factor, "png");
-        const plan = await requestUpscalePreview({ source: input, ...settings }, controller.signal);
-        if (controller.signal.aborted) return;
-        setStage("resizing");
-        const blob = await resizeUpscaleImage(image.url, plan.output, controller.signal);
-        if (controller.signal.aborted) return;
-        const next = { url: URL.createObjectURL(blob), output: plan.output, settings: plan.settings };
-        if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
-        resultRef.current = next;
-        setResult(next);
+        if (sample) {
+          await wait(SAMPLE_UPSCALE_MS, controller.signal);
+          const job = sampleUpscaleJob(jobValues(model, values), model.key);
+          setResult(jobToUpscaleResult(job, modelsRef.current ?? [], size));
+          return;
+        }
+        const kept = uploadRef.current?.sourceUrl === image.url ? uploadRef.current.uploadId : undefined;
+        const job = await submitGeneration({
+          api,
+          uploadFile,
+          model: model.source,
+          prompt: "",
+          values: jobValues(model, values),
+          files: [image.file],
+          idempotencyKey: newIdempotencyKey(),
+          uploadIds: [kept],
+          onUploaded: (uploadId) => {
+            uploadRef.current = { sourceUrl: image.url, uploadId };
+          },
+        });
+        notifyCreditsChanged();
+        setStage("upscaling");
+        let outOfTime = false;
+        const deadline = setTimeout(() => {
+          outOfTime = true;
+          controller.abort();
+        }, UPSCALE_WAIT_LIMIT_MS);
+        try {
+          const done = await pollJob(job.jobId, {
+            get: api.get,
+            intervalMs: UPSCALE_POLL_INTERVAL_MS,
+            signal: controller.signal,
+          }).catch((cause: unknown) => {
+            throw outOfTime ? new UpscaleStillRunningError() : cause;
+          });
+          if (sourceRef.current === image) setResult(jobToUpscaleResult(done, modelsRef.current ?? [], size));
+        } finally {
+          clearTimeout(deadline);
+          // Completed jobs capture credits; failed ones return them.
+          notifyCreditsChanged();
+        }
       } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "The preview couldn’t be created. Please try again.");
+        // Leaving or canceling only stops waiting; the job still finishes.
+        if (cause instanceof Error && cause.name === "AbortError") return;
+        setError(cause);
       } finally {
-        if (!controller.signal.aborted) setStage("idle");
+        finish(controller);
       }
     },
-    [begin],
+    [begin, finish, sample],
   );
 
+  /** Stops loading or waiting. A job already running still finishes. */
   const cancel = useCallback(() => {
     operationRef.current?.abort();
+    operationRef.current = null;
     setStage("idle");
   }, []);
 
   const reset = useCallback(() => {
-    operationRef.current?.abort();
-    if (sourceRef.current) URL.revokeObjectURL(sourceRef.current.url);
-    if (resultRef.current) URL.revokeObjectURL(resultRef.current.url);
-    sourceRef.current = null;
-    resultRef.current = null;
-    setSource(null);
-    setResult(null);
-    setStage("idle");
-    setError("");
-  }, []);
+    cancel();
+    replaceSource(null);
+    setError(null);
+  }, [cancel, replaceSource]);
 
   return { source, result, stage, error, setError, loadFile, upscale, cancel, reset };
 }

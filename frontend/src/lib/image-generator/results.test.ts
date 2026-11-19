@@ -28,6 +28,8 @@ describe("image job results", () => {
       modelName: "FLUX Schnell",
       aspectRatio: "3:4",
       sizeLabel: "3:4",
+      creditCost: 2,
+      batchSize: 2,
       createdAt: "2026-11-15T10:01:00.000Z",
       favorite: false,
     });

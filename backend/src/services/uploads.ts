@@ -7,8 +7,16 @@ import {
 } from "../db/repositories/uploads.repo.js";
 import type { UploadRow } from "../db/rows.js";
 import { AppError } from "../lib/errors.js";
+import {
+  IMAGE_HEADER_BYTES,
+  imageSize,
+  type ImageSize,
+} from "../lib/imageSize.js";
 
 const SIGNED_UPLOAD_TTL_MS = 2 * 60 * 60 * 1000;
+
+/** The longest image side accepted where size matters (upscaling). */
+export const MAX_IMAGE_SIDE = 16_384;
 
 export async function createUpload(
   deps: Deps,
@@ -110,4 +118,30 @@ export async function resolveUploads(
     });
   }
   return result;
+}
+
+/**
+ * The pixel size of a confirmed image upload, read from its header in
+ * storage. 422 when it can't be read or is too large to work with.
+ */
+export async function measureUpload(
+  deps: Deps,
+  upload: UploadRow,
+): Promise<ImageSize> {
+  const fail = (reason: "unreadable" | "too_large") =>
+    new AppError(422, "UPLOAD_NOT_READY", "Upload is not ready", {
+      uploadId: upload.id,
+      reason,
+    });
+  const bytes = await deps.storage.readObjectStart(
+    upload.bucket,
+    upload.path,
+    IMAGE_HEADER_BYTES,
+  );
+  const size = bytes && imageSize(bytes);
+  if (!size) throw fail("unreadable");
+  if (size.width > MAX_IMAGE_SIDE || size.height > MAX_IMAGE_SIDE) {
+    throw fail("too_large");
+  }
+  return size;
 }

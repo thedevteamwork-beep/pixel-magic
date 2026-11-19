@@ -1,4 +1,6 @@
 import type { Deps } from "../../deps.js";
+import { AppError } from "../../lib/errors.js";
+import type { ImageSize } from "../../lib/imageSize.js";
 import { billingSamples } from "../../credits/billingSamples.js";
 import {
   priceTier,
@@ -46,12 +48,15 @@ function priceJob(
  * The price of one job, from the same input the job is created with. Job
  * creation and the estimate endpoint both call this, so what is shown is
  * what is reserved. `creditsPerJob` is `baseCredits` plus every breakdown
- * item's credits, rounded up once. Upload ids are counted, never looked up.
+ * item's credits, rounded up once. Upload ids are counted, never looked up:
+ * a model priced by its input's size is given `imageSize` (measured from the
+ * upload when a job is created; as the client states it for an estimate).
  */
 export function estimateCredits(
   deps: PricingDeps,
   model: ModelDefinition,
   rawInput: unknown,
+  imageSize?: ImageSize,
 ): {
   creditsPerJob: number;
   tier: string;
@@ -59,9 +64,17 @@ export function estimateCredits(
   breakdown: ReturnType<typeof priceTier>["breakdown"];
 } {
   const input = model.input.parse(rawInput);
+  if (model.pricedByImageSize && !imageSize) {
+    throw new AppError(
+      422,
+      "VALIDATION_FAILED",
+      "This model is priced by the image's size: send imageSize",
+    );
+  }
   const facts = model.billingInputs({
     options: optionsIn(model.uploads, input),
     uploadCount: uploadIdsIn(model.uploads, input).length,
+    ...(model.pricedByImageSize ? { imageSize } : {}),
   });
   const { credits, tier, baseCredits, breakdown } = priceJob(
     deps,

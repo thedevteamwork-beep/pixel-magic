@@ -1,127 +1,175 @@
-import type { UpscaleFactor, UpscaleModelId, UpscaleSettings } from "./types";
+import type { FieldSchema, JobView, PublicModel } from "@/lib/api/types";
+import type {
+  ImageSize,
+  UpscaleControl,
+  UpscaleModel,
+  UpscalePresentation,
+  UpscaleResult,
+  UpscaleValue,
+  UpscaleValues,
+} from "./types";
 
-export type UpscalePreset = { value: string; label: string; description: string };
-export type UpscaleModel = {
-  id: UpscaleModelId;
-  name: string;
-  description: string;
-  premium?: boolean;
-  factors: readonly UpscaleFactor[];
-  presets: readonly UpscalePreset[];
+const FACTOR_FIELD = "upscale_factor";
+const MODE_FIELD = "upscale_mode";
+const TARGET_FIELD = "target_resolution";
+
+/** Labels the schema's field names don't read well as. */
+const LABELS: Record<string, string> = {
+  prompt: "Guide the detail",
+  enable_prompt_expansion: "Expand my prompt",
+  output_format: "File format",
+  subject_detection: "Enhance",
 };
 
-/** Provider names/presets are catalog metadata; every current output is a local resize.
- * fal Precision currently documents up to4×; Topaz8× here is an app-local preview
- * choice and must be gated separately before enabling a future provider request.
- * Future fal sharpen/denoise values use UI percentages divided by100.
- */
-export const upscaleModels: readonly UpscaleModel[] = [
-  {
-    id: "bytedance",
-    name: "ByteDance Upscale",
-    description: "High-resolution image upscaling.",
-    factors: [2, 4],
-    presets: [],
-  },
-  {
-    id: "topaz",
-    name: "Topaz",
-    description: "The default model for general-purpose use.",
-    factors: [1, 2, 4, 8],
-    presets: [
-      { value: "Standard V2", label: "Standard", description: "The default preset for general-purpose use." },
-      {
-        value: "High Fidelity V3",
-        label: "High Fidelity V3",
-        description: "A precision preset for detailed photographs.",
-      },
-      { value: "High Fidelity V2", label: "High Fidelity V2", description: "An alternative high-fidelity preset." },
-      {
-        value: "Low Resolution V2",
-        label: "Low Resolution V2",
-        description: "Restores compressed or lower-resolution images.",
-      },
-      { value: "CGI", label: "CGI", description: "For artwork and rendered graphics." },
-      { value: "Text Refine", label: "Text Refine", description: "For text and defined shapes." },
-      { value: "Faces", label: "Faces", description: "A portrait and facial-detail preset." },
-    ],
-  },
-  {
-    id: "topaz-generative",
-    name: "Topaz Generative",
-    description: "Diffusion-based enhancement that adds new detail.",
-    premium: true,
-    factors: [1, 2, 4],
-    presets: [
-      { value: "Wonder 3", label: "Wonder 3", description: "Generative enhancement for natural textures and detail." },
-      { value: "Wonder 3.5", label: "Wonder 3.5", description: "A finer-detail generative preset." },
-      { value: "Wonder 4", label: "Wonder 4", description: "Automatic enhancement with integrated face recovery." },
-      { value: "Wonder 2", label: "Wonder 2", description: "An earlier Wonder preset." },
-      { value: "Wonder", label: "Wonder", description: "One-click restoration for low-resolution images." },
-      { value: "Recover 3", label: "Recover 3", description: "Natural-detail restoration." },
-      { value: "Standard MAX", label: "Standard MAX", description: "A precision-oriented generative preset." },
-      { value: "Redefine", label: "Redefine", description: "Creative detail with manual tuning controls." },
-      { value: "Recovery V2", label: "Recovery V2", description: "A recovery preset for small sources." },
-      { value: "Recovery", label: "Recovery", description: "An alternative low-resolution recovery preset." },
-    ],
-  },
-];
-
-export const UPSCALE_SETTING_KEYS = [
-  "model",
-  "upscale_factor",
-  "preset",
-  "sharpness",
-  "denoise",
-  "face_enhancement",
-] as const;
-
-export function getUpscaleModel(id: string): UpscaleModel | undefined {
-  return upscaleModels.find((model) => model.id === id);
+function labelOf(field: string): string {
+  return LABELS[field] ?? field[0].toUpperCase() + field.slice(1).replaceAll("_", " ");
 }
 
-export function supportsUpscaleTuning(model: string, preset: string | null): boolean {
-  return (
-    (model === "topaz" && Boolean(getUpscaleModel(model)?.presets.some((item) => item.value === preset))) ||
-    (model === "topaz-generative" && preset === "Redefine")
-  );
+function controlOf(field: string, schema: FieldSchema): UpscaleControl | null {
+  const base = { field, label: labelOf(field), description: schema.description };
+  if (schema.type === "string" && schema.enum)
+    return { ...base, kind: "choice", options: schema.enum, default: schema.default ?? schema.enum[0] };
+  if (schema.type === "string")
+    return { ...base, kind: "text", maxLength: schema.maxLength, default: schema.default ?? "" };
+  if (schema.type === "boolean") return { ...base, kind: "toggle", default: schema.default };
+  if (schema.type === "integer")
+    return { ...base, kind: "slider", min: schema.minimum, max: schema.maximum, default: schema.default };
+  return null;
 }
 
-export function supportsFaceEnhancement(model: string, preset: string | null): boolean {
-  const definition = getUpscaleModel(model);
-  return (
-    Boolean(definition?.presets.some((item) => item.value === preset)) &&
-    (model === "topaz" || (model === "topaz-generative" && preset !== "Wonder 4"))
-  );
-}
-
-export const defaultUpscaleSettings: Readonly<UpscaleSettings> = {
-  model: "topaz",
-  upscale_factor: 1,
-  preset: "Standard V2",
-  sharpness: 50,
-  denoise: 20,
-  face_enhancement: false,
-};
-
-/** UI transitions only. Request validation never calls this or silently repairs input. */
-export function normalizeUpscaleSettings(settings: UpscaleSettings): UpscaleSettings {
-  const model = getUpscaleModel(settings.model);
-  if (!model) throw new Error("Choose a supported upscale model.");
-  const preset = model.presets.length
-    ? (model.presets.find((item) => item.value === settings.preset)?.value ?? model.presets[0].value)
-    : null;
-  const tuning = supportsUpscaleTuning(model.id, preset);
+/** An upscale model from `GET /v1/models`, with the controls its schema declares. */
+export function toUpscaleModel(model: PublicModel, presentation?: UpscalePresentation): UpscaleModel {
+  const input = model.input;
+  const factor = input[FACTOR_FIELD];
+  const mode = input[MODE_FIELD];
+  const target = input[TARGET_FIELD];
+  const handled = new Set([FACTOR_FIELD, MODE_FIELD, TARGET_FIELD]);
   return {
-    model: model.id,
-    upscale_factor: model.factors.includes(settings.upscale_factor) ? settings.upscale_factor : model.factors[0],
-    preset,
-    sharpness: tuning ? (settings.sharpness ?? 50) : null,
-    denoise: tuning ? (settings.denoise ?? 20) : null,
-    face_enhancement: supportsFaceEnhancement(model.id, preset) ? (settings.face_enhancement ?? false) : null,
+    key: model.key,
+    name: model.name,
+    description: model.description,
+    maker: presentation?.maker ?? "",
+    symbol: presentation?.symbol ?? model.name.slice(0, 1),
+    bestFor: presentation?.bestFor ?? model.description,
+    tag: presentation?.tag,
+    credits: model.credits,
+    factor:
+      factor?.type === "integer"
+        ? { field: FACTOR_FIELD, min: factor.minimum, max: factor.maximum, default: factor.default }
+        : undefined,
+    target:
+      mode?.type === "string" && mode.enum?.includes("target") && target?.type === "string" && target.enum
+        ? {
+            modeField: MODE_FIELD,
+            field: TARGET_FIELD,
+            options: target.enum,
+            default: target.default ?? target.enum[0],
+          }
+        : undefined,
+    controls: Object.entries(input).flatMap(([field, schema]) =>
+      handled.has(field) || schema.type === "image" ? [] : (controlOf(field, schema) ?? []),
+    ),
+    source: model,
   };
 }
 
-export function createUpscaleSettings(model: UpscaleModelId): UpscaleSettings {
-  return normalizeUpscaleSettings({ ...defaultUpscaleSettings, model });
+/** The model's defaults for every setting the upscaler shows. */
+export function defaultValues(model: UpscaleModel): UpscaleValues {
+  const values: UpscaleValues = {};
+  if (model.factor) values[model.factor.field] = model.factor.default;
+  if (model.target) {
+    values[model.target.modeField] = "factor";
+    values[model.target.field] = model.target.default;
+  }
+  for (const control of model.controls) values[control.field] = control.default;
+  return values;
+}
+
+/** Whether these settings scale to a target resolution rather than by a factor. */
+export function usesTarget(model: UpscaleModel, values: UpscaleValues): boolean {
+  return Boolean(model.target && values[model.target.modeField] === "target");
+}
+
+/** The factors offered as buttons: all of a short range, else the useful steps of a long one. */
+export function factorChoices(model: UpscaleModel): number[] {
+  if (!model.factor) return [];
+  const { min, max } = model.factor;
+  if (max - min < 5) return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+  return [...new Set([min, 2, 4, 6, 8, max])].filter((value) => value >= min && value <= max);
+}
+
+/** The short side each target resolution names. */
+const TARGET_SHORT_SIDE: Record<string, number> = { "720p": 720, "1080p": 1080, "1440p": 1440, "2160p": 2160 };
+
+/** How much each side grows, or null when the model decides. Matches the backend's pricing. */
+export function scaleOf(model: UpscaleModel, values: UpscaleValues, size: ImageSize | null): number | null {
+  if (usesTarget(model, values) && model.target) {
+    const short = TARGET_SHORT_SIDE[String(values[model.target.field])];
+    return short && size ? short / Math.min(size.width, size.height) : null;
+  }
+  if (model.factor) return Number(values[model.factor.field] ?? model.factor.default);
+  return null;
+}
+
+/** The result's size, or null when the model decides it. */
+export function outputSize(model: UpscaleModel, values: UpscaleValues, size: ImageSize | null): ImageSize | null {
+  const scale = scaleOf(model, values, size);
+  if (!scale || !size) return null;
+  return { width: Math.round(size.width * scale), height: Math.round(size.height * scale) };
+}
+
+export function megapixels(size: ImageSize): number {
+  return (size.width * size.height) / 1_000_000;
+}
+
+/** "5,792 × 4,344". */
+export function formatSize(size: ImageSize): string {
+  return `${size.width.toLocaleString()} × ${size.height.toLocaleString()}`;
+}
+
+/** "25.2 MP", "0.4 MP". */
+export function formatMegapixels(size: ImageSize): string {
+  const value = megapixels(size);
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} MP`;
+}
+
+/** "4×", "2.5×". */
+export function formatScale(scale: number): string {
+  return `${Number.isInteger(scale) ? scale : scale.toFixed(1)}×`;
+}
+
+/** The settings sent with a job: only fields the model declares. */
+export function jobValues(model: UpscaleModel, values: UpscaleValues): UpscaleValues {
+  return Object.fromEntries(Object.entries(values).filter(([field]) => field in model.source.input));
+}
+
+/** The settings a finished job was made with, as upscaler values. */
+function valuesOf(job: JobView): UpscaleValues {
+  return Object.fromEntries(
+    Object.entries(job.input).filter(
+      (entry): entry is [string, UpscaleValue] =>
+        typeof entry[1] === "string" || typeof entry[1] === "number" || typeof entry[1] === "boolean",
+    ),
+  );
+}
+
+/** A completed upscale job as a result; anything else is null. */
+export function jobToUpscaleResult(
+  job: JobView,
+  models: readonly UpscaleModel[],
+  inputSize: ImageSize | null = null,
+): UpscaleResult | null {
+  const output = job.outputs.find((item) => item.url);
+  if (job.status !== "completed" || !output?.url) return null;
+  return {
+    jobId: job.jobId,
+    url: output.url,
+    mimeType: output.mimeType,
+    model: job.model,
+    modelName: models.find((model) => model.key === job.model)?.name ?? job.model,
+    values: valuesOf(job),
+    creditCost: job.creditCost,
+    createdAt: job.completedAt ?? job.createdAt,
+    inputSize,
+  };
 }

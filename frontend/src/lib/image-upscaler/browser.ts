@@ -1,12 +1,5 @@
-import {
-  calculateUpscaleOutput,
-  CONTENT_TYPE_BY_FORMAT,
-  isSupportedUpscaleContentType,
-  isWithinUpscaleLimits,
-  MAX_UPSCALE_BYTES,
-  UPSCALE_FORMATS,
-} from "./limits";
-import type { LoadedUpscaleFile, UpscaleFactor, UpscaleOutput } from "./types";
+import { isSupportedUpscaleContentType, isWithinUpscaleLimits, MAX_UPSCALE_BYTES } from "./limits";
+import type { LoadedUpscaleFile } from "./types";
 
 function canceled(): DOMException {
   return new DOMException("Image processing canceled.", "AbortError");
@@ -118,80 +111,5 @@ export async function loadUpscaleFile(file: File, signal?: AbortSignal): Promise
     return { file, url, width: decoded.width, height: decoded.height };
   } finally {
     decoded.close();
-  }
-}
-
-function validateOutput(output: UpscaleOutput) {
-  if (
-    !output ||
-    !UPSCALE_FORMATS.some((format) => format === output.format) ||
-    output.contentType !== CONTENT_TYPE_BY_FORMAT[output.format] ||
-    !isWithinUpscaleLimits(output.width, output.height)
-  ) {
-    throw new Error("Choose supported output dimensions and a PNG, JPG, or WebP format.");
-  }
-}
-
-function encodeCanvas(canvas: HTMLCanvasElement, output: UpscaleOutput): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) reject(new Error("The browser couldn’t export this image. Try a smaller output."));
-        else if (blob.type !== output.contentType)
-          reject(new Error(`Your browser couldn’t export ${output.format.toUpperCase()}. Choose PNG and try again.`));
-        else resolve(blob);
-      },
-      output.contentType,
-      output.format === "png" ? undefined : 0.92,
-    );
-  });
-}
-
-/** Local high-quality canvas interpolation; this does not call an AI provider. */
-export async function resizeUpscaleImage(sourceUrl: string, output: UpscaleOutput, signal: AbortSignal): Promise<Blob> {
-  checkAbort(signal);
-  validateOutput(output);
-  let source: URL;
-  try {
-    source = new URL(sourceUrl);
-  } catch {
-    throw new Error("Choose an image from your device first.");
-  }
-  if (source.protocol !== "blob:" || source.origin !== window.location.origin)
-    throw new Error("Choose a local image preview to resize.");
-  const response = await fetch(source.href, { signal, credentials: "omit" });
-  if (!response.ok) throw new Error("That image preview is no longer available. Add the image again.");
-  const file = await waitFor(response.blob(), signal);
-  await verifyImageFile(file, signal);
-  const decoded = await decodeImage(file, signal);
-  let canvas: HTMLCanvasElement | undefined;
-  try {
-    checkAbort(signal);
-    const factor = output.width / decoded.width;
-    const expected = calculateUpscaleOutput(decoded, factor as UpscaleFactor, output.format);
-    if (output.height !== expected.height)
-      throw new Error("The source image changed. Select the image again before resizing.");
-    canvas = document.createElement("canvas");
-    canvas.width = output.width;
-    canvas.height = output.height;
-    const context = canvas.getContext("2d", { alpha: output.format !== "jpg" });
-    if (!context) throw new Error("Your browser couldn’t start the resize. Try a smaller output.");
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    if (output.format === "jpg") {
-      context.fillStyle = "white";
-      context.fillRect(0, 0, output.width, output.height);
-    }
-    context.drawImage(decoded.image, 0, 0, output.width, output.height);
-    checkAbort(signal);
-    const blob = await waitFor(encodeCanvas(canvas, output), signal);
-    checkAbort(signal);
-    return blob;
-  } finally {
-    decoded.close();
-    if (canvas) {
-      canvas.width = 0;
-      canvas.height = 0;
-    }
   }
 }

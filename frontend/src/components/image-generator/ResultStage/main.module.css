@@ -1,0 +1,533 @@
+/* The canvas after a generation: its image on the left, details and next steps on the right. */
+.stage {
+  /* The room left between the workspace toolbar and the composer, so the whole studio fits on one screen. */
+  --stage-height: clamp(300px, var(--image-canvas-height, 600px), 760px);
+  --variations-height: 60px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  height: var(--stage-height);
+}
+
+.viewerColumn {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.viewerColumn[data-variations="true"] {
+  grid-template-rows: minmax(0, 1fr) var(--variations-height);
+}
+
+/* ---------- Viewer ---------- */
+
+.viewer {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  container-type: size;
+}
+
+/* The image's own colors, blurred into a soft glow behind it. */
+.ambient {
+  position: absolute;
+  z-index: -2;
+  inset: -12%;
+  opacity: 0.5;
+  filter: blur(56px) saturate(1.35);
+  transform: scale(1.08);
+  transition: opacity 0.4s ease;
+}
+
+.viewer::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 30%, color-mix(in srgb, var(--surface) 70%, transparent) 100%),
+    linear-gradient(to top, color-mix(in srgb, var(--surface) 55%, transparent), transparent 30%);
+  pointer-events: none;
+}
+
+/* Sized to the image's shape, leaving room for the toolbar below it. */
+.frame {
+  position: relative;
+  width: min(100cqw - 48px, (100cqh - 112px) * var(--ratio, 1));
+  aspect-ratio: var(--ratio, 1);
+  margin-bottom: 44px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--on-media) 8%, transparent) inset,
+    0 28px 70px -18px color-mix(in srgb, var(--shadow-color) 70%, transparent);
+  cursor: zoom-in;
+  animation: appear 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.frame:focus-visible {
+  outline-offset: 4px;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+.counter {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--on-media) 12%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 50%, transparent);
+  color: var(--on-media-muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(12px);
+}
+
+.step {
+  position: absolute;
+  top: calc(50% - 22px - 22px);
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.15s ease;
+}
+
+.stepPrevious {
+  left: 14px;
+}
+
+.stepNext {
+  right: 14px;
+}
+
+.viewer:hover .step,
+.step:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .step {
+    opacity: 1;
+  }
+}
+
+.toolbar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--on-media) 12%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 62%, transparent);
+  box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--shadow-color) 60%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 18px;
+  margin-inline: 4px;
+  background: color-mix(in srgb, var(--on-media) 16%, transparent);
+}
+
+/* ---------- Variations (a generation's other images) ---------- */
+
+.variations {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  opacity: 0.6;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-radius: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.thumb:hover {
+  opacity: 1;
+}
+
+.thumb[aria-selected="true"] {
+  opacity: 1;
+}
+
+.thumb[aria-selected="true"]::after {
+  border-color: var(--primary);
+}
+
+.thumb:focus-visible {
+  outline-offset: 2px;
+}
+
+.thumbFavorite {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 60%, transparent);
+  color: var(--primary);
+}
+
+/* ---------- Details ---------- */
+
+.details {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+/* Scrolls between the fixed header and the actions, so "Generate again" is always in reach. */
+.detailsBody {
+  composes: thinScroll from "../../../assets/styles/shared.module.css";
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  padding: 2px 18px 16px;
+}
+
+.detailsHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 14px;
+}
+
+.modelGlyph {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.modelText {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.modelText strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modelText > span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.detailsSection {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -4px -8px -4px 0;
+}
+
+.sectionTools {
+  display: flex;
+  align-items: center;
+}
+
+/* Matches CopyButton beside it. */
+.textTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.textTool:hover {
+  background: var(--overlay-hover);
+  color: var(--foreground);
+}
+
+.sectionHead h3,
+.sectionTitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.prompt {
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.promptClamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+/* Beside the viewer the panel is as tall as the stage: a shorter panel shows fewer prompt lines rather than scroll. */
+@media (min-width: 981px) {
+  .details {
+    container: details / size;
+  }
+}
+
+@container details (max-height: 540px) {
+  .promptClamped {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@container details (max-height: 430px) {
+  .promptClamped {
+    -webkit-line-clamp: 2;
+  }
+}
+
+.textToggle {
+  justify-self: start;
+  margin-top: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-size: var(--fs-xs);
+}
+
+.textToggle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Settings as compact tags: "Size 3:4", "Resolution 2K"… */
+.specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+}
+
+.specs > div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  font-size: var(--fs-xs);
+}
+
+.specs dt {
+  color: var(--muted);
+}
+
+.specs dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The creative direction the studio added, set apart in the brand color. */
+.specs > .direction {
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.specs > .direction dd {
+  color: var(--primary);
+}
+
+.detailsActions {
+  display: grid;
+  gap: 14px;
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rerun {
+  height: 44px;
+  justify-content: flex-start;
+  font-size: var(--fs-md);
+}
+
+.rerunCost {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-foreground) 12%, transparent);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.deleteAction {
+  margin-right: -6px;
+}
+
+.deleteAction:hover {
+  color: var(--danger);
+}
+
+/* ---------- Full-size view ---------- */
+
+.lightbox {
+  width: min(1280px, calc(100% - 32px));
+}
+
+.lightboxImage {
+  position: relative;
+  height: min(80dvh, 900px);
+  background: var(--background);
+}
+
+/* Smaller screens: viewer, then details. The viewer takes the image's height, not a fixed one. */
+@media (max-width: 980px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .viewerColumn,
+  .viewerColumn[data-variations="true"] {
+    grid-template-rows: auto;
+  }
+  .viewer {
+    padding: 52px 16px 68px;
+    container-type: inline-size;
+  }
+  .frame {
+    width: min(100cqw, 56svh * var(--ratio, 1));
+    margin-bottom: 0;
+  }
+  .detailsBody {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 600px) {
+  .viewer {
+    padding: 14px 14px 64px;
+    border-radius: var(--radius-card);
+  }
+  .frame {
+    border-radius: 10px;
+  }
+  .toolbar {
+    bottom: 10px;
+  }
+  /* The thumbnails show where you are and are how you move on a phone. */
+  .counter,
+  .step {
+    display: none;
+  }
+  .detailsHeader {
+    padding: 16px 16px 14px;
+  }
+  .detailsBody {
+    padding-inline: 16px;
+  }
+  .detailsActions {
+    padding-inline: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame {
+    animation: none;
+  }
+  .ambient,
+  .step,
+  .thumb,
+  .thumb::after {
+    transition: none;
+  }
+}

@@ -6,6 +6,7 @@ import { defaultVideoSettings, MAX_ACTIVE_RENDERS, videoInspirations } from "@/c
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import { requestVideoPreview, VideoPreviewError } from "@/lib/video-generator/client";
+import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
 import { FrameError, loadClipFile, loadFrameFile, loadSampleFrame } from "@/lib/video-generator/frames";
 import {
   closestAspectRatio,
@@ -272,6 +273,26 @@ export function VideoWorkspace({
     else void addFiles("start", images);
     return true;
   }
+
+  // An image sent from another studio ("Animate" on a generated image) becomes the start frame.
+  useIncomingImage(
+    "video",
+    async (file) => {
+      try {
+        const frame = track(await loadFrameFile(file));
+        if (latest.current.settings.mode !== "image") changeMode("image");
+        setInputs((current) => ({ ...current, start: frame, end: null }));
+        notify("Your image is the start frame. Describe how it should move.", undefined, "success");
+        matchShape(frame);
+        focusPrompt();
+      } catch (caught) {
+        setInputError(
+          caught instanceof FrameError ? caught.message : "That image couldn’t be added. Please upload it.",
+        );
+      }
+    },
+    () => setInputError("That image couldn’t be opened. Please upload it instead."),
+  );
 
   /** A frame from a result or the viewer becomes the next shot’s starting point. */
   function takeFrame(frame: FrameImage, message: string) {

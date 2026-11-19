@@ -6,6 +6,7 @@ import { fluxSchnell } from "./plugins/fluxSchnell/index.js";
 import { gpt2 } from "./plugins/gpt2/index.js";
 import { grokImagineImage } from "./plugins/grokImagineImage/index.js";
 import { hailuo23 } from "./plugins/hailuo23/index.js";
+import { ideogram } from "./plugins/ideogram/index.js";
 import { kling21 } from "./plugins/kling21/index.js";
 import { kling25 } from "./plugins/kling25/index.js";
 import { klingv3 } from "./plugins/klingv3/index.js";
@@ -15,10 +16,14 @@ import { nanoBanana2 } from "./plugins/nanoBanana2/index.js";
 import { nanoBananaPro } from "./plugins/nanoBananaPro/index.js";
 import { pixverse6 } from "./plugins/pixverse6/index.js";
 import { qwen3 } from "./plugins/qwen3/index.js";
+import { recraftCreative } from "./plugins/recraftCreative/index.js";
+import { recraftCrisp } from "./plugins/recraftCrisp/index.js";
 import { seedance2 } from "./plugins/seedance2/index.js";
 import { seedance25 } from "./plugins/seedance25/index.js";
 import { seedream5Pro } from "./plugins/seedream5Pro/index.js";
+import { seedvr } from "./plugins/seedvr/index.js";
 import { sora2 } from "./plugins/sora2/index.js";
+import { topaz } from "./plugins/topaz/index.js";
 import { veo31Fast } from "./plugins/veo31Fast/index.js";
 import { wan25 } from "./plugins/wan25/index.js";
 import { wan26 } from "./plugins/wan26/index.js";
@@ -48,6 +53,12 @@ const PLUGINS: Record<string, Record<string, ModelDefinition>> = {
   sora2,
   ltx2Fast,
   pixverse6,
+  // Upscale
+  topaz,
+  seedvr,
+  recraftCrisp,
+  recraftCreative,
+  ideogram,
 };
 
 const MODELS: ModelDefinition[] = Object.values(PLUGINS).flatMap((operations) =>

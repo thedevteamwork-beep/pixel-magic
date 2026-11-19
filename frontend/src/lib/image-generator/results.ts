@@ -16,6 +16,7 @@ export function jobToResults(job: JobView, models: readonly StudioModel[]): Imag
   const model = models.find((item) => item.key === job.model);
   const { brief, guidance } = splitImagePrompt(typeof job.input.prompt === "string" ? job.input.prompt : "");
   const shape = shapeOf(model, job.input);
+  const batchSize = job.outputs.filter((output) => output.url).length;
   return job.outputs.flatMap((output) =>
     output.url
       ? [
@@ -33,6 +34,8 @@ export function jobToResults(job: JobView, models: readonly StudioModel[]): Imag
             aspectRatio: shape?.ratio ?? "1:1",
             sizeLabel: shape?.label ?? "Default",
             options: job.input,
+            creditCost: job.creditCost,
+            batchSize,
             createdAt: job.completedAt ?? job.createdAt,
             favorite: false,
           },

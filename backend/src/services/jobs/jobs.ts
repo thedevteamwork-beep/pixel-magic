@@ -20,7 +20,7 @@ import { uploadIdsIn } from "../../models/schemaGenerator.js";
 import { estimateCredits } from "../credits/estimate.js";
 import { DOWNLOAD_URL_TTL_SECONDS, signObjects } from "../signing.js";
 import { assertProjectAcceptsModel } from "../projects.js";
-import { resolveUploads } from "../uploads.js";
+import { measureUpload, resolveUploads } from "../uploads.js";
 
 export type JobView = {
   jobId: string;
@@ -116,11 +116,18 @@ export async function createJob(
       ...(body.projectId ? { projectId: body.projectId } : {}),
     }),
   );
+  // An upscaler is priced by its image's real size, read from storage, never
+  // by what the client says.
+  const imageSize =
+    model.pricedByImageSize && uploads[0]
+      ? await measureUpload(deps, uploads[0])
+      : undefined;
   // The same function as POST /v1/credits/estimate, so the two always agree.
   const { creditsPerJob: creditCost } = estimateCredits(
     deps,
     model,
     body.input,
+    imageSize,
   );
 
   const { job, created } = await deps.db.transaction(async (trx) => {

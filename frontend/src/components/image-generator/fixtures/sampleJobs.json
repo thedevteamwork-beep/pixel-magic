@@ -1,0 +1,91 @@
+{
+  "jobs": [
+    {
+      "jobId": "4f2a9c1e-7b3d-4e8a-9c21-5d6e7f8a9b01",
+      "projectId": null,
+      "status": "completed",
+      "model": "nanoBanana2_generate",
+      "input": {
+        "prompt": "A sculptural wavy glass perfume bottle filled with amber fragrance, a brushed gold cap, and a rough travertine pedestal. Warm late-afternoon light, soft olive-leaf shadows on a beige plaster background, realistic glass and stone detail.",
+        "images": [],
+        "aspect_ratio": "3:4",
+        "output_resolution": "2K"
+      },
+      "creditCost": 8,
+      "createdAt": "2026-11-18T10:00:00.000Z",
+      "completedAt": "2026-11-18T10:00:14.000Z",
+      "outputs": [
+        { "index": 0, "mimeType": "image/png", "url": "sample:studio-product" },
+        { "index": 1, "mimeType": "image/jpeg", "url": "sample:landing-product" }
+      ]
+    },
+    {
+      "jobId": "8b1c2d3e-4f50-4a61-8b72-93a4b5c6d702",
+      "projectId": null,
+      "status": "completed",
+      "model": "gpt2_generate",
+      "input": {
+        "prompt": "A close-up editorial portrait of an adult woman with curly dark hair and a gold hoop earring, chin gently raised, natural skin texture, magenta light from the left and cyan light from the right, against a deep purple background.\n\nOptional visual guidance:\nUse an editorial photography style with a considered composition and tactile, natural detail.\nUse directional lighting with distinct highlights and deep, expressive shadows.\nTreat these as optional visual guidance. If they conflict with the user's explicit brief, follow the brief.",
+        "images": [],
+        "aspect_ratio": "3:4",
+        "output_resolution": "2K",
+        "quality": "high"
+      },
+      "creditCost": 16,
+      "createdAt": "2026-11-18T09:42:00.000Z",
+      "completedAt": "2026-11-18T09:42:31.000Z",
+      "outputs": [{ "index": 0, "mimeType": "image/png", "url": "sample:studio-portrait" }]
+    },
+    {
+      "jobId": "c3d4e5f6-0718-4293-a4b5-c6d7e8f90a03",
+      "projectId": null,
+      "status": "completed",
+      "model": "fluxSchnell_generate",
+      "input": {
+        "prompt": "A cinematic desert landscape of terracotta-orange sand dunes at sunset, layered violet mountains on the horizon, peach clouds, warm sunlit ridges and deep dune shadows. No people, vehicles or structures.\n\nOptional visual guidance:\nUse a cinematic composition with atmospheric lighting and a restrained film-inspired color treatment.\nUse warm, low-angle golden-hour light with gentle shadows.\nTreat these as optional visual guidance. If they conflict with the user's explicit brief, follow the brief.",
+        "image_size": "landscape_16_9",
+        "num_images": 2
+      },
+      "creditCost": 2,
+      "createdAt": "2026-11-18T08:15:00.000Z",
+      "completedAt": "2026-11-18T08:15:04.000Z",
+      "outputs": [
+        { "index": 0, "mimeType": "image/jpeg", "url": "sample:studio-cinematic" },
+        { "index": 1, "mimeType": "image/jpeg", "url": "sample:landing-desert" }
+      ]
+    },
+    {
+      "jobId": "d4e5f607-1829-43a4-b5c6-d7e8f9a0b104",
+      "projectId": null,
+      "status": "completed",
+      "model": "seedream5Pro_generate",
+      "input": {
+        "prompt": "A minimalist cream travertine villa with a cantilevered concrete roof, tall dark-framed windows, broad stone steps and an olive tree. Low golden sunlight, crisp architectural shadows, pale blue sky and realistic natural materials.",
+        "images": [],
+        "aspect_ratio": "4:3",
+        "output_resolution": "2K"
+      },
+      "creditCost": 10,
+      "createdAt": "2026-11-17T18:30:00.000Z",
+      "completedAt": "2026-11-17T18:30:22.000Z",
+      "outputs": [{ "index": 0, "mimeType": "image/png", "url": "sample:studio-architecture" }]
+    },
+    {
+      "jobId": "e5f60718-293a-44b5-86d7-e8f9a0b1c205",
+      "projectId": null,
+      "status": "completed",
+      "model": "nanoBananaPro_generate",
+      "input": {
+        "prompt": "An aerial view of turquoise waves meeting a sunlit coastline, organic textures, natural light, calm composition and a sense of open possibility.",
+        "images": [],
+        "aspect_ratio": "16:9",
+        "output_resolution": "1K"
+      },
+      "creditCost": 4,
+      "createdAt": "2026-11-17T12:05:00.000Z",
+      "completedAt": "2026-11-17T12:05:11.000Z",
+      "outputs": [{ "index": 0, "mimeType": "image/jpeg", "url": "sample:landing-ocean" }]
+    }
+  ],
+  "nextCursor": null
+}

@@ -1,6 +1,6 @@
 // Hand-written copies of the backend response shapes. Dates arrive as ISO strings.
 
-export type ModelKind = "image" | "video";
+export type ModelKind = "image" | "video" | "upscale";
 
 export type FieldSchema =
   | {

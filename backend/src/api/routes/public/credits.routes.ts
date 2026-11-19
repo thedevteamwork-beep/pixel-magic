@@ -4,13 +4,22 @@ import { SUPPORTED_UNITS } from "../../../credits/units.js";
 import type { Deps } from "../../../deps.js";
 import { AppError } from "../../../lib/errors.js";
 import { getOperation } from "../../../models/registry.js";
+import { MAX_IMAGE_SIDE } from "../../../services/uploads.js";
 import { estimateCredits } from "../../../services/credits/estimate.js";
 import { validate } from "../../middlewares/validate.js";
 
 // The same input as POST /v1/jobs/:plugin/:operation, plus how many jobs.
+// A model priced by its image's size (an upscaler) also needs the image's
+// size; the job itself is priced on the size measured from the upload.
 const estimateBody = z.strictObject({
   input: z.record(z.string(), z.unknown()),
   count: z.number().int().min(1).max(20).default(1),
+  imageSize: z
+    .strictObject({
+      width: z.number().int().min(1).max(MAX_IMAGE_SIDE),
+      height: z.number().int().min(1).max(MAX_IMAGE_SIDE),
+    })
+    .optional(),
 });
 
 export function creditsRoutes(deps: Deps): Router {
@@ -33,6 +42,7 @@ export function creditsRoutes(deps: Deps): Router {
         deps,
         model,
         body.input,
+        body.imageSize,
       );
       res.json({
         model: model.key,

@@ -1386,4 +1386,114 @@ export const DEFAULT_TIERED_CREDIT_MAPPING: TieredCreditMapping = {
       },
     ],
   },
+  // Upscalers. Topaz and SeedVR are Pixelbin's TopazUpscale and SeedvrUpscale
+  // rates, in tiers of the result's megapixels (output_megapixels). Pixelbin
+  // checks its highest priority first; here 1 is checked first, so the
+  // largest tier is priority 1.
+  topaz_upscale: {
+    tiers: [
+      {
+        name: "512MP",
+        priority: 1,
+        credits: 85,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 96,
+            },
+          ],
+        },
+      },
+      {
+        name: "96MP",
+        priority: 2,
+        credits: 20,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 48,
+            },
+          ],
+        },
+      },
+      {
+        name: "48MP",
+        priority: 3,
+        credits: 10,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 24,
+            },
+          ],
+        },
+      },
+      { name: "24MP", isDefault: true, credits: 5 },
+    ],
+  },
+  seedvr_upscale: {
+    tiers: [
+      {
+        name: "96MP",
+        priority: 1,
+        credits: 100,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 96,
+            },
+          ],
+        },
+      },
+      {
+        name: "48MP",
+        priority: 2,
+        credits: 20,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 48,
+            },
+          ],
+        },
+      },
+      {
+        name: "24MP",
+        priority: 3,
+        credits: 10,
+        conditions: {
+          any: [
+            {
+              fact: "output_megapixels",
+              operator: "greaterThan",
+              value: 24,
+            },
+          ],
+        },
+      },
+      { name: "Standard Resolution", isDefault: true, credits: 5 },
+    ],
+  },
+  // Pixelbin has no rates for these three; provisional flat prices at
+  // Pixelbin's ~$0.02 a credit from fal's per-image prices (Recraft Crisp
+  // $0.004, Recraft Creative $0.25, Ideogram $0.06). Check before launch.
+  recraftCrisp_upscale: {
+    tiers: [{ name: "Basic", isDefault: true, credits: 1 }],
+  },
+  recraftCreative_upscale: {
+    tiers: [{ name: "Basic", isDefault: true, credits: 13 }],
+  },
+  ideogram_upscale: {
+    tiers: [{ name: "Basic", isDefault: true, credits: 3 }],
+  },
 };

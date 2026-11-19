@@ -8,6 +8,8 @@ type Method = keyof StorageClient;
 
 export class FakeStorage implements StorageClient {
   objects = new Map<string, StorageObjectInfo>();
+  /** File bytes, for objects a test reads (an image's header). */
+  contents = new Map<string, Buffer>();
   copies: Array<{
     bucket: string;
     path: string;
@@ -19,6 +21,17 @@ export class FakeStorage implements StorageClient {
 
   put(bucket: string, path: string, info: StorageObjectInfo): void {
     this.objects.set(`${bucket}/${path}`, info);
+  }
+
+  /** Stores an object with its bytes. */
+  putBytes(
+    bucket: string,
+    path: string,
+    bytes: Buffer,
+    mimeType: string,
+  ): void {
+    this.put(bucket, path, { sizeBytes: bytes.length, mimeType });
+    this.contents.set(`${bucket}/${path}`, bytes);
   }
 
   failNext(method: Method, times = 1): void {
@@ -71,6 +84,19 @@ export class FakeStorage implements StorageClient {
     return paths.map(
       (path) =>
         `https://storage.test/${bucket}/${path}?mode=read&expires=${expiresInSeconds}`,
+    );
+  }
+
+  async readObjectStart(
+    bucket: string,
+    path: string,
+    maxBytes: number,
+  ): Promise<Buffer | null> {
+    this.enter("readObjectStart", [bucket, path, maxBytes]);
+    if (!this.objects.has(`${bucket}/${path}`)) return null;
+    return (this.contents.get(`${bucket}/${path}`) ?? Buffer.alloc(0)).subarray(
+      0,
+      maxBytes,
     );
   }
 

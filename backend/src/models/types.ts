@@ -2,7 +2,10 @@ import type { z } from "zod";
 import type { FalClient, FalResult, FalStatus } from "../clients/fal.js";
 import type { SupportedUnit } from "../credits/units.js";
 
-export type ModelKind = "image" | "video";
+import type { ImageSize } from "../lib/imageSize.js";
+
+/** What a model makes: an image, a video, or a larger copy of an image. */
+export type ModelKind = "image" | "video" | "upscale";
 
 /** What a credit mapping can test and meter: option values, unit values, `image`. */
 export type BillingFacts = Record<string, string | number | boolean>;
@@ -46,8 +49,8 @@ export type FieldSchema =
     };
 
 /**
- * Everything a model declares about itself. `input` must contain `prompt`
- * (type "string") and at most one "image" field. `metaSchema.ts` checks this.
+ * Everything a model declares about itself. `input` has at most one "image"
+ * field; a prompt is just another string field. `metaSchema.ts` checks this.
  */
 export type ModelSchema = {
   info: {
@@ -97,8 +100,20 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
    * Only pricing uses it. `options.parse({})` works unless one is required.
    */
   options: O;
-  /** The facts credits are priced on: the options, the unit values and `image`. */
-  billingInputs(p: { options: z.output<O>; uploadCount: number }): BillingFacts;
+  /**
+   * The facts credits are priced on: the options, the unit values and
+   * `image`. A model priced by its input's size also gets `imageSize`.
+   */
+  billingInputs(p: {
+    options: z.output<O>;
+    uploadCount: number;
+    imageSize?: ImageSize;
+  }): BillingFacts;
+  /**
+   * Priced by the size of its input image (an upscaler's output megapixels).
+   * Job creation measures the upload; an estimate is given the size.
+   */
+  pricedByImageSize: boolean;
   /**
    * The model makes its own fal calls. The endpoint depends only on whether
    * the job has an image, so submit, status, result and cancel always agree.

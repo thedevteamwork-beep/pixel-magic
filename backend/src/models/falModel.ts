@@ -4,6 +4,7 @@ import {
   optionsValidator,
   uploadRule,
 } from "./schemaGenerator.js";
+import type { ImageSize } from "../lib/imageSize.js";
 import {
   OutputInvalidError,
   type BillingFacts,
@@ -36,8 +37,8 @@ export type FalModelConfig = {
    * holds a signed URL (one image) or a list of them (several), never ids.
    */
   payload: (input: PredictionInput) => Record<string, unknown>;
-  /** How fal returns the result. */
-  output: "images" | "video";
+  /** How fal returns the result: a list of images, one image, or a video. */
+  output: "images" | "image" | "video";
   /**
    * The facts the credit mapping prices on. Defaults to the options plus
    * `image` (whether there are uploads). Add `images` or `duration` for the
@@ -46,7 +47,11 @@ export type FalModelConfig = {
   billing?: (p: {
     options: Record<string, unknown>;
     uploadCount: number;
+    /** The input image's size, for a model with `pricedByImageSize`. */
+    imageSize?: ImageSize;
   }) => BillingFacts;
+  /** Priced by the input image's size (see ModelDefinition). */
+  pricedByImageSize?: boolean;
   /** Past this, a job fails even if fal is still working. */
   timeoutMinutes?: number;
 };
@@ -61,6 +66,7 @@ const falImages = z.object({
   has_nsfw_concepts: z.array(z.boolean()).optional(),
 });
 const falVideo = z.object({ video: falFile });
+const falImage = z.object({ image: falFile });
 
 function parseImages(key: string, data: unknown): ParsedOutput {
   const parsed = falImages.safeParse(data);
@@ -95,7 +101,22 @@ function parseVideo(key: string, data: unknown): ParsedOutput {
   };
 }
 
-const DEFAULT_TIMEOUT_MINUTES = { images: 10, video: 60 } as const;
+function parseImage(key: string, data: unknown): ParsedOutput {
+  const parsed = falImage.safeParse(data);
+  if (!parsed.success)
+    throw new OutputInvalidError(
+      `${key} output invalid: ${parsed.error.message}`,
+    );
+  const { image } = parsed.data;
+  return {
+    outputs: [{ url: image.url, mimeType: image.content_type ?? "image/png" }],
+    blockedCount: 0,
+  };
+}
+
+const PARSERS = { images: parseImages, image: parseImage, video: parseVideo };
+
+const DEFAULT_TIMEOUT_MINUTES = { images: 10, image: 10, video: 60 } as const;
 
 /** A model that runs on fal's queue: everything but its schema, payload and pricing is shared. */
 export function defineFalModel(config: FalModelConfig): ModelDefinition {
@@ -123,18 +144,19 @@ export function defineFalModel(config: FalModelConfig): ModelDefinition {
     input: inputValidator(schema),
     uploads,
     options: optionsValidator(schema),
-    billingInputs: ({ options, uploadCount }) =>
-      billing({ options: options as Record<string, unknown>, uploadCount }),
+    billingInputs: ({ options, uploadCount, imageSize }) =>
+      billing({
+        options: options as Record<string, unknown>,
+        uploadCount,
+        imageSize,
+      }),
+    pricedByImageSize: config.pricedByImageSize ?? false,
     requestPrediction: ({ fal, input, webhook }) =>
       fal.submit(submitTo(input), config.payload(input), webhook),
     checkPredictionStatus: ({ fal, requestId }) => fal.status(app, requestId),
     getPredictionResult: ({ fal, requestId }) => fal.result(app, requestId),
     cancelPrediction: ({ fal, requestId }) => fal.cancel(app, requestId),
-    parseOutput: (data) =>
-      (config.output === "images" ? parseImages : parseVideo)(
-        schema.info.name,
-        data,
-      ),
+    parseOutput: (data) => PARSERS[config.output](schema.info.name, data),
     timeoutMinutes:
       config.timeoutMinutes ?? DEFAULT_TIMEOUT_MINUTES[config.output],
   };

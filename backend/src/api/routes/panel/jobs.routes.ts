@@ -7,6 +7,7 @@ import {
 } from "../../../db/repositories/jobs.repo.js";
 import { AppError } from "../../../lib/errors.js";
 import { listModels } from "../../../models/registry.js";
+import type { ModelKind } from "../../../models/types.js";
 import { checkSubmittedJob } from "../../../services/jobs/checkJob.js";
 import { decodeCursor, encodeCursor } from "../../../services/jobs/cursor.js";
 import { createJob, jobView, jobViews } from "../../../services/jobs/jobs.js";
@@ -25,11 +26,11 @@ const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().min(1).optional(),
   projectId: z.string().uuid().optional(),
-  kind: z.enum(["image", "video"]).optional(),
+  kind: z.enum(["image", "video", "upscale"]).optional(),
 });
 
 /** The model keys of one kind; jobs store the key, not the kind. */
-function modelKeysOf(kind: "image" | "video"): string[] {
+function modelKeysOf(kind: ModelKind): string[] {
   return listModels()
     .filter((model) => model.kind === kind)
     .map((model) => model.key);

@@ -6,8 +6,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { REFERENCE_MIME_TYPES } from "@/constants/image-generator";
 import { ApiError } from "@/lib/api/client";
 import { useSignedIn } from "@/lib/auth/useSignedIn";
-import { messageForError } from "@/lib/generate/messages";
+import { isSessionEnded, messageForError } from "@/lib/generate/messages";
+import { handoffPaths, sendImage } from "@/lib/handoff/image";
+import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
 import { resultAsFile } from "@/lib/image-generator/download";
+import { downloadName } from "@/lib/image-generator/results";
 import {
   composeImageGuidance,
   composeImagePrompt,
@@ -16,10 +19,10 @@ import {
   type CreativeGuidance,
 } from "@/lib/image-generator/guidance";
 import { resolveOptions, shapeOf, shapeOption } from "@/lib/image-generator/models";
-import type { ImageOptionValue, ImageResult, ImageSettings, ReferenceImage } from "@/types/image-generator";
+import type { ImageOptionValue, ImageResult, ImageSettings, NextStep, ReferenceImage } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
-import { defaultImageSettings, imageInspirations, lightingOptions, paletteOptions } from "./constants";
+import { defaultImageSettings, imageInspirations, lightingOptions, paletteOptions, resultNextSteps } from "./constants";
 import { CreativePanel } from "./CreativePanel";
 import { DockSettings } from "./DockSettings";
 import { ImageResults } from "./ImageResults";
@@ -42,10 +45,6 @@ function fitPromptHeight(prompt: HTMLTextAreaElement | null) {
   prompt.style.height = `${Math.min(prompt.scrollHeight, 104)}px`;
 }
 
-function sessionEnded(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
-}
-
 function generationError(error: unknown): string {
   if (error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS") {
     return "You don’t have enough credits for this. Add credits on the Pricing page, or create fewer images.";
@@ -66,9 +65,12 @@ function optionValues(input: Record<string, unknown>): Record<string, ImageOptio
 export function ImageWorkspace({
   initialModel,
   initialPreset,
+  sample = false,
 }: {
   initialModel: string | null;
   initialPreset: string | null;
+  /** Development only: sample results, and Generate only pretends. */
+  sample?: boolean;
 }) {
   const { motionEnabled } = useLandingMotion();
   const router = useRouter();
@@ -89,6 +91,7 @@ export function ImageWorkspace({
   const [dockHeight, setDockHeight] = useState(104);
   const [workspaceView, setWorkspaceView] = useState<"canvas" | "history">("canvas");
   const [creativeOpen, setCreativeOpen] = useState(false);
+  const [rerunRequest, setRerunRequest] = useState(0);
   const [compactPanel, setCompactPanel] = useState(false);
   const [guidance, setGuidance] = useState<CreativeGuidance>({ ...defaultCreativeGuidance });
   const [uploadError, setUploadError] = useState("");
@@ -107,7 +110,7 @@ export function ImageWorkspace({
 
   const { models, error: modelsError, retry: retryModels } = useImageModels();
   const signedIn = useSignedIn();
-  const jobs = useImageJobs(models, signedIn);
+  const jobs = useImageJobs(models, signedIn, sample);
   const { favorites, hidden, toggleFavorite, hide, unhide } = useLibraryPrefs();
   // An unknown or missing model key (an old link, say) means the first image model.
   const model = models?.find((item) => item.key === settings.model) ?? models?.[0];
@@ -125,6 +128,30 @@ export function ImageWorkspace({
       .map((item) => (favoriteIds.has(item.id) ? { ...item, favorite: true } : item));
   }, [jobs.results, hidden, favorites]);
   const pending = jobs.render !== null;
+
+  // An image sent here ("Edit" in another studio) waits for the models, then becomes a reference.
+  const incoming = useRef<File | null>(null);
+  useIncomingImage(
+    "image",
+    (file) => {
+      if (models) editIncoming(file);
+      else incoming.current = file;
+    },
+    () => notify("That image couldn’t be opened. Please upload it instead."),
+  );
+  useEffect(() => {
+    if (!models || !incoming.current) return;
+    const file = incoming.current;
+    incoming.current = null;
+    editIncoming(file);
+    // Runs once the models arrive; editIncoming reads the latest settings itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [models]);
+
+  // "Generate again" submits after the render that loaded the result's settings into the composer.
+  useEffect(() => {
+    if (rerunRequest > 0) formRef.current?.requestSubmit();
+  }, [rerunRequest]);
 
   useLayoutEffect(() => {
     fitPromptHeight(promptRef.current);
@@ -244,12 +271,13 @@ export function ImageWorkspace({
     router.push(`/sign-in?next=${encodeURIComponent(back)}`);
   }
 
-  function addReferences(incoming: readonly ReferenceImage[]) {
+  /** `limit` is the selected model's reference limit, or the one about to be selected. */
+  function addReferences(incoming: readonly ReferenceImage[], limit = maxReferences) {
     for (const item of incoming) urlsRef.current.add(item.url);
     setReferences((current) =>
       [...current, ...incoming.map((item) => ({ ...item, role: item.role ?? ("subject" as const) }))].slice(
         0,
-        Math.max(maxReferences, current.length),
+        Math.max(limit, current.length),
       ),
     );
     pendingReferenceRole.current = "subject";
@@ -357,7 +385,7 @@ export function ImageWorkspace({
       promptRef.current?.focus();
       return;
     }
-    if (signedIn === false) {
+    if (signedIn === false && !sample) {
       goToSignIn();
       return;
     }
@@ -382,7 +410,7 @@ export function ImageWorkspace({
         notify("This is taking longer than usual. Your image will appear in History when it’s ready.");
         return;
       }
-      if (sessionEnded(caught)) {
+      if (isSessionEnded(caught)) {
         goToSignIn();
         return;
       }
@@ -391,7 +419,8 @@ export function ImageWorkspace({
     }
   }
 
-  function reuse(item: ImageResult) {
+  /** Loads a result's prompt, model and settings into the composer. */
+  function applyResult(item: ImageResult) {
     const parsed = parseImageGuidance(item.guidance);
     const shape = shapeOf(
       models?.find((candidate) => candidate.key === item.model),
@@ -406,12 +435,48 @@ export function ImageWorkspace({
     });
     setGuidance({ lighting: parsed.lighting, palette: parsed.palette });
     setWorkspaceView("canvas");
+  }
+
+  function reuse(item: ImageResult) {
+    applyResult(item);
     focusPrompt();
     notify("Prompt and settings are ready for another direction.");
   }
 
-  async function addResultAsReference(item: ImageResult) {
-    if (references.length >= maxReferences) {
+  /** Generates a result's prompt and settings again, once the composer holds them. */
+  function rerun(item: ImageResult) {
+    applyResult(item);
+    setRerunRequest((current) => current + 1);
+  }
+
+  /** An image file becomes a subject reference, ready for an edit. */
+  function addFileAsReference(file: File, limit = maxReferences, lead = "") {
+    if (references.length >= limit) {
+      notify("Remove a reference before adding another.");
+      return;
+    }
+    addReferences(
+      [
+        {
+          id: crypto.randomUUID(),
+          url: URL.createObjectURL(file),
+          name: file.name || "Generated image",
+          mimeType: file.type,
+          size: file.size,
+          source: "result",
+          file,
+          role: "subject",
+        },
+      ],
+      limit,
+    );
+    setWorkspaceView("canvas");
+    focusPrompt();
+    notify(`${lead}Reference added. Describe what you’d like to change.`);
+  }
+
+  async function addResultAsReference(item: ImageResult, limit = maxReferences, lead = "") {
+    if (references.length >= limit) {
       notify("Remove a reference before adding another.");
       return;
     }
@@ -420,26 +485,57 @@ export function ImageWorkspace({
     try {
       const file = await resultAsFile(item, controller.signal);
       if (controller.signal.aborted) return;
-      addReferences([
-        {
-          id: crypto.randomUUID(),
-          url: URL.createObjectURL(file),
-          name: "Generated image",
-          mimeType: file.type,
-          size: file.size,
-          source: "result",
-          file,
-          role: "subject",
-        },
-      ]);
-      setWorkspaceView("canvas");
-      focusPrompt();
-      notify("Reference added. Describe what you’d like to change.");
+      addFileAsReference(file, limit, lead);
     } catch {
       if (!controller.signal.aborted) notify("That image couldn’t be added. Please try again.");
     } finally {
       localRequests.current.delete(controller);
     }
+  }
+
+  /** An image sent from another studio ("Edit" on an upscaled image), once the models are known. */
+  function editIncoming(file: File) {
+    const target = model?.references ? model : models?.find((candidate) => candidate.references);
+    if (!target?.references) {
+      notify("None of the image models can edit an image right now.");
+      return;
+    }
+    const switching = target.key !== model?.key;
+    if (switching) updateSettings({ model: target.key });
+    addFileAsReference(file, target.references.max, switching ? `Switched to ${target.name} for editing. ` : "");
+  }
+
+  /** The model "Edit" uses: the selected one if it takes references, else the result's own, else the first that does. */
+  function editModelFor(item: ImageResult) {
+    if (model?.references) return model;
+    return (
+      models?.find((candidate) => candidate.key === item.model && candidate.references) ??
+      models?.find((candidate) => candidate.references)
+    );
+  }
+
+  /** The image becomes a reference, with an empty brief for the change. */
+  function editResult(item: ImageResult) {
+    const target = editModelFor(item);
+    if (!target?.references) return;
+    const switching = target.key !== model?.key;
+    // The brief that made the image would only make it again; an edit needs a new one.
+    updateSettings({
+      ...(switching ? { model: target.key } : {}),
+      ...(settings.prompt.trim() === item.prompt.trim() ? { prompt: "" } : {}),
+    });
+    void addResultAsReference(item, target.references.max, switching ? `Switched to ${target.name} for editing. ` : "");
+  }
+
+  /** "Continue with": Edit stays here; Animate and Upscale take the image to their studio. */
+  function continueWith(item: ImageResult, step: NextStep) {
+    if (step === "edit") {
+      editResult(item);
+      return;
+    }
+    const target = step === "animate" ? "video" : "upscale";
+    sendImage({ target, url: item.url, name: downloadName(item), mimeType: item.mimeType, prompt: item.prompt });
+    router.push(handoffPaths[target]);
   }
 
   function deleteItems(ids: readonly string[]) {
@@ -454,6 +550,10 @@ export function ImageWorkspace({
   const guidancePrompt = composeImageGuidance(settings.style, guidance, references);
   const creativeCount =
     Number(settings.style !== "None") + Number(guidance.lighting !== "none") + Number(guidance.palette !== "none");
+  // Edit needs a model that takes reference images.
+  const nextSteps = resultNextSteps.filter(
+    (step) => step.id !== "edit" || models?.some((candidate) => candidate.references),
+  );
   const priceLabel = credits === null ? "…" : `${credits} ${credits === 1 ? "credit" : "credits"}`;
   const creativePanel = (
     <CreativePanel
@@ -499,7 +599,11 @@ export function ImageWorkspace({
             pendingCount={jobs.render?.count ?? 1}
             pendingModel={jobs.render?.modelName}
             generationKey={generationKey}
+            models={models ?? undefined}
             onReuse={reuse}
+            onRerun={pending ? undefined : rerun}
+            nextSteps={nextSteps}
+            onNextStep={continueWith}
             onReference={maxReferences > 0 ? addResultAsReference : undefined}
             onFavorite={toggleFavorite}
             onDelete={deleteItems}

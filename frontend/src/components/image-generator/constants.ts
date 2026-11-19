@@ -2,8 +2,9 @@ import architectureArt from "@/assets/images/image-studio/architecture.png";
 import cinematicArt from "@/assets/images/image-studio/cinematic.png";
 import portraitArt from "@/assets/images/image-studio/portrait.png";
 import productArt from "@/assets/images/image-studio/product.png";
-import type { ImageSettings, InspirationItem, ModelPresentation } from "@/types/image-generator";
+import type { ImageSettings, InspirationItem, ModelPresentation, NextStepOption } from "@/types/image-generator";
 import type { MediaId, LandingAsset } from "@/types/landing";
+import type { MediaImageProps } from "@/ui/Media";
 
 /** Prompt guidance for the prototype, not provider-native capability declarations. */
 export const stylePresets: readonly {
@@ -148,6 +149,19 @@ export const IMAGE_POLL_INTERVAL_MS = 2500;
  */
 export const IMAGE_WAIT_LIMIT_MS = 12 * 60_000;
 /** How many recent image jobs the history loads. */
+/** Results are signed storage URLs: served as they are, not through the image optimizer. */
+export const REMOTE_IMAGE: MediaImageProps = { unoptimized: true };
+
+/** What a generated image can become next, offered beside it under "Continue with". */
+export const resultNextSteps: readonly NextStepOption[] = [
+  { id: "animate", label: "Animate", description: "Turn it into a video", icon: "film" },
+  { id: "upscale", label: "Upscale", description: "Sharpen and enlarge it", icon: "upscale" },
+  { id: "edit", label: "Edit", description: "Change it with a prompt", icon: "wand" },
+];
+
+/** How long sample mode (`/image?sample=1`, development only) pretends a generation takes. */
+export const SAMPLE_RENDER_MS = 2_500;
+
 export const HISTORY_PAGE_SIZE = 30;
 
 export const imageInspirations: readonly InspirationItem[] = [
