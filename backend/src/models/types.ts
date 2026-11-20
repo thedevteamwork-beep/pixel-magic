@@ -115,6 +115,11 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
    */
   pricedByImageSize: boolean;
   /**
+   * How many times the tier's price is charged: the number of images a job
+   * asks for, for a model priced per image; 1 otherwise. Read from the facts.
+   */
+  priceMultiplier(facts: BillingFacts): number;
+  /**
    * The model makes its own fal calls. The endpoint depends only on whether
    * the job has an image, so submit, status, result and cancel always agree.
    */

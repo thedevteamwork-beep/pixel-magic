@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { UpscaleSkeleton } from "@/components/image-upscaler/UpscaleSkeleton";
 import { UpscaleWorkspace } from "@/components/image-upscaler/UpscaleWorkspace";
 
 export const metadata: Metadata = {
@@ -10,13 +11,7 @@ export const metadata: Metadata = {
 
 export default function UpscalePage({ searchParams }: PageProps<"/upscale">) {
   return (
-    <Suspense
-      fallback={
-        <div className="page-container py-12" role="status">
-          Opening the upscaler…
-        </div>
-      }
-    >
+    <Suspense fallback={<UpscaleSkeleton />}>
       <WorkspaceFromQuery searchParams={searchParams} />
     </Suspense>
   );

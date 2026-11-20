@@ -38,19 +38,16 @@ export function creditsRoutes(deps: Deps): Router {
       };
       const model = getOperation(plugin, operation);
       if (!model) throw new AppError(404, "NOT_FOUND", "Plugin not found");
-      const { creditsPerJob, tier, baseCredits, breakdown } = estimateCredits(
-        deps,
-        model,
-        body.input,
-        body.imageSize,
-      );
+      const { creditsPerJob, tier, baseCredits, breakdown, images } =
+        estimateCredits(deps, model, body.input, body.imageSize);
       res.json({
         model: model.key,
         count: body.count,
         tier,
         creditsPerJob,
         totalCredits: creditsPerJob * body.count,
-        // creditsPerJob = baseCredits + the breakdown's credits, rounded up
+        // creditsPerJob = (baseCredits + the breakdown's credits, rounded up) × images
+        images,
         baseCredits,
         breakdown: breakdown.map((b) => ({
           unit: b.unit,

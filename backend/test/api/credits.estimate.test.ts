@@ -26,6 +26,7 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       tier: "Basic",
       creditsPerJob: 200,
       totalCredits: 200,
+      images: 1,
       baseCredits: 0,
       breakdown: [
         {
@@ -47,6 +48,29 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       creditsPerJob: 100,
       totalCredits: 300,
       count: 3,
+    });
+  });
+
+  it("charges a model priced per image for each image it makes", async () => {
+    const one = await request(app())
+      .post("/v1/credits/estimate/gpt2/generate")
+      .send({
+        input: { prompt: "a cat", output_resolution: "2K", quality: "high" },
+      });
+    const three = await request(app())
+      .post("/v1/credits/estimate/gpt2/generate")
+      .send({
+        input: {
+          prompt: "a cat",
+          output_resolution: "2K",
+          quality: "high",
+          num_images: 3,
+        },
+      });
+    expect(one.body.images).toBe(1);
+    expect(three.body).toMatchObject({
+      images: 3,
+      creditsPerJob: one.body.creditsPerJob * 3,
     });
   });
 
@@ -92,6 +116,31 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       .send({ input: { prompt: "waves", duration: "5" } });
     // 6.25 + 6.25 = 12.5 → 13 (rounding each meter would give 14).
     expect(res.body.creditsPerJob).toBe(13);
+  });
+
+  it("reserves the per-image price for each image a job asks for", async () => {
+    const { deps } = makeDeps();
+    const api = createApp(deps);
+    const input = {
+      prompt: "a cat",
+      output_resolution: "1K",
+      quality: "low",
+      num_images: 4,
+    };
+    const estimate = await request(api)
+      .post("/v1/credits/estimate/gpt2/generate")
+      .send({ input });
+    await resetDb();
+    await seedTestCatalog(testDb);
+    const userId = await createFundedUser(deps, 500);
+    const job = await request(api)
+      .post("/v1/jobs/gpt2/generate")
+      .set(await authHeader(userId))
+      .set("Idempotency-Key", "count-4")
+      .send({ input });
+    expect(job.status).toBe(202);
+    expect(estimate.body.images).toBe(4);
+    expect(job.body.creditCost).toBe(estimate.body.creditsPerJob);
   });
 
   it("matches what createJob reserves", async () => {
@@ -163,6 +212,7 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       tier: "Image to video",
       creditsPerJob: 40,
       totalCredits: 40,
+      images: 1,
       baseCredits: 5,
       breakdown: [
         {

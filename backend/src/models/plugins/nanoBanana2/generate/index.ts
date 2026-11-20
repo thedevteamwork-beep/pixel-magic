@@ -15,11 +15,14 @@ export const nanoBanana2Generate = defineFalModel({
     const images = imageUrls(input.images);
     return {
       prompt: input.prompt,
+      num_images: input.num_images,
       resolution: input.output_resolution,
       aspect_ratio: input.aspect_ratio,
       ...(images.length ? { image_urls: images } : {}),
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // Priced on output_resolution, an option; the default facts include it.
 });

@@ -4,6 +4,7 @@ import portraitArt from "@/assets/images/image-studio/portrait.png";
 import productArt from "@/assets/images/image-studio/product.png";
 import type { ImageSettings, InspirationItem, ModelPresentation, NextStepOption } from "@/types/image-generator";
 import type { MediaId, LandingAsset } from "@/types/landing";
+import type { IconName } from "@/ui/Icon";
 import type { MediaImageProps } from "@/ui/Media";
 
 /** Prompt guidance for the prototype, not provider-native capability declarations. */
@@ -132,6 +133,9 @@ export const modelPresentation: Readonly<Record<string, ModelPresentation>> = {
   krea2_generate: { maker: "Krea", symbol: "◐" },
 };
 
+/** The model the studio opens on: it offers every option (quality, resolution, references, count). */
+export const DEFAULT_IMAGE_MODEL = "gpt2_generate";
+
 export const defaultImageSettings: Readonly<ImageSettings> = {
   model: null,
   prompt: "",
@@ -151,6 +155,15 @@ export const IMAGE_WAIT_LIMIT_MS = 12 * 60_000;
 /** How many recent image jobs the history loads. */
 /** Results are signed storage URLs: served as they are, not through the image optimizer. */
 export const REMOTE_IMAGE: MediaImageProps = { unoptimized: true };
+
+/** How the prompt bar shows a model's other options, by field name: an icon and a name for the menu. */
+export const choicePresentation: Record<string, { icon: IconName; label: string }> = {
+  quality: { icon: "gem", label: "Quality" },
+  output_resolution: { icon: "resolution", label: "Resolution" },
+  output_format: { icon: "file", label: "File format" },
+  creativity: { icon: "wand", label: "Creativity" },
+  model: { icon: "layers", label: "Model size" },
+};
 
 /** What a generated image can become next, offered beside it under "Continue with". */
 export const resultNextSteps: readonly NextStepOption[] = [

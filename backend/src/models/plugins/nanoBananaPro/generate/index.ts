@@ -15,6 +15,7 @@ export const nanoBananaProGenerate = defineFalModel({
     const images = imageUrls(input.images);
     return {
       prompt: input.prompt,
+      num_images: input.num_images,
       resolution: input.output_resolution,
       // fal takes no "auto"; Pixelbin sends 1:1 in its place.
       aspect_ratio: input.aspect_ratio === "auto" ? "1:1" : input.aspect_ratio,
@@ -22,5 +23,7 @@ export const nanoBananaProGenerate = defineFalModel({
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // Priced on output_resolution, an option; the default facts include it.
 });

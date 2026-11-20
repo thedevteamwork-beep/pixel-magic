@@ -26,3 +26,27 @@ A simple screen the user understands beats a clever one they have to learn.
 - **Plain, short words.** Name things the way users would, not after internal or provider terms.
 - **The main task fits on one screen** on common laptop sizes (1280×720 and up) without page scrolling. Panels may scroll; the primary action stays in view.
 - **When unsure, remove rather than add.** Check every new element against principle 1: does it help the user do the next thing?
+
+## Studio layout pattern
+
+Upscale uses this layout, and Video and Influencer already keep their settings on the left. The **Image studio keeps its own layout for now** (prompt bar at the bottom, result details on the right): don't move it to this pattern unless asked.
+
+```
+┌ rail ┬─ settings panel (≈340–360px) ─┬───────────── canvas ──────────────┐
+│      │ Title                         │ Result bar: what was made · next  │
+│      │ Inputs (prompt / upload)      │ steps (Generate again, Animate,   │
+│      │ Model, size, count            │ Upscale, Edit, Download, New…)    │
+│      │ More settings ▾ (collapsed)   │                                   │
+│      │                               │        The result, large          │
+│      │ [Primary action · N credits]  │                                   │
+│      │  (pinned to the bottom)       │                                   │
+└──────┴───────────────────────────────┴───────────────────────────────────┘
+```
+
+- **Left: the settings panel.** Everything the user sets before they click goes here: inputs, model and options, with rare options collapsed. The panel's contents don't change after a result. Only its button changes, to "… again" (secondary while the settings match the result, primary once they change).
+- **The primary action is pinned at the bottom of the panel**, with its price, and is always visible. The panel body scrolls; the button does not.
+- **Right: the canvas.** Everything about what was made lives here. A **result bar above the result** shows what made it in one line (the full prompt and settings open in a dialog) and the next steps: generate again, continue in another studio, download, start a new one. The result fills the rest.
+- **Only two columns.** Don't add a third column for result details; it leaves the image too small on a laptop. Use the result bar and a details dialog instead.
+- **One screen.** The studio is one viewport tall. The panel and the canvas each scroll on their own; the page does not.
+- **Phones:** the result comes first, the settings below, and the primary action sticks to the bottom of the screen.
+- **Moving between studios** carries the image along (for example "Animate" opens the video studio with the image as the start frame), so users never upload twice.

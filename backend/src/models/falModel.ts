@@ -52,6 +52,12 @@ export type FalModelConfig = {
   }) => BillingFacts;
   /** Priced by the input image's size (see ModelDefinition). */
   pricedByImageSize?: boolean;
+  /**
+   * The mapping prices one image and a job asking for several pays for each:
+   * the option holding the count (e.g. "num_images"). Its value must be in the
+   * billing facts, which the default billing (the options) includes.
+   */
+  pricePerImage?: { countField: string };
   /** Past this, a job fails even if fal is still working. */
   timeoutMinutes?: number;
 };
@@ -151,6 +157,11 @@ export function defineFalModel(config: FalModelConfig): ModelDefinition {
         imageSize,
       }),
     pricedByImageSize: config.pricedByImageSize ?? false,
+    priceMultiplier: (facts) => {
+      if (!config.pricePerImage) return 1;
+      const count = Number(facts[config.pricePerImage.countField]);
+      return Number.isInteger(count) && count > 0 ? count : 1;
+    },
     requestPrediction: ({ fal, input, webhook }) =>
       fal.submit(submitTo(input), config.payload(input), webhook),
     checkPredictionStatus: ({ fal, requestId }) => fal.status(app, requestId),
