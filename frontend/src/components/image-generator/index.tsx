@@ -22,7 +22,14 @@ import { resolveOptions, shapeOf, shapeOption } from "@/lib/image-generator/mode
 import type { ImageOptionValue, ImageResult, ImageSettings, NextStep, ReferenceImage } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
-import { defaultImageSettings, imageInspirations, lightingOptions, paletteOptions, resultNextSteps } from "./constants";
+import {
+  DEFAULT_IMAGE_MODEL,
+  defaultImageSettings,
+  imageInspirations,
+  lightingOptions,
+  paletteOptions,
+  resultNextSteps,
+} from "./constants";
 import { CreativePanel } from "./CreativePanel";
 import { DockSettings } from "./DockSettings";
 import { ImageResults } from "./ImageResults";
@@ -112,8 +119,11 @@ export function ImageWorkspace({
   const signedIn = useSignedIn();
   const jobs = useImageJobs(models, signedIn, sample);
   const { favorites, hidden, toggleFavorite, hide, unhide } = useLibraryPrefs();
-  // An unknown or missing model key (an old link, say) means the first image model.
-  const model = models?.find((item) => item.key === settings.model) ?? models?.[0];
+  // An unknown or missing model key (an old link, say) means the default model, else the first.
+  const model =
+    models?.find((item) => item.key === settings.model) ??
+    models?.find((item) => item.key === DEFAULT_IMAGE_MODEL) ??
+    models?.[0];
   const options = useMemo(
     () => (model ? resolveOptions(model, settings.options, settings.ratio) : {}),
     [model, settings.options, settings.ratio],
@@ -791,18 +801,24 @@ export function ImageWorkspace({
                         : `Generate, ${credits === null ? "price loading" : priceLabel}`
                   }
                 >
-                  {pending ? (
-                    <>
-                      <LoaderCircle size={16} className={styles.spinner} aria-hidden="true" />
-                      <span>Creating…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16} aria-hidden="true" />
-                      <span>{signedIn === false ? "Sign in to generate" : "Generate"}</span>
-                    </>
+                  <span className={styles.generateLabel}>
+                    {pending ? (
+                      <>
+                        <LoaderCircle size={16} className={styles.spinner} aria-hidden="true" />
+                        Creating…
+                      </>
+                    ) : signedIn === false ? (
+                      "Sign in to generate"
+                    ) : (
+                      "Generate"
+                    )}
+                  </span>
+                  {!pending && model && (
+                    <span className={styles.generatePrice}>
+                      <Sparkles size={12} aria-hidden="true" />
+                      {priceLabel}
+                    </span>
                   )}
-                  {!pending && model && <span className={styles.generatePrice}>{priceLabel}</span>}
                 </button>
               </div>
               {error && (

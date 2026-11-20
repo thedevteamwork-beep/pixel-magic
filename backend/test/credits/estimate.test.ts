@@ -147,6 +147,7 @@ describe("estimateCredits", () => {
     ).toEqual({
       creditsPerJob: 40,
       tier: "Image to video",
+      images: 1,
       baseCredits: 5,
       breakdown: [
         { unit: "duration", quantity: 5, units: 5, rate: 7, credits: 35 },

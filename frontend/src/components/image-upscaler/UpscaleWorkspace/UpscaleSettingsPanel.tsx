@@ -1,16 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, ChevronDown, LoaderCircle, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { factorChoices, formatMegapixels, formatSize, outputSize, usesTarget } from "@/lib/image-upscaler/models";
 import type { ImageSize, UpscaleControl, UpscaleModel, UpscaleValue, UpscaleValues } from "@/lib/image-upscaler/types";
 import { Accordion, AccordionItem } from "@/ui/Accordion";
@@ -315,8 +306,8 @@ export type UpscaleSettingsPanelProps = {
   submitRef: RefObject<HTMLButtonElement | null>;
   /** A result exists: the button upscales again. */
   hasResult: boolean;
-  /** Shown above the settings, e.g. the result's summary. */
-  summary?: ReactNode;
+  /** The settings differ from the result's, so upscaling again is the main action. */
+  changed: boolean;
 };
 
 export function UpscaleSettingsPanel({
@@ -333,7 +324,7 @@ export function UpscaleSettingsPanel({
   onSubmit,
   submitRef,
   hasResult,
-  summary,
+  changed,
 }: UpscaleSettingsPanelProps) {
   const output = outputSize(model, values, source);
   const target = usesTarget(model, values);
@@ -356,10 +347,8 @@ export function UpscaleSettingsPanel({
         }}
       >
         <div className={styles.settingsScroll}>
-          {summary}
           <fieldset className={styles.settingsFields} disabled={busy}>
             <legend className={styles.upscaleSettingsPanelSrOnly}>Upscale settings</legend>
-            {hasResult && <h3 className={styles.againTitle}>Try different settings</h3>}
             <SettingsPicker
               label="Model"
               value={model.key}
@@ -447,7 +436,7 @@ export function UpscaleSettingsPanel({
 
         <button
           type="submit"
-          className={`${styles.submit} ${hasResult ? styles.submitAgain : ""}`}
+          className={`${styles.submit} ${hasResult && !changed ? styles.submitAgain : ""}`}
           ref={submitRef}
           disabled={busy || !source}
         >
@@ -460,6 +449,9 @@ export function UpscaleSettingsPanel({
           {!busy && source && <span className={styles.submitPrice}>{price}</span>}
         </button>
         {!source && <p className={styles.startHint}>Upload an image to get started.</p>}
+        {hasResult && changed && !busy && (
+          <p className={styles.startHint}>Settings changed. Upscale again to apply them.</p>
+        )}
       </form>
     </aside>
   );

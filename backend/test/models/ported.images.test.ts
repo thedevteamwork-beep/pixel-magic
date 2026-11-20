@@ -111,7 +111,12 @@ describe("nanoBanana2", () => {
   it("generates from the prompt alone", async () => {
     expect(await submit(model)).toEqual({
       endpoint: "fal-ai/nano-banana-2",
-      payload: { prompt: "a cat", resolution: "1K", aspect_ratio: "16:9" },
+      payload: {
+        num_images: 1,
+        prompt: "a cat",
+        resolution: "1K",
+        aspect_ratio: "16:9",
+      },
     });
   });
 
@@ -125,6 +130,7 @@ describe("nanoBanana2", () => {
     ).toEqual({
       endpoint: "fal-ai/nano-banana-2/edit",
       payload: {
+        num_images: 1,
         prompt: "a cat",
         resolution: "0.5K",
         aspect_ratio: "1:4",
@@ -135,7 +141,12 @@ describe("nanoBanana2", () => {
 
   it("bills on output_resolution", () => {
     expect(bill(model, { output_resolution: "4K" }, 2)).toEqual({
-      facts: { aspect_ratio: "16:9", output_resolution: "4K", image: true },
+      facts: {
+        num_images: 1,
+        aspect_ratio: "16:9",
+        output_resolution: "4K",
+        image: true,
+      },
       tier: "4K",
     });
   });
@@ -203,6 +214,7 @@ describe("gpt2", () => {
       bill(model, { output_resolution: "4K", quality: "medium" }, 3),
     ).toEqual({
       facts: {
+        num_images: 1,
         aspect_ratio: "1:1",
         output_resolution: "4K",
         quality: "medium",
@@ -250,7 +262,12 @@ describe("seedream5Pro", () => {
 
   it("bills on output_resolution", () => {
     expect(bill(model, { output_resolution: "1K" }, 0)).toEqual({
-      facts: { aspect_ratio: "auto", output_resolution: "1K", image: false },
+      facts: {
+        num_images: 1,
+        aspect_ratio: "auto",
+        output_resolution: "1K",
+        image: false,
+      },
       tier: "1K",
     });
   });
@@ -316,6 +333,7 @@ describe("qwen3", () => {
     expect(await submit(model)).toEqual({
       endpoint: "alibaba/qwen-image-3/text-to-image",
       payload: {
+        num_images: 1,
         prompt: "a cat",
         image_size: "square_hd",
         output_format: "png",
@@ -335,6 +353,7 @@ describe("qwen3", () => {
       endpoint: "alibaba/qwen-image-3/edit",
       payload: {
         prompt: "a cat",
+        num_images: 1,
         image_size: { width: 2048, height: 1376 },
         output_format: "png",
         sync_mode: false,
@@ -350,7 +369,12 @@ describe("qwen3", () => {
 
   it("bills on output_resolution", () => {
     expect(bill(model, { output_resolution: "2k" }, 0)).toEqual({
-      facts: { aspect_ratio: "1:1", output_resolution: "2k", image: false },
+      facts: {
+        num_images: 1,
+        aspect_ratio: "1:1",
+        output_resolution: "2k",
+        image: false,
+      },
       tier: "2k",
     });
   });
@@ -403,6 +427,7 @@ describe("grokImagineImage", () => {
   it("bills on output_resolution", () => {
     expect(bill(model, { output_resolution: "2k" }, 1)).toEqual({
       facts: {
+        num_images: 1,
         aspect_ratio: "auto",
         output_resolution: "2k",
         output_format: "png",
@@ -457,5 +482,51 @@ describe("krea2", () => {
       },
       tier: "Large",
     });
+  });
+});
+
+describe("image count", () => {
+  // Every model fal lets ask for several images; FLUX.2 Pro and Krea 2 make one.
+  const counted: ModelDefinition[] = [
+    nanoBanana2Generate,
+    gpt2Generate,
+    seedream5ProGenerate,
+    qwen3Generate,
+    grokImagineImageGenerate,
+  ];
+
+  it.each(counted)(
+    "%s sends the chosen count to fal, 1 to 4",
+    async (model) => {
+      expect((await submit(model, { num_images: 3 })).payload).toMatchObject({
+        num_images: 3,
+      });
+      expect(model.options.safeParse({ num_images: 5 }).success).toBe(false);
+      expect(model.options.parse({}).num_images).toBe(1);
+    },
+  );
+
+  it.each(counted)("%s charges the price of one image for each", (model) => {
+    const facts = (count: number) =>
+      model.billingInputs({
+        options: model.options.parse({ num_images: count }),
+        uploadCount: 0,
+      });
+    expect(model.priceMultiplier(facts(1))).toBe(1);
+    expect(model.priceMultiplier(facts(4))).toBe(4);
+  });
+
+  it("leaves models priced per job, or metering images themselves, at one", () => {
+    expect(
+      krea2Generate.priceMultiplier(
+        krea2Generate.billingInputs({
+          options: krea2Generate.options.parse({}),
+          uploadCount: 0,
+        }),
+      ),
+    ).toBe(1);
+    expect(flux2ProGenerate.options.safeParse({ num_images: 2 }).success).toBe(
+      false,
+    );
   });
 });

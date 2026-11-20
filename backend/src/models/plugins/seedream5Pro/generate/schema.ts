@@ -56,6 +56,13 @@ export const schema: ModelSchema = {
       enum: ["1K", "2K"],
       default: "2K",
     },
+    num_images: {
+      type: "integer",
+      description: "How many images to generate",
+      minimum: 1,
+      maximum: 4,
+      default: 1,
+    },
   },
   output: {
     description: "The generated images",

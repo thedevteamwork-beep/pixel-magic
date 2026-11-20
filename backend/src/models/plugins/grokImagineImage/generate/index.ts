@@ -16,7 +16,7 @@ export const grokImagineImageGenerate = defineFalModel({
     const images = imageUrls(input.images);
     return {
       prompt: input.prompt,
-      num_images: 1,
+      num_images: input.num_images,
       // "auto" keeps the first reference's shape; with none to keep, Pixelbin sends 1:1.
       aspect_ratio:
         input.aspect_ratio === "auto" && !images.length
@@ -29,6 +29,8 @@ export const grokImagineImageGenerate = defineFalModel({
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // Priced on output_resolution ("1k" / "2k", as the mapping tests it), an option;
   // the default facts include it.
 });

@@ -19,7 +19,7 @@ export function UpscaleUploadWelcome({ onUpload, busy, uploadRef }: UpscaleUploa
   return (
     <section className={styles.welcome} aria-labelledby={`${id}-title`}>
       <figure className={styles.example}>
-        <figcaption className={styles.exampleLabel}>Example comparison</figcaption>
+        <figcaption className={styles.upscaleUploadWelcomeSrOnly}>Example comparison</figcaption>
         <div className={styles.upscaleUploadWelcomeComparison}>
           <Media
             media={{
@@ -75,7 +75,7 @@ export function UpscaleUploadWelcome({ onUpload, busy, uploadRef }: UpscaleUploa
 
       <div className={styles.copy}>
         <h1 id={`${id}-title`}>Upscale your image</h1>
-        <p>Drop an image here or choose a file.</p>
+        <p>Sharper detail at up to 10× the size. Drop an image anywhere, paste it, or choose a file.</p>
         <button ref={uploadRef} type="button" className={styles.upload} onClick={onUpload} disabled={busy}>
           {busy ? (
             <LoaderCircle className={styles.upscaleUploadWelcomeSpinner} size={17} aria-hidden="true" />
@@ -84,7 +84,7 @@ export function UpscaleUploadWelcome({ onUpload, busy, uploadRef }: UpscaleUploa
           )}
           {busy ? "Opening image…" : "Upload image"}
         </button>
-        <span className={styles.upscaleUploadWelcomeHint}>Up to 20 MB · drag, drop or paste</span>
+        <span className={styles.upscaleUploadWelcomeHint}>JPG, PNG or WebP · up to 20 MB</span>
       </div>
     </section>
   );

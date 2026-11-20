@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ImageWorkspace } from "@/components/image-generator";
+import { ImageSkeleton } from "@/components/image-generator/ImageSkeleton";
 import { imageInspirations } from "@/components/image-generator/constants";
 
 export const metadata: Metadata = {
@@ -13,13 +14,7 @@ type ImageSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default function ImagePage({ searchParams }: { searchParams: ImageSearchParams }) {
   return (
-    <Suspense
-      fallback={
-        <div className="page-container py-12" role="status">
-          Opening your image studio…
-        </div>
-      }
-    >
+    <Suspense fallback={<ImageSkeleton />}>
       <WorkspaceFromQuery searchParams={searchParams} />
     </Suspense>
   );
@@ -27,7 +22,7 @@ export default function ImagePage({ searchParams }: { searchParams: ImageSearchP
 
 async function WorkspaceFromQuery({ searchParams }: { searchParams: ImageSearchParams }) {
   const { model, preset, sample } = await searchParams;
-  // Models come from the API at runtime: an unknown `?model=` falls back to the first image model there.
+  // Models come from the API at runtime: an unknown `?model=` falls back to the default image model there.
   const initialModel = typeof model === "string" ? model : null;
   const initialPreset = imageInspirations.find((item) => item.id === preset)?.id ?? null;
   // `?sample=1` (development only) shows sample results instead of calling the jobs API.
