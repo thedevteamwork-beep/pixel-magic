@@ -1,0 +1,359 @@
+.reference {
+  margin-bottom: 14px;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font: inherit;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
+}
+
+.add:hover:enabled {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-raised));
+}
+
+.add:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.add strong {
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.addIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--overlay-hover);
+  color: var(--subtle);
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.picked {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.pickedThumb {
+  position: relative;
+  flex: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+}
+
+.pickedText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pickedText small {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+.pickedText strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change {
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--fs-xs);
+}
+
+.change:hover:enabled {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.remove:hover:enabled {
+  background: var(--overlay-hover);
+  color: var(--foreground);
+}
+
+.modal {
+  width: min(880px, calc(100% - 32px));
+}
+
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.uploadTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  aspect-ratio: 3 / 4;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font: inherit;
+  text-align: center;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
+}
+
+.uploadTile:hover:enabled {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-raised));
+}
+
+.uploadTile:disabled {
+  opacity: 0.6;
+}
+
+.uploadTile strong {
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.uploadTile small {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+.uploadIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--overlay-hover);
+  color: var(--subtle);
+}
+
+.styleTile {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--on-media);
+  font: inherit;
+  transition: border-color 0.18s;
+}
+
+.styleTile:hover,
+.styleTile:focus-visible,
+.styleTile[data-picked="true"] {
+  border-color: var(--primary);
+}
+
+.styleImage {
+  z-index: -2;
+  transition: transform 0.3s;
+}
+
+.styleTile:hover .styleImage {
+  transform: scale(1.04);
+}
+
+.styleShade {
+  composes: mediaShade from "../../../assets/styles/shared.module.css";
+}
+
+.styleName {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickedMark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.newStyle {
+  display: flex;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.newStyleImage {
+  flex: none;
+  width: 120px;
+  height: 160px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.newStyleFields {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.newStyleFields label {
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+}
+
+.newStyleFields input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--fs-base);
+}
+
+.newStyleFields input:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.newStyleFields input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.newStyleActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+}
+
+@media (max-width: 600px) {
+  .library {
+    padding: 14px;
+  }
+
+  .newStyle {
+    flex-direction: column;
+  }
+
+  .newStyleImage {
+    width: 100%;
+    height: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add,
+  .uploadTile,
+  .styleTile,
+  .styleImage {
+    transition: none;
+  }
+
+  .styleTile:hover .styleImage {
+    transform: none;
+  }
+}

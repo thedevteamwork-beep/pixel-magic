@@ -10,8 +10,8 @@ import { VariationStrip } from "./VariationStrip";
 import styles from "./main.module.css";
 
 export function ResultView() {
-  const { state, dispatch, cancel, modelTakesReference } = useInfluencer();
-  const { traits, variations, selectedId, status, projectId, reference } = state;
+  const { state, dispatch, cancel, referencesUsed } = useInfluencer();
+  const { traits, variations, selectedId, status, projectId } = state;
   const busy = status === "generating";
   const selected = variations.find((item) => item.id === selectedId) ?? null;
   const summary = [
@@ -33,7 +33,7 @@ export function ResultView() {
         onSelect={(id) => dispatch({ type: "select", id })}
       />
       {state.error && <ErrorBanner message={state.error} onDismiss={() => dispatch({ type: "dismissError" })} />}
-      <PromptDetails prompt={composeInfluencerPrompt(traits, Boolean(reference) && modelTakesReference)} />
+      <PromptDetails prompt={composeInfluencerPrompt(traits, referencesUsed)} />
       {/* The strip shows every variation, so this count matches it. */}
       <span className={styles.srOnly} aria-live="polite">
         {variations.length && !busy

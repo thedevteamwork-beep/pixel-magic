@@ -19,6 +19,7 @@ import {
   projectData,
   traitsFromProject,
   updateInfluencerProject,
+  usedReferences,
   variationsFromJobs,
 } from "./projects";
 import { composeInfluencerPrompt } from "./prompt";
@@ -48,6 +49,7 @@ const view = (title: string, data: Record<string, unknown>): ProjectView => ({
   title,
   data,
   cover: null,
+  upload: null,
   createdAt: "",
   updatedAt: "",
 });
@@ -121,14 +123,32 @@ describe("variationsFromJobs", () => {
   });
 });
 
+/** Like kling21, but its image field takes up to four images. */
+const multiImage: PublicModel = {
+  ...kling21,
+  input: { ...kling21.input, image: { ...kling21.input.image, maxItems: 4 } } as PublicModel["input"],
+};
+
+describe("usedReferences", () => {
+  it("sends the photo first, then the style, while the image field has room", () => {
+    expect(usedReferences(multiImage, { photo: "u1", style: "s1" })).toEqual({ photo: "u1", style: "s1" });
+    expect(usedReferences(kling21, { photo: "u1", style: "s1" })).toEqual({ photo: "u1" });
+    expect(usedReferences(kling21, { style: "s1" })).toEqual({ style: "s1" });
+  });
+
+  it("sends nothing to a model without an image field", () => {
+    expect(usedReferences(fluxSchnell, { photo: "u1", style: "s1" })).toEqual({});
+  });
+});
+
 describe("influencerInput", () => {
   const traits = { ...defaultTraits, name: "Mira", hairColor: "black" };
 
   it("asks flux for four portrait images", () => {
-    const input = influencerInput(fluxSchnell, traits, []);
+    const input = influencerInput(fluxSchnell, traits, {});
     expect(input.image_size).toBe("portrait_4_3");
     expect(input.num_images).toBe(4);
-    expect(input.prompt).toBe(composeInfluencerPrompt(traits, false));
+    expect(input.prompt).toBe(composeInfluencerPrompt(traits));
   });
 
   it("caps num_images at the model maximum and skips an image_size without portrait_4_3", () => {
@@ -140,19 +160,33 @@ describe("influencerInput", () => {
         num_images: { type: "integer", description: "", minimum: 1, maximum: 2, default: 1 },
       },
     };
-    const input = influencerInput(model, traits, []);
+    const input = influencerInput(model, traits, {});
     expect(input.num_images).toBe(2);
     expect(input.image_size).toBe("square");
   });
 
-  it("puts upload ids in the image field and prompts with a reference", () => {
-    const input = influencerInput(kling21, traits, ["u1"]);
+  it("puts the photo in the image field and prompts with it", () => {
+    const input = influencerInput(kling21, traits, { photo: "u1" });
     expect(input.image).toEqual(["u1"]);
-    expect(input.prompt).toBe(composeInfluencerPrompt(traits, true));
+    expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true }));
+  });
+
+  it("sends the photo and the style together when the model takes both", () => {
+    const input = influencerInput(multiImage, traits, { photo: "u1", style: "s1" });
+    expect(input.image).toEqual(["u1", "s1"]);
+    expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true, style: true }));
+  });
+
+  it("keeps only the photo, and prompts for it alone, when the model takes one image", () => {
+    const input = influencerInput(kling21, traits, { photo: "u1", style: "s1" });
+    expect(input.image).toEqual(["u1"]);
+    expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true }));
   });
 
   it("prompts without a reference when the model has no image field", () => {
-    expect(influencerInput(fluxSchnell, traits, ["u1"]).prompt).toBe(composeInfluencerPrompt(traits, false));
+    const input = influencerInput(fluxSchnell, traits, { photo: "u1", style: "s1" });
+    expect(input.prompt).toBe(composeInfluencerPrompt(traits));
+    expect(input.image).toBeUndefined();
   });
 });
 

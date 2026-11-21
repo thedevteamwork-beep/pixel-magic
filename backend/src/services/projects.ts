@@ -8,11 +8,13 @@ import {
   unlinkProjectJobs,
   updateUserProject,
 } from "../db/repositories/projects.repo.js";
+import { getUserUploads } from "../db/repositories/uploads.repo.js";
 import type { JobOutput, ProjectRow } from "../db/rows.js";
 import { AppError } from "../lib/errors.js";
 import type { ModelKind } from "../models/types.js";
 import { getProjectType } from "../projects/registry.js";
 import { signObjects } from "./signing.js";
+import { resolveUploads } from "./uploads.js";
 
 export type ProjectView = {
   projectId: string;
@@ -21,6 +23,13 @@ export type ProjectView = {
   data: Record<string, unknown>;
   /** First output of the newest completed job in the project, signed; null if none yet. */
   cover: { mimeType: string; url: string; expiresAt: Date } | null;
+  /** The project's own image, for a type with an upload field (a style), signed; null otherwise. */
+  upload: {
+    uploadId: string;
+    mimeType: string;
+    url: string;
+    expiresAt: Date;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -35,11 +44,13 @@ export async function createProject(
   if (!definition) {
     throw new AppError(422, "VALIDATION_FAILED", "Unknown project type");
   }
+  const data = definition.data.parse(body.data ?? {});
+  await checkProjectUpload(deps, userId, body.type, data);
   return insertProject(deps.db, {
     user_id: userId,
     type: body.type,
     title: body.title,
-    data: definition.data.parse(body.data ?? {}),
+    data,
     now: deps.clock.now(),
   });
 }
@@ -49,6 +60,28 @@ function parseProjectData(type: string, data: unknown): unknown {
   const definition = getProjectType(type);
   if (!definition) throw new Error(`Unknown project type: ${type}`);
   return definition.data.parse(data);
+}
+
+/** The upload id in a project's data, for a type that has an upload field. */
+function projectUploadId(type: string, data: unknown): string | undefined {
+  const field = getProjectType(type)?.uploadField;
+  if (!field) return undefined;
+  const value = (data as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * A type with an upload field takes only the user's own upload whose file is
+ * in storage. Anything else is 422 UPLOAD_NOT_READY.
+ */
+async function checkProjectUpload(
+  deps: Deps,
+  userId: string,
+  type: string,
+  data: unknown,
+): Promise<void> {
+  const uploadId = projectUploadId(type, data);
+  if (uploadId) await resolveUploads(deps, userId, [uploadId]);
 }
 
 /** `data` replaces the whole object and is parsed again. */
@@ -61,18 +94,16 @@ export async function updateProject(
   return deps.db.transaction(async (trx) => {
     const current = await getUserProject(trx, userId, id, { forUpdate: true });
     if (!current) throw notFound();
-    const patch = {
-      title: body.title,
-      data:
-        body.data === undefined
-          ? undefined
-          : parseProjectData(current.type, body.data),
-    };
+    let data: unknown;
+    if (body.data !== undefined) {
+      data = parseProjectData(current.type, body.data);
+      await checkProjectUpload(deps, userId, current.type, data);
+    }
     const row = await updateUserProject(
       trx,
       userId,
       id,
-      patch,
+      { title: body.title, data },
       deps.clock.now(),
     );
     return row!;
@@ -91,11 +122,15 @@ export async function deleteProject(
   });
 }
 
-/** Views in the order of `rows`; the covers are signed with one call per bucket. */
+/**
+ * Views in the order of `rows`, all one user's projects. Covers and uploads
+ * are each signed with one call per bucket.
+ */
 export async function projectViews(
   deps: Deps,
   rows: ProjectRow[],
 ): Promise<ProjectView[]> {
+  // 1. Covers: the first output of each project's newest completed job.
   const latest = await latestCompletedJobs(
     deps.db,
     rows.map((row) => row.id),
@@ -105,19 +140,49 @@ export async function projectViews(
     const first = job.outputs?.[0];
     if (first) coverByProject.set(job.project_id!, first);
   }
-  const { urlFor, expiresAt } = await signObjects(deps, [
-    ...coverByProject.values(),
-  ]);
+  const covers = await signObjects(deps, [...coverByProject.values()]);
+
+  // 2. Uploads: the image a project's data points at, looked up as the user's own.
+  const uploadIdByProject = new Map<string, string>();
+  for (const row of rows) {
+    const uploadId = projectUploadId(row.type, row.data);
+    if (uploadId) uploadIdByProject.set(row.id, uploadId);
+  }
+  const uploadRows =
+    uploadIdByProject.size > 0
+      ? await getUserUploads(deps.db, rows[0].user_id, [
+          ...uploadIdByProject.values(),
+        ])
+      : [];
+  const uploadById = new Map(uploadRows.map((upload) => [upload.id, upload]));
+  const uploads = await signObjects(
+    deps,
+    uploadRows,
+    deps.config.PROJECT_UPLOAD_URL_TTL_SECONDS,
+  );
 
   return rows.map((row) => {
     const output = coverByProject.get(row.id);
+    const upload = uploadById.get(uploadIdByProject.get(row.id) ?? "");
     return {
       projectId: row.id,
       type: row.type,
       title: row.title,
       data: row.data,
       cover: output
-        ? { mimeType: output.mimeType, url: urlFor(output), expiresAt }
+        ? {
+            mimeType: output.mimeType,
+            url: covers.urlFor(output),
+            expiresAt: covers.expiresAt,
+          }
+        : null,
+      upload: upload
+        ? {
+            uploadId: upload.id,
+            mimeType: upload.mime_type,
+            url: uploads.urlFor(upload),
+            expiresAt: uploads.expiresAt,
+          }
         : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

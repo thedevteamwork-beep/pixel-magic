@@ -79,8 +79,9 @@
 
 .title em {
   color: var(--primary);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-editorial);
   font-weight: 400;
+  letter-spacing: var(--editorial-tracking);
 }
 
 .description {
@@ -178,8 +179,8 @@
 
 .caption {
   color: var(--on-media-muted);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 13px;
+  font-family: var(--font-editorial);
+  font-size: 15px;
   font-style: italic;
 }
 

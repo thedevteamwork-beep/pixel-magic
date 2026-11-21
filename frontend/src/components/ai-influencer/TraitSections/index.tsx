@@ -3,6 +3,7 @@
 import { MAX_NAME_LENGTH, traitGroups } from "@/components/ai-influencer/constants";
 import { ControlSection } from "../ControlSection";
 import { useInfluencer } from "../InfluencerContext";
+import { StyleReference } from "../StyleReference";
 import { OptionChips } from "./OptionChips";
 import { OptionGroup } from "./OptionGroup";
 import { OptionTiles } from "./OptionTiles";
@@ -37,7 +38,14 @@ export function TraitSections({ part }: { part: "lead" | "main" }) {
       )}
 
       {groups.map((group) => (
-        <ControlSection eventKey={group.id} key={group.id} title={group.title} description={group.description}>
+        <ControlSection
+          eventKey={group.id}
+          key={group.id}
+          title={group.title}
+          description={group.description}
+          defaultOpen={group.id === "character"}
+        >
+          {group.id === "style" && <StyleReference />}
           {group.fields.map((field) => {
             const allowClear = !field.required;
             const onChange = (value: string) => dispatch({ type: "trait", key: field.key, value });

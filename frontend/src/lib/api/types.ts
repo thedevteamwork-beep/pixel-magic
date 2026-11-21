@@ -90,6 +90,8 @@ export type ProjectView = {
   title: string;
   data: Record<string, unknown>;
   cover: { mimeType: string; url: string; expiresAt: string } | null;
+  /** The project's own image (a style reference's), signed; null for other types. */
+  upload: { uploadId: string; mimeType: string; url: string; expiresAt: string } | null;
   createdAt: string;
   updatedAt: string;
 };

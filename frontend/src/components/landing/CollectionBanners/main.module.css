@@ -52,6 +52,7 @@
 .collection h2 em {
   font-family: var(--font-editorial);
   font-weight: 400;
+  letter-spacing: var(--editorial-tracking);
 }
 
 .collection a {

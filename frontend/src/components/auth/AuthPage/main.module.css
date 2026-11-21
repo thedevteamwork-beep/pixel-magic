@@ -623,7 +623,7 @@ a.submit:hover {
   margin-top: 4px;
   font-family: var(--font-editorial);
   font-weight: 400;
-  letter-spacing: -0.05em;
+  letter-spacing: var(--editorial-tracking);
   color: var(--primary);
 }
 

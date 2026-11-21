@@ -47,6 +47,10 @@ export const MAX_EXTRA_LENGTH = 500;
 export const MAX_NAME_LENGTH = 40;
 export const PROJECT_TYPE = "ai-influencer";
 export const PROJECTS_PAGE_SIZE = 50;
+/** Saved style references are projects of this type. */
+export const STYLE_PROJECT_TYPE = "influencer-style";
+export const STYLES_PAGE_SIZE = 50;
+export const MAX_STYLE_NAME_LENGTH = 40;
 export const PROJECT_JOBS_PAGE_SIZE = 20;
 export const POLL_INTERVAL_MS = 4000;
 
@@ -57,6 +61,11 @@ export const textFieldRules: FieldRules<TextValues> = {
   name: [trimmed(isNotEmpty("Give your influencer a name."), isTextLength({ min: 2, max: MAX_NAME_LENGTH }))],
   extra: [trimmed(isTextLength({ max: MAX_EXTRA_LENGTH }))],
 };
+
+/** The name a style reference is saved under, checked when it is saved. */
+export const styleNameRules = [
+  trimmed(isNotEmpty("Give your style a name."), isTextLength({ min: 2, max: MAX_STYLE_NAME_LENGTH })),
+];
 
 const options = (...values: string[]): TraitOption[] =>
   values.map((value) => ({ value: value.toLowerCase().replace(/\s+/g, "-"), label: value }));
@@ -92,130 +101,130 @@ export const traitGroups: readonly {
   description?: string;
   fields: readonly { key: TraitKey; label: string; options: TraitOption[]; tiles?: TileKind; required?: boolean }[];
 }[] = [
-    {
-      id: "character",
-      title: "Character",
-      description: "Choose a human look or an animal character.",
-      lead: true,
-      fields: [
-        {
-          key: "character",
-          label: "Choose a character",
-          tiles: "character",
-          options: options("Natural", "Expressive", "Wild", "Kitty", "Puppy", "Froggy", "Hamster", "Birdie", "Bug"),
-        },
-      ],
-    },
-    {
-      id: "identity",
-      title: "Identity",
-      fields: [
-        {
-          key: "gender",
-          label: "Gender",
-          required: true,
-          tiles: "hair",
-          options: withArt(options("Woman", "Man", "Non-binary"), {
-            woman: "long-waves",
-            man: "buzz-cut",
-            "non-binary": "bob",
-          }),
-        },
-        { key: "age", label: "Age", required: true, options: options("Early 20s", "Late 20s", "30s", "40s", "50s+") },
-        {
-          key: "ethnicity",
-          label: "Heritage",
-          options: options(
-            "South Asian",
-            "East Asian",
-            "Southeast Asian",
-            "Black",
-            "Latina",
-            "Middle Eastern",
-            "White",
-            "Mixed",
-          ),
-        },
-      ],
-    },
-    {
-      id: "look",
-      title: "Look",
-      fields: [
-        {
-          key: "skinTone",
-          label: "Skin tone",
-          options: swatches({
-            Porcelain: "#f4d9c6",
-            Fair: "#e8bf9f",
-            Olive: "#c99a6e",
-            Tan: "#a8754b",
-            Brown: "#7a4e30",
-            Deep: "#4b2d1d",
-          }),
-        },
-        {
-          key: "hairStyle",
-          label: "Hair style",
-          tiles: "hair",
-          options: withArt(
-            options("Long waves", "Sleek straight", "Curly", "Bob", "Pixie", "Braids", "Buzz cut", "Top knot"),
-            {},
-          ),
-        },
-        {
-          key: "hairColor",
-          label: "Hair colour",
-          options: swatches({
-            Black: "#17120f",
-            Brunette: "#5a3825",
-            Auburn: "#8a3b22",
-            Blonde: "#d7b46a",
-            Silver: "#c9cbc8",
-            Pastel: "#c7a7f0",
-          }),
-        },
-        {
-          key: "eyeColor",
-          label: "Eyes",
-          options: swatches({ Brown: "#5a3a22", Hazel: "#8a6a35", Green: "#4f7a4a", Blue: "#4f7ea8", Grey: "#8a9296" }),
-        },
-        { key: "build", label: "Build", tiles: "body", options: options("Slim", "Athletic", "Curvy", "Broad") },
-      ],
-    },
-    {
-      id: "style",
-      title: "Style",
-      fields: [
-        {
-          key: "outfit",
-          label: "Outfit",
-          tiles: "photo",
-          options: withArt(options("Streetwear", "Tailored", "Athleisure", "Boho", "Evening wear", "Minimal basics"), {
-            streetwear: "outfit-streetwear",
-            tailored: "outfit-tailored",
-            athleisure: "outfit-athleisure",
-            boho: "outfit-boho",
-            "evening-wear": "outfit-evening-wear",
-            "minimal-basics": "outfit-minimal-basics",
-          }),
-        },
-        {
-          key: "setting",
-          label: "Setting",
-          tiles: "photo",
-          options: withArt(options("Studio", "City street", "Beach", "Café", "Gym", "Rooftop at golden hour"), {
-            studio: "setting-studio",
-            "city-street": "setting-city-street",
-            beach: "setting-beach",
-            café: "setting-cafe",
-            gym: "setting-gym",
-            "rooftop-at-golden-hour": "setting-rooftop",
-          }),
-        },
-      ],
-    },
-  ];
+  {
+    id: "character",
+    title: "Character",
+    description: "Choose a human look or an animal character.",
+    lead: true,
+    fields: [
+      {
+        key: "character",
+        label: "Choose a character",
+        tiles: "character",
+        options: options("Natural", "Expressive", "Wild", "Kitty", "Puppy", "Froggy", "Hamster", "Birdie", "Bug"),
+      },
+    ],
+  },
+  {
+    id: "identity",
+    title: "Identity",
+    fields: [
+      {
+        key: "gender",
+        label: "Gender",
+        required: true,
+        tiles: "hair",
+        options: withArt(options("Woman", "Man", "Non-binary"), {
+          woman: "long-waves",
+          man: "buzz-cut",
+          "non-binary": "bob",
+        }),
+      },
+      { key: "age", label: "Age", required: true, options: options("Early 20s", "Late 20s", "30s", "40s", "50s+") },
+      {
+        key: "ethnicity",
+        label: "Heritage",
+        options: options(
+          "South Asian",
+          "East Asian",
+          "Southeast Asian",
+          "Black",
+          "Latina",
+          "Middle Eastern",
+          "White",
+          "Mixed",
+        ),
+      },
+    ],
+  },
+  {
+    id: "look",
+    title: "Look",
+    fields: [
+      {
+        key: "skinTone",
+        label: "Skin tone",
+        options: swatches({
+          Porcelain: "#f4d9c6",
+          Fair: "#e8bf9f",
+          Olive: "#c99a6e",
+          Tan: "#a8754b",
+          Brown: "#7a4e30",
+          Deep: "#4b2d1d",
+        }),
+      },
+      {
+        key: "hairStyle",
+        label: "Hair style",
+        tiles: "hair",
+        options: withArt(
+          options("Long waves", "Sleek straight", "Curly", "Bob", "Pixie", "Braids", "Buzz cut", "Top knot"),
+          {},
+        ),
+      },
+      {
+        key: "hairColor",
+        label: "Hair colour",
+        options: swatches({
+          Black: "#17120f",
+          Brunette: "#5a3825",
+          Auburn: "#8a3b22",
+          Blonde: "#d7b46a",
+          Silver: "#c9cbc8",
+          Pastel: "#c7a7f0",
+        }),
+      },
+      {
+        key: "eyeColor",
+        label: "Eyes",
+        options: swatches({ Brown: "#5a3a22", Hazel: "#8a6a35", Green: "#4f7a4a", Blue: "#4f7ea8", Grey: "#8a9296" }),
+      },
+      { key: "build", label: "Build", tiles: "body", options: options("Slim", "Athletic", "Curvy", "Broad") },
+    ],
+  },
+  {
+    id: "style",
+    title: "Style",
+    fields: [
+      {
+        key: "outfit",
+        label: "Outfit",
+        tiles: "photo",
+        options: withArt(options("Streetwear", "Tailored", "Athleisure", "Boho", "Evening wear", "Minimal basics"), {
+          streetwear: "outfit-streetwear",
+          tailored: "outfit-tailored",
+          athleisure: "outfit-athleisure",
+          boho: "outfit-boho",
+          "evening-wear": "outfit-evening-wear",
+          "minimal-basics": "outfit-minimal-basics",
+        }),
+      },
+      {
+        key: "setting",
+        label: "Setting",
+        tiles: "photo",
+        options: withArt(options("Studio", "City street", "Beach", "Café", "Gym", "Rooftop at golden hour"), {
+          studio: "setting-studio",
+          "city-street": "setting-city-street",
+          beach: "setting-beach",
+          café: "setting-cafe",
+          gym: "setting-gym",
+          "rooftop-at-golden-hour": "setting-rooftop",
+        }),
+      },
+    ],
+  },
+];
 
 /** Gender and age are always set. Every other trait starts empty and is left out of the prompt until chosen. */
 export const defaultTraits: Readonly<InfluencerTraits> = {

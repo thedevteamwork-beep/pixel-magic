@@ -21,7 +21,6 @@ import {
   type TextField,
   type TextValues,
 } from "@/components/ai-influencer/constants";
-import { MAX_REFERENCE_BYTES, REFERENCE_MIME_TYPES } from "@/constants/image-generator";
 import {
   archetypeFromProject,
   catchDeletedProject,
@@ -37,25 +36,26 @@ import {
   projectData,
   traitsFromProject,
   updateInfluencerProject,
+  usedReferences,
   variationsFromJobs,
 } from "@/lib/ai-influencer/projects";
+import type { ReferencesUsed } from "@/lib/ai-influencer/prompt";
+import { imageFileError, uploadImage } from "@/lib/ai-influencer/upload";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
-import type { JobView, ProjectView, PublicModel, UploadResponse } from "@/lib/api/types";
+import type { JobView, ProjectView, PublicModel } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
 import { imageFieldName } from "@/lib/generate/formFromSchema";
 import { messageForError } from "@/lib/generate/messages";
 import { pollJob } from "@/lib/generate/pollJob";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import {
-  isInRange,
-  isOneOf,
-  runValidators,
-  trimContent,
-  validateFields,
-  type FieldErrors,
-  type FieldRules,
-} from "@/lib/validation/validators";
-import type { InfluencerTraits, InfluencerVariation, ReferencePhoto, StageView, TraitKey } from "@/types/ai-influencer";
+import { trimContent, validateFields, type FieldErrors, type FieldRules } from "@/lib/validation/validators";
+import type {
+  InfluencerTraits,
+  InfluencerVariation,
+  ReferencePhoto,
+  StageView,
+  StyleReference,
+  TraitKey,
+} from "@/types/ai-influencer";
 
 type Status = "idle" | "generating";
 
@@ -65,6 +65,8 @@ type State = {
   traits: InfluencerTraits;
   archetypeId: string | null;
   reference: ReferencePhoto | null;
+  /** The saved style picked for this influencer, sent with each Generate. */
+  style: StyleReference | null;
   view: StageView;
   variations: InfluencerVariation[];
   selectedId: string | null;
@@ -89,6 +91,7 @@ type Action =
   | { type: "sanitize"; values: TextValues }
   | { type: "archetype"; id: string; name?: string }
   | { type: "reference"; reference: ReferencePhoto | null }
+  | { type: "style"; style: StyleReference | null }
   | { type: "view"; view: StageView }
   | { type: "reset" }
   | { type: "randomize"; picks: Partial<InfluencerTraits> }
@@ -109,6 +112,7 @@ const initial: State = {
   traits: { ...defaultTraits },
   archetypeId: null,
   reference: null,
+  style: null,
   view: "explore",
   variations: [],
   selectedId: null,
@@ -158,14 +162,17 @@ function reducer(state: State, action: Action): State {
     }
     case "reference":
       return { ...state, reference: action.reference };
+    case "style":
+      return { ...state, style: action.style };
     case "view":
       return { ...state, view: action.view };
     case "reset":
-      // A new influencer: no project yet, so nothing to show on the Result tab.
+      // A new influencer: no project yet, so nothing to show on the Result tab. The style stays saved but unpicked.
       return {
         ...state,
         traits: { ...defaultTraits },
         archetypeId: null,
+        style: null,
         error: "",
         fieldErrors: {},
         projectId: null,
@@ -215,29 +222,6 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-/** Photo checks use the same generic validators as the text fields. */
-const photoRules = {
-  type: [isOneOf<string>(REFERENCE_MIME_TYPES, "Use a JPEG, PNG or WebP photo.")],
-  size: [isInRange({ min: 1, max: MAX_REFERENCE_BYTES }, "Use a photo under 20 MB.")],
-};
-
-async function uploadFile(upload: UploadResponse, file: File): Promise<void> {
-  const storage = createSupabaseBrowserClient().storage;
-  const { error } = await storage.from(upload.bucket).uploadToSignedUrl(upload.path, upload.token, file);
-  if (error) throw error;
-}
-
-/** Puts the reference photo in storage and returns its upload id for the job input. */
-async function uploadReference(file: File): Promise<string> {
-  const upload = await api.post<UploadResponse>("/v1/uploads", {
-    filename: file.name,
-    mimeType: file.type,
-    sizeBytes: file.size,
-  });
-  await uploadFile(upload, file);
-  return upload.uploadId;
-}
-
 function isSessionEnded(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 401 || error.code === "UNAUTHENTICATED");
 }
@@ -275,6 +259,8 @@ type InfluencerContextValue = {
   /** Returns an error message, or null when the photo was accepted. */
   attachReference: (file: File) => string | null;
   removeReference: () => void;
+  /** Picks a saved style for the next Generate, or clears it with null. */
+  selectStyle: (style: StyleReference | null) => void;
   /** Starts a new influencer, from a featured look when given. The next Generate creates a project instead of changing the open one. */
   newInfluencer: (look?: { archetypeId: string; name: string }) => void;
   /** Loads a saved influencer: its traits, and the outputs of its completed jobs as the variations. */
@@ -285,6 +271,8 @@ type InfluencerContextValue = {
   selectedModel: PublicModel | undefined;
   /** True when the selected model takes the reference photo as input. */
   modelTakesReference: boolean;
+  /** Which of the attached photo and picked style the selected model receives (it may take only one image). */
+  referencesUsed: ReferencesUsed;
 };
 
 const InfluencerContext = createContext<InfluencerContextValue | null>(null);
@@ -394,9 +382,14 @@ export function InfluencerProvider({
     };
   }, []);
 
-  const { traits, archetypeId, reference, projectId, projectsStatus, projectsCursor } = state;
+  const { traits, archetypeId, reference, style, projectId, projectsStatus, projectsCursor } = state;
   const selectedModel = state.models.find((model) => model.key === state.modelKey);
   const modelTakesReference = selectedModel !== undefined && imageFieldName(selectedModel) !== undefined;
+  const referencesUsed = useMemo((): ReferencesUsed => {
+    if (!selectedModel) return {};
+    const used = usedReferences(selectedModel, { photo: reference ?? undefined, style: style ?? undefined });
+    return { photo: used.photo !== undefined, style: used.style !== undefined };
+  }, [selectedModel, reference, style]);
 
   const generate = useCallback(async (): Promise<TextField | null> => {
     const checked = validateFields<TextValues>({ name: traits.name, extra: traits.extra }, rules);
@@ -449,16 +442,22 @@ export function InfluencerProvider({
       // Cancelled before the job was sent: nothing is charged.
       if (next.signal.aborted || !isLatest()) return null;
 
-      // 2. Send the reference photo, only to a model that uses it.
-      const request = JSON.stringify({ model: model.key, projectId: id, traits: submitted, photo: reference?.url });
+      // 2. Send the reference photo and the picked style, as many as the model takes (the photo first).
+      const request = JSON.stringify({
+        model: model.key,
+        projectId: id,
+        traits: submitted,
+        photo: reference?.url,
+        style: style?.uploadId,
+      });
       if (attempt.current?.request !== request) attempt.current = { key: newIdempotencyKey(), request };
       const current = attempt.current;
-      const photo = modelTakesReference ? photoFile.current : null;
-      if (photo && !current.uploadId) current.uploadId = await uploadReference(photo);
+      const photo = referencesUsed.photo ? photoFile.current : null;
+      if (photo && !current.uploadId) current.uploadId = await uploadImage(photo);
       if (next.signal.aborted || !isLatest()) return null;
 
-      // 3. Create the job in the project.
-      const input = influencerInput(model, submitted, current.uploadId ? [current.uploadId] : []);
+      // 3. Create the job in the project. The style is already in storage, saved with its project.
+      const input = influencerInput(model, submitted, { photo: current.uploadId, style: style?.uploadId });
       let job: JobView;
       try {
         job = await catchDeletedProject(
@@ -514,7 +513,8 @@ export function InfluencerProvider({
     keepProject,
     forgetProject,
     reference,
-    modelTakesReference,
+    style,
+    referencesUsed,
     loadProjects,
   ]);
 
@@ -534,7 +534,7 @@ export function InfluencerProvider({
   }, []);
 
   const attachReference = useCallback((file: File): string | null => {
-    const error = runValidators(file.type, photoRules.type) ?? runValidators(file.size, photoRules.size);
+    const error = imageFileError(file);
     if (error) return error;
     if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
     photoUrl.current = URL.createObjectURL(file);
@@ -549,6 +549,8 @@ export function InfluencerProvider({
     photoFile.current = null;
     dispatch({ type: "reference", reference: null });
   }, []);
+
+  const selectStyle = useCallback((picked: StyleReference | null) => dispatch({ type: "style", style: picked }), []);
 
   // The photo goes too, so the next influencer doesn't quietly reuse the last one's face.
   const newInfluencer = useCallback(
@@ -592,12 +594,14 @@ export function InfluencerProvider({
       randomize,
       attachReference,
       removeReference,
+      selectStyle,
       newInfluencer,
       openProject,
       removeProject,
       loadMoreProjects,
       selectedModel,
       modelTakesReference,
+      referencesUsed,
     }),
     [
       state,
@@ -607,12 +611,14 @@ export function InfluencerProvider({
       randomize,
       attachReference,
       removeReference,
+      selectStyle,
       newInfluencer,
       openProject,
       removeProject,
       loadMoreProjects,
       selectedModel,
       modelTakesReference,
+      referencesUsed,
     ],
   );
   return <InfluencerContext.Provider value={value}>{children}</InfluencerContext.Provider>;

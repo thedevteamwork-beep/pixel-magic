@@ -83,6 +83,7 @@ export function makeDeps(overrides: Partial<Deps> = {}): {
     MAX_ACTIVE_JOBS_PER_USER: 4,
     UPLOAD_MAX_BYTES: 20971520,
     UPLOAD_MIME_TYPES: ["image/png", "image/jpeg", "image/webp"],
+    PROJECT_UPLOAD_URL_TTL_SECONDS: 86400,
   };
   const deps: Deps = {
     config,

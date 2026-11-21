@@ -1,6 +1,5 @@
 "use client";
 
-import { Accordion } from "@/ui/Accordion";
 import { useInfluencer } from "../InfluencerContext";
 import { ReferenceUpload } from "../ReferenceUpload";
 import { TraitSections } from "../TraitSections";
@@ -29,10 +28,8 @@ export function ControlPanel() {
       >
         <div className={styles.scroll}>
           <ReferenceUpload />
-          <Accordion defaultActiveEventKey="character">
-            <TraitSections part="lead" />
-            <TraitSections part="main" />
-          </Accordion>
+          <TraitSections part="lead" />
+          <TraitSections part="main" />
         </div>
         <div className={styles.footer}>
           <PromptField

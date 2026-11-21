@@ -13,6 +13,9 @@ export function ReferenceUpload() {
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const busy = state.status === "generating";
+  // Shown inside the box, which keeps its height: the models load after the first paint, so a line below it would
+  // push the whole panel down.
+  const note = selectedModel && !modelTakesReference ? "Not used by the current model yet." : undefined;
 
   function pick(files: FileList | null) {
     const file = files?.[0];
@@ -34,12 +37,9 @@ export function ReferenceUpload() {
         }}
       />
       {state.reference ? (
-        <AttachedPhoto photo={state.reference} disabled={busy} onRemove={removeReference} />
+        <AttachedPhoto photo={state.reference} note={note} disabled={busy} onRemove={removeReference} />
       ) : (
-        <UploadDropzone disabled={busy} onBrowse={() => input.current?.click()} onFiles={pick} />
-      )}
-      {selectedModel && !modelTakesReference && (
-        <p className={styles.note}>{"Reference photos aren't used by the current model yet."}</p>
+        <UploadDropzone note={note} disabled={busy} onBrowse={() => input.current?.click()} onFiles={pick} />
       )}
       {error && (
         <p className={styles.error} role="alert">

@@ -6,8 +6,16 @@
   opacity: 0;
 }
 
+/* Title and an optional note, stacked inside a box. The box keeps its height, so the note never moves the panel. */
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
 .note {
-  margin: 8px 0 0;
   color: var(--muted);
   font-size: var(--fs-xs);
   line-height: 1.5;
@@ -38,9 +46,11 @@
   object-fit: cover;
 }
 
-.name {
+.attached .label {
   flex: 1;
-  min-width: 0;
+}
+
+.name {
   overflow: hidden;
   color: var(--subtle);
   font-size: var(--fs-sm);

@@ -17,8 +17,24 @@ export function traitLabel(key: TraitKey, value: string): string {
   return fields.find((field) => field.key === key)?.options.find((option) => option.value === value)?.label ?? value;
 }
 
+/** Which reference images the model receives: the face photo first, then the style image. */
+export type ReferencesUsed = { photo?: boolean; style?: boolean };
+
+/** What the prompt says about the reference images, in the order the model receives them. */
+function referenceDirections({ photo, style }: ReferencesUsed): string[] {
+  if (photo && style) {
+    return [
+      "keep the face and likeness of the first reference image",
+      "match the outfit, styling and mood of the second reference image",
+    ];
+  }
+  if (photo) return ["keep the face and likeness of the uploaded reference photo"];
+  if (style) return ["match the outfit, styling and mood of the style reference image"];
+  return [];
+}
+
 /** Builds the text prompt a real model would receive. Traits that were not chosen are simply left out. */
-export function composeInfluencerPrompt(traits: InfluencerTraits, hasReference = false): string {
+export function composeInfluencerPrompt(traits: InfluencerTraits, references: ReferencesUsed = {}): string {
   const label = (key: TraitKey) => (traits[key] ? traitLabel(key, traits[key]).toLowerCase() : "");
   const join = (items: string[], separator: string) => items.filter(Boolean).join(separator);
 
@@ -48,7 +64,7 @@ export function composeInfluencerPrompt(traits: InfluencerTraits, hasReference =
     animal
       ? "detailed realistic texture, social-media influencer look, consistent character identity"
       : "natural skin texture, social-media influencer look, consistent face identity",
-    hasReference ? "keep the face and likeness of the uploaded reference photo" : "",
+    ...referenceDirections(references),
     traits.extra.trim(),
   ];
   return `${join(parts, ". ")}.`;

@@ -1,0 +1,6 @@
+/* Tighter headers than the shared Accordion, so more sections fit in the panel. `details` keeps this above the
+   Accordion's own `.item summary` rule whatever order the styles load in. */
+details.section > summary {
+  min-height: 40px;
+  padding: 6px 12px;
+}

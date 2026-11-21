@@ -383,4 +383,112 @@ describe("projects API", () => {
       expect(signCalls).toHaveLength(1);
     });
   });
+
+  describe("style references (influencer-style)", () => {
+    /** Creates an upload for `uid` and, unless `stored` is false, puts its file in storage. */
+    async function uploadImage(uid = userId, stored = true): Promise<string> {
+      const up = await request(app())
+        .post("/v1/uploads")
+        .set(await authHeader(uid))
+        .send({ filename: "style.png", mimeType: "image/png", sizeBytes: 100 });
+      if (stored) {
+        h.storage.put("inputs", up.body.path, {
+          sizeBytes: 100,
+          mimeType: "image/png",
+        });
+      }
+      return up.body.uploadId;
+    }
+
+    const style = (title: string, uploadId: string) => ({
+      type: "influencer-style",
+      title,
+      data: { uploadId },
+    });
+
+    it("saves a style and returns its image signed for 24 hours", async () => {
+      const uploadId = await uploadImage();
+      const res = await create(style("Pink street", uploadId));
+      expect(res.status).toBe(201);
+      expect(res.body.title).toBe("Pink street");
+      expect(res.body.data).toEqual({ uploadId });
+      expect(res.body.cover).toBeNull();
+      expect(res.body.upload.uploadId).toBe(uploadId);
+      expect(res.body.upload.mimeType).toBe("image/png");
+      expect(res.body.upload.url).toContain(`inputs/${userId}/${uploadId}`);
+      expect(res.body.upload.url).toContain("mode=read");
+      expect(res.body.upload.url).toContain("expires=86400");
+      expect(res.body.upload.expiresAt).toBe(
+        new Date(h.clock.now().getTime() + 86_400_000).toISOString(),
+      );
+    });
+
+    it("gives other project types no upload", async () => {
+      const res = await create({ type: "ai-influencer", title: "Mira" });
+      expect(res.body.upload).toBeNull();
+    });
+
+    it("rejects another user's upload with 422 and writes nothing", async () => {
+      const otherUser = await insertProfile(testDb);
+      const theirs = await uploadImage(otherUser);
+      const res = await create(style("Stolen", theirs));
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe("UPLOAD_NOT_READY");
+      expect(await count()).toBe(0);
+    });
+
+    it("rejects an upload whose file never reached storage", async () => {
+      const res = await create(
+        style("Missing", await uploadImage(userId, false)),
+      );
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe("UPLOAD_NOT_READY");
+      expect(await count()).toBe(0);
+    });
+
+    it("lists only the user's styles, with every image signed in one call", async () => {
+      h.clock.advance(60_000);
+      await create(style("Pink street", await uploadImage()));
+      h.clock.advance(60_000);
+      await create(style("Black tie", await uploadImage()));
+      await addProject("Mira");
+      const otherUser = await insertProfile(testDb);
+      await create(style("Not mine", await uploadImage(otherUser)), otherUser);
+
+      h.storage.calls.length = 0;
+      const res = await list("?type=influencer-style");
+      expect(res.status).toBe(200);
+      expect(res.body.projects.map((p: { title: string }) => p.title)).toEqual([
+        "Black tie",
+        "Pink street",
+      ]);
+      for (const p of res.body.projects) {
+        expect(p.upload.url).toContain(`inputs/${userId}/${p.data.uploadId}`);
+      }
+      const signCalls = h.storage.calls.filter(
+        (c) => c.method === "createSignedUrls",
+      );
+      expect(signCalls).toHaveLength(1);
+    });
+
+    it("checks a new upload on PATCH the same way", async () => {
+      const created = await create(style("Pink street", await uploadImage()));
+      const patch = async (uploadId: string) =>
+        request(app())
+          .patch(`/v1/projects/${created.body.projectId}`)
+          .set(await authHeader(userId))
+          .send({ data: { uploadId } });
+
+      const otherUser = await insertProfile(testDb);
+      const refused = await patch(await uploadImage(otherUser));
+      expect(refused.status).toBe(422);
+      expect(refused.body.code).toBe("UPLOAD_NOT_READY");
+
+      const replacement = await uploadImage();
+      const res = await patch(replacement);
+      expect(res.status).toBe(200);
+      expect(res.body.upload.uploadId).toBe(replacement);
+      expect(res.body.upload.url).toContain(replacement);
+    });
+  });
 });

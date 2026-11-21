@@ -8,10 +8,9 @@ type StorageObject = { bucket: string; path: string };
 export async function signObjects(
   deps: Deps,
   objects: StorageObject[],
+  ttlSeconds = DOWNLOAD_URL_TTL_SECONDS,
 ): Promise<{ urlFor: (o: StorageObject) => string; expiresAt: Date }> {
-  const expiresAt = new Date(
-    deps.clock.now().getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000,
-  );
+  const expiresAt = new Date(deps.clock.now().getTime() + ttlSeconds * 1000);
 
   const pathsByBucket = new Map<string, string[]>();
   for (const o of objects) {
@@ -22,11 +21,7 @@ export async function signObjects(
   }
   const urlByObject = new Map<string, string>();
   for (const [bucket, paths] of pathsByBucket) {
-    const urls = await deps.storage.createSignedUrls(
-      bucket,
-      paths,
-      DOWNLOAD_URL_TTL_SECONDS,
-    );
+    const urls = await deps.storage.createSignedUrls(bucket, paths, ttlSeconds);
     paths.forEach((path, i) => urlByObject.set(`${bucket}/${path}`, urls[i]));
   }
 

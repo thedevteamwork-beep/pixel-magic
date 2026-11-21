@@ -177,6 +177,7 @@ Set in `infra/setup.sh`.
 | Signed upload link lifetime    | 2 h                                              | `src/services/uploads.ts`                 |
 | Input image link given to fal  | 24 h                                             | `src/services/jobs/generate.ts`           |
 | Download link for outputs      | 1 h                                              | `src/services/jobs/jobs.ts`               |
+| Style reference image link     | 24 h (`PROJECT_UPLOAD_URL_TTL_SECONDS`, env)     | `src/config.ts`                           |
 | Copy of an output into Storage | 10 min timeout                                   | `src/clients/storage.ts`                  |
 | Catalog response cache         | 5 min (`max-age=300`)                            | `src/api/routes/public/catalog.routes.ts` |
 

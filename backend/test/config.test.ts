@@ -51,6 +51,7 @@ describe("loadConfig", () => {
       MAX_ACTIVE_JOBS_PER_USER: 4,
       UPLOAD_MAX_BYTES: 20971520,
       UPLOAD_MIME_TYPES: ["image/png", "image/jpeg", "image/webp"],
+      PROJECT_UPLOAD_URL_TTL_SECONDS: 86400,
       FAL_JWKS_URL: "https://rest.fal.ai/.well-known/jwks.json",
     }));
   it("requires GCP settings in cloud mode", () =>

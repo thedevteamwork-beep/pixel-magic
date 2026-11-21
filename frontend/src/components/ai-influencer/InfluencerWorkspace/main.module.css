@@ -1,7 +1,7 @@
 .workspace {
   display: grid;
   flex: none;
-  grid-template-columns: 400px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   width: 100%;
@@ -17,7 +17,7 @@
 
 @media (min-width: 1700px) {
   .workspace {
-    grid-template-columns: 430px minmax(0, 1fr);
+    grid-template-columns: 380px minmax(0, 1fr);
     gap: 16px;
   }
 }

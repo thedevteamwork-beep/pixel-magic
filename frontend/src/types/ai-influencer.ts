@@ -67,3 +67,6 @@ export type FeaturedInfluencer = {
 };
 
 export type ReferencePhoto = { url: string; name: string };
+
+/** A saved style reference: an `influencer-style` project and its image, signed for a day. */
+export type StyleReference = { id: string; name: string; uploadId: string; url: string };

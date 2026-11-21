@@ -36,6 +36,7 @@
 .finalBanner h2 em {
   font-family: var(--font-editorial);
   font-weight: 400;
+  letter-spacing: var(--editorial-tracking);
 }
 
 .finalBanner p:not(.finalEyebrow) {

@@ -67,11 +67,33 @@ export function variationsFromJobs(jobs: JobView[], alt: string): InfluencerVari
   return variations;
 }
 
-/** The job input for a set of traits: portrait shape, up to VARIATION_COUNT images, and the prompt. */
+/** The reference images for a generation: the face photo and the style image, each optional. */
+export type References<T> = { photo?: T; style?: T };
+
+/**
+ * The references the model actually receives: the photo first, then the style, as many as its image field takes.
+ * A model without an image field receives none.
+ */
+export function usedReferences<T>(model: PublicModel, references: References<T>): References<T> {
+  const name = imageFieldName(model);
+  const field = name ? model.input[name] : undefined;
+  if (field?.type !== "image") return {};
+
+  const used: References<T> = {};
+  let room = field.maxItems;
+  if (references.photo !== undefined && room > 0) {
+    used.photo = references.photo;
+    room -= 1;
+  }
+  if (references.style !== undefined && room > 0) used.style = references.style;
+  return used;
+}
+
+/** The job input for a set of traits: portrait shape, up to VARIATION_COUNT images, the references and the prompt. */
 export function influencerInput(
   model: PublicModel,
   traits: InfluencerTraits,
-  uploadIds: string[],
+  uploadIds: References<string>,
 ): Record<string, unknown> {
   const values = defaultOptions(model);
 
@@ -81,9 +103,10 @@ export function influencerInput(
   const count = model.input.num_images;
   if (count?.type === "integer") values.num_images = Math.min(VARIATION_COUNT, count.maximum);
 
-  const hasReference = uploadIds.length > 0 && imageFieldName(model) !== undefined;
-  const prompt = composeInfluencerPrompt(traits, hasReference);
-  return buildInput(model, { prompt, values, uploadIds });
+  const used = usedReferences(model, uploadIds);
+  const prompt = composeInfluencerPrompt(traits, { photo: used.photo !== undefined, style: used.style !== undefined });
+  const references = [used.photo, used.style].filter((id): id is string => id !== undefined);
+  return buildInput(model, { prompt, values, uploadIds: references });
 }
 
 export function influencerImageModels(models: PublicModel[]): PublicModel[] {

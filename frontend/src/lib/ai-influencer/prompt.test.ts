@@ -64,10 +64,27 @@ describe("character type", () => {
   });
 });
 
-describe("reference photo", () => {
-  it("asks to keep the uploaded likeness only when a photo is attached", () => {
-    expect(composeInfluencerPrompt(defaultTraits)).not.toContain("reference photo");
-    expect(composeInfluencerPrompt(defaultTraits, true)).toContain("likeness of the uploaded reference photo");
+describe("reference images", () => {
+  it("mentions no reference when none is used", () => {
+    expect(composeInfluencerPrompt(defaultTraits)).not.toContain("reference");
+  });
+
+  it("asks to keep the uploaded likeness when only the photo is used", () => {
+    const prompt = composeInfluencerPrompt(defaultTraits, { photo: true });
+    expect(prompt).toContain("keep the face and likeness of the uploaded reference photo");
+    expect(prompt).not.toContain("styling");
+  });
+
+  it("asks to match the style image when only the style is used", () => {
+    const prompt = composeInfluencerPrompt(defaultTraits, { style: true });
+    expect(prompt).toContain("match the outfit, styling and mood of the style reference image");
+    expect(prompt).not.toContain("likeness");
+  });
+
+  it("names the photo first and the style second when both are used", () => {
+    const prompt = composeInfluencerPrompt(defaultTraits, { photo: true, style: true });
+    expect(prompt).toContain("keep the face and likeness of the first reference image");
+    expect(prompt).toContain("match the outfit, styling and mood of the second reference image");
   });
 });
 

@@ -90,6 +90,8 @@ const baseSchema = z.object({
         .filter(Boolean),
     )
     .refine((types) => types.length > 0, "must list at least one MIME type"),
+  /** How long a project's own image link (a style reference) lasts; a day, so a picker left open keeps its images. */
+  PROJECT_UPLOAD_URL_TTL_SECONDS: int(86400, 1),
   TIERED_CREDIT_MAPPING: jsonMapping(),
   /** Set by Cloud Run on every service. */
   K_SERVICE: optionalString(),

@@ -45,7 +45,9 @@
   --danger-surface: color-mix(in srgb, var(--danger) 7%, var(--surface));
   --success: var(--primary);
 
-  --font-editorial: Georgia, "Times New Roman", serif;
+  --font-editorial: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+  /* Instrument Serif is narrow: the tight tracking of the headings around it would run its words together. */
+  --editorial-tracking: -0.01em;
   --font-display: var(--font-space-grotesk);
   --page-max-width: 1580px;
   --page-gutter: clamp(16px, 2.65vw, 42px);

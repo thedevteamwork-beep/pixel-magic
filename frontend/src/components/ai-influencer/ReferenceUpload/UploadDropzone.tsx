@@ -6,12 +6,14 @@ import styles from "./main.module.css";
 
 type UploadDropzoneProps = {
   disabled: boolean;
+  /** A short line under the title, such as when the current model doesn't take a photo. */
+  note?: string;
   /** Called when the box is clicked, so the parent can open its file picker. */
   onBrowse: () => void;
   onFiles: (files: FileList | null) => void;
 };
 
-export function UploadDropzone({ disabled, onBrowse, onFiles }: UploadDropzoneProps) {
+export function UploadDropzone({ disabled, note, onBrowse, onFiles }: UploadDropzoneProps) {
   const [dragging, setDragging] = useState(false);
 
   function drop(event: DragEvent) {
@@ -38,7 +40,10 @@ export function UploadDropzone({ disabled, onBrowse, onFiles }: UploadDropzonePr
       <span className={styles.icon} aria-hidden="true">
         <ImagePlus size={18} />
       </span>
-      <strong>Upload your photo</strong>
+      <span className={styles.label}>
+        <strong>Upload your photo</strong>
+        {note && <small className={styles.note}>{note}</small>}
+      </span>
     </button>
   );
 }
