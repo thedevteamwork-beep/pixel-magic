@@ -1,5 +1,6 @@
 .workspace {
-  --panel-width: 384px;
+  /* Leaves the same room inside the panel as the AI influencer panel. */
+  --panel-width: 360px;
   position: relative;
   isolation: isolate;
   display: grid;
@@ -386,6 +387,12 @@
   from {
     opacity: 0;
     transform: translate(-50%, 12px) scale(0.97);
+  }
+}
+
+@media (min-width: 1700px) {
+  .workspace {
+    --panel-width: 380px;
   }
 }
 

@@ -7,6 +7,12 @@ export type NavLink = {
 
 export type StudioLink = NavLink & { icon: IconName };
 
+/**
+ * Shows the studio rail, the tool links on the left of every studio page. Off for now: the header lists the same
+ * links.
+ */
+export const SHOW_STUDIO_RAIL = false;
+
 /** The studios, in the left rail of every studio page. A studio is active on its own path. */
 export const studioTools: readonly StudioLink[] = [
   { label: "Image", href: "/image", icon: "image" },
