@@ -153,6 +153,19 @@ export function HeaderAccount({ links, signedInLinks, children }: HeaderAccountP
       </nav>
       {children}
       <div className={styles.actions}>
+        {user && (
+          // Always shown once signed in, so the header doesn't shift when the balance arrives.
+          <Link
+            href="/account"
+            className={styles.credits}
+            aria-label={
+              credits === null ? "Credits: balance unavailable" : `${credits.toLocaleString()} credits available`
+            }
+          >
+            <Coins size={14} aria-hidden="true" />
+            <span>{credits === null ? "–" : credits.toLocaleString()}</span>
+          </Link>
+        )}
         {user ? (
           <details
             ref={detailsRef}

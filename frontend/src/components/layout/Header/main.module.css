@@ -180,6 +180,34 @@
   min-width: 0;
 }
 
+/* The signed-in user's available credits, beside the account menu. */
+.credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.16s;
+}
+
+.credits svg {
+  color: var(--primary);
+}
+
+.credits:hover {
+  background: var(--overlay-hover);
+}
+
 .login,
 .signup {
   display: inline-flex;
@@ -400,6 +428,11 @@
   .signup {
     min-height: 40px;
     padding: 8px 9px;
+    font-size: 11px;
+  }
+  .credits {
+    min-height: 36px;
+    padding-inline: 9px;
     font-size: 11px;
   }
   .accountTrigger {
