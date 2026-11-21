@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { ApiClient } from "@/lib/api/client";
+import { ApiError, type ApiClient } from "@/lib/api/client";
 import type { ProjectView } from "@/lib/api/types";
-import { getStyleReference, listStyleReferences, saveStyleReference, styleFromProject } from "./styles";
+import {
+  getStyleReference,
+  listStyleReferences,
+  restoreStyle,
+  saveStyleReference,
+  styleForGenerate,
+  styleFromProject,
+} from "./styles";
 
 function styleProject(id: string, title: string, upload: ProjectView["upload"]): ProjectView {
   return {
@@ -93,5 +100,79 @@ describe("getStyleReference", () => {
   it("gives null for a style whose image is gone", async () => {
     const { api } = fakeApi(styleProject("st1", "Old", null));
     expect(await getStyleReference(api, "st1")).toBeNull();
+  });
+});
+
+/** An API whose GET fails with `error`. */
+function failingApi(error: unknown): ApiClient {
+  const fail = async (): Promise<never> => {
+    throw error;
+  };
+  return { get: fail, post: fail, patch: fail, delete: fail };
+}
+
+describe("restoreStyle", () => {
+  it("restores a saved style that still exists", async () => {
+    const { api } = fakeApi(styleProject("st1", "Pink street", image("up1")));
+    expect(await restoreStyle(api, "st1")).toEqual({
+      style: { id: "st1", name: "Pink street", uploadId: "up1", url: image("up1").url },
+      gone: false,
+    });
+  });
+
+  it("calls a deleted style, or one without its image, gone", async () => {
+    expect(await restoreStyle(failingApi(new ApiError(404, "NOT_FOUND", "Project not found")), "st1")).toEqual({
+      style: null,
+      gone: true,
+    });
+    expect(await restoreStyle(fakeApi(styleProject("st1", "Old", null)).api, "st1")).toEqual({
+      style: null,
+      gone: true,
+    });
+  });
+
+  it("keeps a style that only failed to load", async () => {
+    expect(await restoreStyle(failingApi(new ApiError(503, "UNAVAILABLE", "Try again")), "st1")).toEqual({
+      style: null,
+      gone: false,
+    });
+    expect(await restoreStyle(failingApi(new TypeError("Failed to fetch")), "st1")).toEqual({
+      style: null,
+      gone: false,
+    });
+  });
+});
+
+describe("styleForGenerate", () => {
+  const picked = { id: "st2", name: "Beach", uploadId: "up2", url: "https://x/up2" };
+  const restored = { id: "st1", name: "Pink street", uploadId: "up1", url: "https://x/up1" };
+
+  it("uses the style the user picked", () => {
+    expect(styleForGenerate(picked, null)).toEqual({ style: picked, styleId: "st2" });
+  });
+
+  it("uses no style when none is picked or loading", () => {
+    expect(styleForGenerate(null, null)).toEqual({ style: null, styleId: undefined });
+  });
+
+  it("uses the saved style once it has loaded", () => {
+    expect(styleForGenerate(null, { id: "st1", result: { style: restored, gone: false } })).toEqual({
+      style: restored,
+      styleId: "st1",
+    });
+  });
+
+  it("drops a saved style only when it is gone", () => {
+    expect(styleForGenerate(null, { id: "st1", result: { style: null, gone: true } })).toEqual({
+      style: null,
+      styleId: undefined,
+    });
+  });
+
+  it("keeps saving a style that failed to load, without sending its image", () => {
+    expect(styleForGenerate(null, { id: "st1", result: { style: null, gone: false } })).toEqual({
+      style: null,
+      styleId: "st1",
+    });
   });
 });

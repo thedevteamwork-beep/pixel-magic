@@ -91,14 +91,18 @@ export async function updateProject(
   id: string,
   body: { title?: string; data?: unknown },
 ): Promise<ProjectRow> {
+  // The new data is parsed and its upload checked before the row is locked: the check reads through `deps.db`,
+  // and needing a second connection while holding the lock can starve the pool. A type never changes.
+  let data: unknown;
+  if (body.data !== undefined) {
+    const project = await getUserProject(deps.db, userId, id);
+    if (!project) throw notFound();
+    data = parseProjectData(project.type, body.data);
+    await checkProjectUpload(deps, userId, project.type, data);
+  }
   return deps.db.transaction(async (trx) => {
     const current = await getUserProject(trx, userId, id, { forUpdate: true });
     if (!current) throw notFound();
-    let data: unknown;
-    if (body.data !== undefined) {
-      data = parseProjectData(current.type, body.data);
-      await checkProjectUpload(deps, userId, current.type, data);
-    }
     const row = await updateUserProject(
       trx,
       userId,

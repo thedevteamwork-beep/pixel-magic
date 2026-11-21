@@ -1,5 +1,5 @@
 import { STYLE_PROJECT_TYPE, STYLES_PAGE_SIZE } from "@/components/ai-influencer/constants";
-import type { ApiClient } from "@/lib/api/client";
+import { ApiError, type ApiClient } from "@/lib/api/client";
 import type { ProjectList, ProjectView } from "@/lib/api/types";
 import type { StyleReference } from "@/types/ai-influencer";
 
@@ -12,6 +12,36 @@ export function styleFromProject(view: ProjectView): StyleReference | null {
 /** One saved style by its project id (the one an influencer saved), or null when its image is gone. */
 export async function getStyleReference(api: ApiClient, id: string): Promise<StyleReference | null> {
   return styleFromProject(await api.get<ProjectView>(`/v1/projects/${encodeURIComponent(id)}`));
+}
+
+/**
+ * A reopened influencer's saved style. `gone` is true only when the style no longer exists (404) or lost its image;
+ * a load that merely failed is not gone, so saving the influencer keeps the style.
+ */
+export type RestoredStyle = { style: StyleReference | null; gone: boolean };
+
+export async function restoreStyle(api: ApiClient, id: string): Promise<RestoredStyle> {
+  try {
+    const style = await getStyleReference(api, id);
+    return { style, gone: style === null };
+  } catch (error) {
+    return { style: null, gone: error instanceof ApiError && error.status === 404 };
+  }
+}
+
+/**
+ * The style a Generate sends and the `styleId` it saves: the user's pick; else the saved style still being restored
+ * (`pending`, with its result once known), kept saved unless it is gone.
+ */
+export function styleForGenerate(
+  picked: StyleReference | null,
+  pending: { id: string; result: RestoredStyle } | null,
+): { style: StyleReference | null; styleId: string | undefined } {
+  if (picked) return { style: picked, styleId: picked.id };
+  if (!pending) return { style: null, styleId: undefined };
+  const { style, gone } = pending.result;
+  if (style) return { style, styleId: style.id };
+  return { style: null, styleId: gone ? undefined : pending.id };
 }
 
 /** The user's saved styles, most recently saved first. Each image link is fresh for a day. */

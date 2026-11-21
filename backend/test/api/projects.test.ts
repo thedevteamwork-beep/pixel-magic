@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import knex from "knex";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/server.js";
@@ -6,7 +7,7 @@ import { T } from "../../src/db/tables.js";
 import { makeDeps } from "../helpers/app.js";
 import { authHeader } from "../helpers/auth.js";
 import { seedTestCatalog } from "../helpers/catalog.js";
-import { resetDb, testDb } from "../helpers/db.js";
+import { resetDb, TEST_DATABASE_URL, testDb } from "../helpers/db.js";
 import { insertJob, insertProfile } from "../helpers/factories.js";
 
 describe("projects API", () => {
@@ -439,6 +440,29 @@ describe("projects API", () => {
       expect(res.body.data.photoUploadId).toBe(photoUploadId);
       expect(res.body.upload.uploadId).toBe(photoUploadId);
       expect(res.body.upload.url).toContain("expires=86400");
+    });
+
+    it("updates an influencer's photo through a one-connection pool", async () => {
+      // The upload check must not need a second connection while the project row is locked:
+      // with every connection busy that waits forever, freezing the whole API.
+      const photoUploadId = await uploadImage();
+      const created = await create({ type: "ai-influencer", title: "Mira" });
+      const oneConnection = knex({
+        client: "pg",
+        connection: TEST_DATABASE_URL,
+        pool: { min: 0, max: 1 },
+        acquireConnectionTimeout: 2000,
+      });
+      try {
+        const res = await request(createApp({ ...h.deps, db: oneConnection }))
+          .patch(`/v1/projects/${created.body.projectId}`)
+          .set(await authHeader(userId))
+          .send({ data: { traits: {}, photoUploadId } });
+        expect(res.status).toBe(200);
+        expect(res.body.data.photoUploadId).toBe(photoUploadId);
+      } finally {
+        await oneConnection.destroy();
+      }
     });
 
     it("rejects another user's photo on an influencer", async () => {

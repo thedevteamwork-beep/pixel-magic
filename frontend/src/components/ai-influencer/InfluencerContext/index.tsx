@@ -47,7 +47,7 @@ import {
   variationsFromJobs,
 } from "@/lib/ai-influencer/projects";
 import type { ReferencesUsed } from "@/lib/ai-influencer/prompt";
-import { getStyleReference } from "@/lib/ai-influencer/styles";
+import { restoreStyle, styleForGenerate, type RestoredStyle } from "@/lib/ai-influencer/styles";
 import { imageFileError, uploadImage } from "@/lib/ai-influencer/upload";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
 import type { JobView, ProjectView, PublicModel } from "@/lib/api/types";
@@ -333,6 +333,8 @@ export function InfluencerProvider({
   const photoFile = useRef<File | null>(null);
   /** The attached photo's upload, so a retry or the next Generate doesn't send the same file again. */
   const photoUpload = useRef<{ url: string; uploadId: string } | null>(null);
+  /** A reopened influencer's saved style while it loads. Cleared when the user picks or clears a style themselves. */
+  const pendingStyle = useRef<{ id: string; promise: Promise<RestoredStyle> } | null>(null);
   const fields = useRef<Record<TextField, HTMLInputElement | HTMLTextAreaElement | null>>({ name: null, extra: null });
 
   const registerField = useCallback((key: TextField, node: HTMLInputElement | HTMLTextAreaElement | null) => {
@@ -375,14 +377,15 @@ export function InfluencerProvider({
         photoFile.current = null;
         dispatch({ type: "reference", reference: photoFromProject(view) });
         dispatch({ type: "style", style: null });
+        pendingStyle.current = null;
         const styleId = styleIdFromProject(view);
         if (styleId) {
-          // A style deleted since is skipped.
-          void getStyleReference(api, styleId)
-            .then((saved) => {
-              if (saved && token === latest.current) dispatch({ type: "style", style: saved });
-            })
-            .catch(() => undefined);
+          const restoring = { id: styleId, promise: restoreStyle(api, styleId) };
+          pendingStyle.current = restoring;
+          void restoring.promise.then(({ style: saved }) => {
+            // Not when the user picked or cleared a style since, or opened another influencer.
+            if (saved && pendingStyle.current === restoring) dispatch({ type: "style", style: saved });
+          });
         }
         dispatch({ type: "variations", variations: variationsFromJobs(page.jobs, `${view.title} portrait`) });
         dispatch({ type: "view", view: "result" });
@@ -472,6 +475,12 @@ export function InfluencerProvider({
       const model = selectedModel;
       if (!model) throw modelsError.current ?? new Error("No image model is available.");
 
+      // A reopened influencer's style may still be loading: wait for it, so this Generate sends it and the save
+      // keeps it. A style that only failed to load stays saved (styleForGenerate).
+      const restoring = style ? null : pendingStyle.current;
+      const chosen = styleForGenerate(style, restoring && { id: restoring.id, result: await restoring.promise });
+      if (next.signal.aborted || !isLatest()) return null;
+
       // 1. The face photo, uploaded once, so the save below can keep it. A saved influencer's photo is already stored.
       let photoUploadId = reference?.uploadId;
       if (!photoUploadId && reference && referencesUsed.photo && photoFile.current) {
@@ -483,7 +492,7 @@ export function InfluencerProvider({
       if (next.signal.aborted || !isLatest()) return null;
 
       // 2. Save the influencer: a project on the first Generate, then a patch only when something saved changed.
-      const settings: SavedSettings = { aspectRatio, photoUploadId, styleId: style?.id };
+      const settings: SavedSettings = { aspectRatio, photoUploadId, styleId: chosen.styleId };
       const data = projectData(submitted, archetypeId, settings);
       let id = projectId;
       if (!id) {
@@ -510,12 +519,17 @@ export function InfluencerProvider({
         projectId: id,
         traits: submitted,
         photo: photoUploadId,
-        style: style?.uploadId,
+        style: chosen.style?.uploadId,
         aspectRatio,
       });
       if (attempt.current?.request !== request) attempt.current = { key: newIdempotencyKey(), request };
       const current = attempt.current;
-      const input = influencerInput(model, submitted, { photo: photoUploadId, style: style?.uploadId }, aspectRatio);
+      const input = influencerInput(
+        model,
+        submitted,
+        { photo: photoUploadId, style: chosen.style?.uploadId },
+        aspectRatio,
+      );
       let job: JobView;
       try {
         job = await catchDeletedProject(
@@ -609,13 +623,18 @@ export function InfluencerProvider({
     dispatch({ type: "reference", reference: null });
   }, []);
 
-  const selectStyle = useCallback((picked: StyleReference | null) => dispatch({ type: "style", style: picked }), []);
+  const selectStyle = useCallback((picked: StyleReference | null) => {
+    // The user's own choice wins over a saved style still loading.
+    pendingStyle.current = null;
+    dispatch({ type: "style", style: picked });
+  }, []);
 
   // The photo goes too, so the next influencer doesn't quietly reuse the last one's face.
   const newInfluencer = useCallback(
     (look?: { archetypeId: string; name: string }) => {
       forgetProject();
       removeReference();
+      pendingStyle.current = null;
       dispatch({ type: "reset" });
       if (look) dispatch({ type: "archetype", id: look.archetypeId, name: look.name });
     },
