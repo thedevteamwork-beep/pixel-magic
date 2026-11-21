@@ -13,7 +13,7 @@ import type { ImageSize, UpscaleValue, UpscaleValues } from "@/lib/image-upscale
 import { useSignedIn } from "@/lib/auth/useSignedIn";
 import { upscaleNextSteps } from "../constants";
 import { UpscaleCompare } from "./UpscaleCompare";
-import { UpscaleResultCard } from "./UpscaleResultCard";
+import { UpscaleResultBar } from "./UpscaleResultBar";
 import { UpscaleSettingsPanel } from "./UpscaleSettingsPanel";
 import { UpscaleUploadWelcome } from "./UpscaleUploadWelcome";
 import { UpscaleStillRunningError, useUpscale } from "./useUpscale";
@@ -213,18 +213,49 @@ export function UpscaleWorkspace({ sample = false }: { sample?: boolean }) {
         <>
           <h1 className={styles.srOnly}>Image upscaler</h1>
           <div className={styles.editor}>
+            {model && models ? (
+              <UpscaleSettingsPanel
+                models={models}
+                model={model}
+                values={values}
+                onModelChange={setModelKey}
+                onValueChange={changeValue}
+                onReset={() => setEdits((current) => ({ ...current, [model.key]: {} }))}
+                source={size}
+                credits={credits}
+                busy={busy}
+                busyLabel={busyLabel}
+                onSubmit={submit}
+                submitRef={upscaleButtonRef}
+                hasResult={Boolean(result)}
+                changed={stale}
+              />
+            ) : (
+              <aside className={styles.panel} aria-label="Upscale settings" aria-busy={!modelsError}>
+                <p className={styles.startHint}>{modelsError ? "The models couldn’t load." : "Loading models…"}</p>
+              </aside>
+            )}
+
             <section className={styles.canvas} aria-label="Your image workspace">
               <div className={styles.canvasContent} inert={stage === "loading"}>
                 <header className={styles.toolbar}>
-                  <div className={styles.fileInfo}>
-                    <span className={styles.fileName} title={source.file.name}>
-                      {source.file.name}
-                    </span>
-                    <span className={styles.imageSize}>
-                      {formatSize(source)} px
-                      {result && measured && <span className={styles.sizeArrow}> → {formatSize(measured)} px</span>}
-                    </span>
-                  </div>
+                  {result ? (
+                    <UpscaleResultBar
+                      result={result}
+                      before={source}
+                      after={measured ?? expected}
+                      nextSteps={upscaleNextSteps}
+                      onNextStep={continueWith}
+                      onDownload={download}
+                    />
+                  ) : (
+                    <div className={styles.fileInfo}>
+                      <span className={styles.fileName} title={source.file.name}>
+                        {source.file.name}
+                      </span>
+                      <span className={styles.imageSize}>{formatSize(source)} px</span>
+                    </div>
+                  )}
                   <div className={styles.actions}>
                     <button
                       type="button"
@@ -295,42 +326,6 @@ export function UpscaleWorkspace({ sample = false }: { sample?: boolean }) {
                 </div>
               )}
             </section>
-
-            {model && models ? (
-              <UpscaleSettingsPanel
-                models={models}
-                model={model}
-                values={values}
-                onModelChange={setModelKey}
-                onValueChange={changeValue}
-                onReset={() => setEdits((current) => ({ ...current, [model.key]: {} }))}
-                source={size}
-                credits={credits}
-                busy={busy}
-                busyLabel={busyLabel}
-                onSubmit={submit}
-                submitRef={upscaleButtonRef}
-                hasResult={Boolean(result)}
-                summary={
-                  result && (
-                    <UpscaleResultCard
-                      result={result}
-                      before={source}
-                      after={measured ?? expected}
-                      stale={stale}
-                      nextSteps={upscaleNextSteps}
-                      onNextStep={continueWith}
-                      onDownload={download}
-                      onNewImage={() => inputRef.current?.click()}
-                    />
-                  )
-                }
-              />
-            ) : (
-              <aside className={styles.panel} aria-label="Upscale settings" aria-busy={!modelsError}>
-                <p className={styles.startHint}>{modelsError ? "The models couldn’t load." : "Loading models…"}</p>
-              </aside>
-            )}
           </div>
         </>
       ) : (

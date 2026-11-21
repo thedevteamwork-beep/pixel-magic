@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { VideoSkeleton } from "@/components/video-generator/VideoSkeleton";
 import { VideoWorkspace } from "@/components/video-generator/VideoWorkspace";
 import { defaultVideoSettings, videoInspirations, videoModels } from "@/components/video-generator/constants";
 
@@ -13,13 +14,7 @@ type VideoSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default function VideoPage({ searchParams }: { searchParams: VideoSearchParams }) {
   return (
-    <Suspense
-      fallback={
-        <div className="page-container py-12" role="status">
-          Opening your video studio…
-        </div>
-      }
-    >
+    <Suspense fallback={<VideoSkeleton />}>
       <WorkspaceFromQuery searchParams={searchParams} />
     </Suspense>
   );

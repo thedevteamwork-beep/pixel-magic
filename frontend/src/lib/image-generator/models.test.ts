@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { PublicModel } from "@/lib/api/types";
 import { fluxSchnell } from "@/lib/generate/fixtures";
-import { estimateInput, imageCount, resolveOptions, shapeForRatio, shapeOption, toStudioModel } from "./models";
+import {
+  estimateInput,
+  imageCount,
+  optionLabel,
+  resolveOptions,
+  shapeForRatio,
+  shapeOption,
+  toStudioModel,
+} from "./models";
 
 const flux = toStudioModel(fluxSchnell, { maker: "Black Forest Labs", symbol: "ƒ", tag: "Fast" });
 
@@ -88,5 +96,17 @@ describe("studio models", () => {
     });
     const input = estimateInput(editor, { aspect_ratio: "1:1", output_format: "png" }, 2);
     expect(input.image_urls).toEqual(["00000000-0000-4000-8000-000000000000", "00000000-0000-4000-8000-000000000001"]);
+  });
+});
+
+describe("optionLabel", () => {
+  it.each([
+    ["quality", "high", "High"],
+    ["output_resolution", "2k", "2K"],
+    ["output_resolution", "0.5K", "0.5K"],
+    ["output_format", "png", "PNG"],
+    ["creativity", "raw", "Raw"],
+  ])("shows %s %s as %s", (field, value, label) => {
+    expect(optionLabel(field, value)).toBe(label);
   });
 });

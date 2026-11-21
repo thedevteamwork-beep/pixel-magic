@@ -46,7 +46,7 @@ export const seedream5ProGenerate = defineFalModel({
         input.aspect_ratio as string,
         input.output_resolution as string,
       ),
-      num_images: 1,
+      num_images: input.num_images,
       // As Pixelbin sends it.
       // On, unlike Pixelbin: the safety checker is never turned off here (see fluxSchnell).
       enable_safety_checker: true,
@@ -54,5 +54,7 @@ export const seedream5ProGenerate = defineFalModel({
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // Priced on output_resolution, an option; the default facts include it.
 });

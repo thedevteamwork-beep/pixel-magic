@@ -65,6 +65,18 @@ element that more than one feature could use.
 | Icon from the shared set            | `Icon` (`name`)                                  | Add a new name to the map in `Icon.tsx` rather than importing icons ad hoc.                                                                                                                                                             |
 | Lazy-loaded video                   | `LazyVideo`                                      | Used by `Media`; use `Media` unless you need only video.                                                                                                                                                                                |
 | Masonry gallery                     | `MasonryGrid`                                    | Takes `GalleryItem[]` built on `MediaAsset`.                                                                                                                                                                                            |
+| Need                                | Use                                              | Notes                                                                                                                                                                                                                                   |
+| ----------------------------------- | -------------------------------------------      | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                  |
+| Image or video that covers a box    | `Media` (`@/ui/Media`)                           | Wraps `next/image` and `LazyVideo`. `fill`, `sizes`, `eager`, `plain` (no placeholder background), `className`/`style` for the box, `imageProps` for the image itself.                                                                  |
+| Button or link that looks like one  | `Button` / `ButtonWithLink` (`@/ui/Button`)      | Variants `primary`, `secondary`, `ghost`, `outline`; sizes `sm`, `md`, `lg`; `fullWidth`.                                                                                                                                               |
+| Dialog over the page                | `Modal` (`@/ui/Modal`)                           | Native `<dialog>`: focus trap, Escape and backdrop click close it. `open`, `onClose`, `title`, `className` for a feature's own width.                                                                                                   |
+| Small label                         | `Badge` (`tone`) and `Chip` (`href`)             |                                                                                                                                                                                                                                         |
+| Page width and gutters              | `Container`                                      | `as="main" \| "section" \| …`.                                                                                                                                                                                                          |
+| Section title with optional actions | `SectionHeading`                                 | `align`, `tone`, `description`, `actions`.                                                                                                                                                                                              |
+| Icon from the shared set            | `Icon` (`name`)                                  | Add a new name to the map in `Icon.tsx` rather than importing icons ad hoc.                                                                                                                                                             |
+| Lazy-loaded video                   | `LazyVideo`                                      | Used by `Media`; use `Media` unless you need only video.                                                                                                                                                                                |
+| Masonry gallery                     | `MasonryGrid`                                    | Takes `GalleryItem[]` built on `MediaAsset`.                                                                                                                                                                                            |
+| Loading placeholder                 | `Skeleton` (`@/ui/Skeleton`)                     | A pulsing block; size and shape it with `className`. See "Loading screens" below.                                                                                                                                                       |
 
 Rules:
 
@@ -83,6 +95,14 @@ Rules:
    props only.
 4. **`ui/` components use Tailwind** with the theme tokens and `cn()` from `@/lib/cn`, so a caller can override with
    `className`. Feature components use CSS Modules (see below).
+
+## Loading screens
+
+A studio page never shows loading text. Its `<Suspense fallback>` is a skeleton of the screen that is about to
+appear, built from `ui/Skeleton` blocks: `<Feature>Skeleton/` next to the workspace (`UpscaleSkeleton`,
+`VideoSkeleton`, `InfluencerSkeleton`; `image-generator/ImageSkeleton.tsx` in the feature-root layout). Match the real
+layout's grid, padding and main blocks so nothing jumps when it loads, and give the wrapper `role="status"` with an
+`aria-label` such as "Opening your video studio".
 
 ## Component folders
 

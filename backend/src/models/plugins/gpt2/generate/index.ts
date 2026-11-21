@@ -62,12 +62,14 @@ export const gpt2Generate = defineFalModel({
         input.output_resolution as string,
       ),
       quality: input.quality,
-      num_images: 1,
+      num_images: input.num_images,
       sync_mode: false,
       ...(images.length ? { image_urls: images } : {}),
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // As Pixelbin bills it: resolution and quality pick the tier, and each reference image is metered.
   billing: ({ options, uploadCount }) => ({
     ...options,

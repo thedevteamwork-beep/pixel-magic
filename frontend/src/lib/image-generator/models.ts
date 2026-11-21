@@ -153,3 +153,10 @@ export function estimateInput(
   );
   return buildInput(model.source, { prompt: ESTIMATE_PROMPT, values: options, uploadIds });
 }
+
+/** How an option value reads in the prompt bar: "high" → "High", "2k" → "2K", "png" → "PNG". */
+export function optionLabel(field: string, value: string): string {
+  if (/^\d/.test(value)) return value.toUpperCase();
+  if (field === "output_format") return value.toUpperCase();
+  return value[0].toUpperCase() + value.slice(1).replaceAll("_", " ");
+}

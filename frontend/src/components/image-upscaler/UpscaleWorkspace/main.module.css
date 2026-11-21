@@ -38,19 +38,24 @@
   flex: 1;
   justify-content: center;
   min-height: 0;
+  overflow-y: auto;
 }
 
+/* The card sits in the middle of the space, sized to what it holds. */
 .welcomeContent {
   display: flex;
   flex: 1;
+  align-items: center;
   justify-content: center;
   min-height: 0;
+  padding: 16px;
 }
 
 .editor {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 348px;
+  /* Settings on the left, the image and its result on the right: the same in every studio. */
+  grid-template-columns: 348px minmax(0, 1fr);
   /* One row, as tall as the workspace: the panel scrolls, the page doesn't. */
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
@@ -278,14 +283,14 @@
 
 @media (min-width: 1700px) {
   .editor {
-    grid-template-columns: minmax(0, 1fr) 370px;
+    grid-template-columns: 370px minmax(0, 1fr);
     gap: 16px;
   }
 }
 
 @media (max-width: 1100px) and (min-width: 901px) {
   .editor {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: 320px minmax(0, 1fr);
   }
   .fileInfo {
     flex-direction: column;
@@ -312,7 +317,9 @@
     min-height: 0;
     gap: 12px;
   }
+  /* On a phone the image comes first, its settings below. */
   .canvas {
+    order: -1;
     height: clamp(330px, 58dvh, 560px);
   }
   .dropOverlay {
@@ -1267,42 +1274,47 @@
 }
 
 .welcome {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 840px;
-  height: 100%;
-  min-height: 0;
-  margin-inline: auto;
-  padding: 28px 24px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-panel);
+  width: min(520px, 100%);
+  margin: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
   background: var(--surface);
   text-align: center;
+  box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--shadow-color) 60%, transparent);
+}
+
+/* A soft glow of the brand color behind the card. */
+.welcome::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -80px -120px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 9%, transparent), transparent);
+  pointer-events: none;
+}
+
+/* While a file is dragged over the page, the card says it will take it. */
+.workspace[data-dragging="true"] .welcome {
+  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 .example {
-  width: min(360px, 100%);
-  margin: 0 0 28px;
-}
-
-.exampleLabel {
-  margin: 0 0 10px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.4;
+  width: 100%;
+  margin: 0;
 }
 
 .upscaleUploadWelcomeComparison {
   position: relative;
   width: 100%;
-  height: 250px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   isolation: isolate;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface-raised);
 }
 
@@ -1325,7 +1337,7 @@
 }
 
 .softPhoto {
-  filter: blur(1.2px) contrast(0.96);
+  filter: blur(2.4px) contrast(0.92) saturate(0.85);
 }
 
 .sideLabel {
@@ -1414,21 +1426,26 @@
   background: transparent;
 }
 
+.copy {
+  padding: 26px 28px 22px;
+}
+
 .copy h1 {
   margin: 0;
   color: var(--foreground);
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(28px, 2.8vw, 34px);
+  font-size: clamp(24px, 2.2vw, 28px);
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.045em;
 }
 
 .copy > p {
-  margin: 10px 0 22px;
+  max-width: 340px;
+  margin: 8px auto 22px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: var(--fs-md);
+  line-height: 1.6;
 }
 
 .upload {
@@ -1436,14 +1453,15 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-height: 44px;
-  padding: 12px 21px;
+  min-width: 200px;
+  min-height: 46px;
+  padding: 12px 24px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   color: var(--primary-foreground);
   background: var(--primary);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 600;
   transition: background 0.18s;
 }
@@ -1461,7 +1479,7 @@
   display: block;
   margin-top: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 
@@ -1483,32 +1501,29 @@
 
 @media (max-height: 700px) {
   .upscaleUploadWelcomeComparison {
-    height: 200px;
+    aspect-ratio: 16 / 8;
   }
-  .example {
-    margin-bottom: 22px;
+  .copy {
+    padding-block: 20px 16px;
   }
 }
 
 @media (max-width: 600px) {
-  .welcome {
-    padding: 22px 16px;
-    border-radius: var(--radius-card);
+  .welcomeContent {
+    padding: 4px 0;
   }
-  .example {
-    max-width: 320px;
-    margin-bottom: 24px;
+  .welcome {
+    padding: 8px;
+    border-radius: 20px;
   }
   .upscaleUploadWelcomeComparison {
-    height: 200px;
-    border-radius: 11px;
+    border-radius: 13px;
   }
-  .copy > p {
-    margin: 9px 0 18px;
-    font-size: 11px;
+  .copy {
+    padding: 20px 14px 16px;
   }
-  .upscaleUploadWelcomeHint {
-    font-size: 9px;
+  .upload {
+    width: 100%;
   }
 }
 
@@ -1522,15 +1537,6 @@
 }
 
 /* ---------- Settings additions ---------- */
-
-.againTitle {
-  margin: 0 0 14px;
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
 
 .textControl {
   display: grid;
@@ -1586,189 +1592,59 @@
   color: var(--subtle);
 }
 
-/* ---------- Result ---------- */
+/* ---------- Result: a bar above the comparison ---------- */
 
-.resultCard {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 22px;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
-  border-radius: 14px;
-  background:
-    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 60%),
-    var(--surface-raised);
-  animation: resultIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-@keyframes resultIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
-.resultHeader {
+.resultBar {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .resultCheck {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--primary);
   color: var(--primary-foreground);
 }
 
-.resultHeader h3 {
-  margin: 0;
-  color: var(--foreground);
-  font-family: var(--font-display), sans-serif;
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-
-.resultHeader p {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-/* Before and after side by side; the after column carries the brand color. */
-.sizeCompare {
+.resultText {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.sizeCompare > div {
-  display: grid;
+  flex: 1;
   gap: 2px;
-  padding: 10px 12px;
+  min-width: 0;
 }
 
-.sizeCompare > div + div {
-  border-left: 1px solid var(--border);
-}
-
-.sizeCompare dt {
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.sizeCompare dd {
-  margin: 0;
-  color: var(--subtle);
-  font-size: 13px;
+.resultText strong {
+  color: var(--foreground);
+  font-size: var(--fs-base);
   font-weight: 500;
+}
+
+.resultText span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sizeCompare dd.sizeMeta {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.sizeAfter {
-  background: color-mix(in srgb, var(--primary) 7%, transparent);
-}
-
-.sizeAfter dt,
-.sizeAfter dd:not(.sizeMeta) {
+.resultText b {
   color: var(--primary);
-}
-
-.pixelGain {
-  margin: -4px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.pixelGain strong {
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.downloadResult {
-  font-size: 13px;
-}
-
-/* The next image: a drop target in look, a file picker on click (the page takes drops and pastes). */
-.nextImage {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--foreground);
-  text-align: left;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.nextImage:hover,
-.workspace[data-dragging="true"] .nextImage {
-  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
-  background: color-mix(in srgb, var(--primary) 5%, transparent);
-}
-
-.nextImageIcon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--primary);
-}
-
-.nextImage strong {
-  display: block;
-  font-size: 13px;
   font-weight: 500;
 }
 
-.nextImage small {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nextImage {
-    transition: none;
-  }
-}
-
-.staleNote {
-  margin: -6px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.sizeArrow {
-  color: var(--primary);
+.resultActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ---------- Working: the image stays visible under a gentle scan ---------- */
@@ -1840,8 +1716,36 @@
   font-size: 11px;
 }
 
+@media (max-width: 1180px) {
+  /* Narrow canvas: the next steps keep their icons; the label moves to the tooltip. */
+  .resultStep {
+    font-size: 0;
+    gap: 0;
+  }
+}
+
+/* Phones: title and New image on one line, the result's actions on a full-width line below. */
+@media (max-width: 600px) {
+  .toolbar {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .resultBar {
+    display: contents;
+  }
+  .actions {
+    order: 1;
+  }
+  .resultActions {
+    order: 2;
+    width: 100%;
+  }
+  .resultActions > :last-child {
+    flex: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .resultCard,
   .scanLine {
     animation: none;
   }

@@ -18,7 +18,12 @@ describe("nanoBananaPro (ported from Pixelbin)", () => {
   it("generates from text, sending 1:1 for auto", async () => {
     expect(await submitted(nanoBananaPro, defaults)).toEqual({
       endpoint: "fal-ai/nano-banana-pro",
-      payload: { prompt: "a vase", resolution: "1K", aspect_ratio: "1:1" },
+      payload: {
+        num_images: 1,
+        prompt: "a vase",
+        resolution: "1K",
+        aspect_ratio: "1:1",
+      },
     });
   });
 
@@ -32,6 +37,7 @@ describe("nanoBananaPro (ported from Pixelbin)", () => {
     expect(result).toEqual({
       endpoint: "fal-ai/nano-banana-pro/edit",
       payload: {
+        num_images: 1,
         prompt: "a vase",
         resolution: "4K",
         aspect_ratio: "9:16",

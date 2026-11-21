@@ -26,7 +26,7 @@ type FooterColumn = {
 export const headerContent: { links: NavLink[] } = {
   links: [
     { label: "Explore", href: "/#top" },
-    { label: "Image", href: "/image?model=gpt_image_2" },
+    { label: "Image", href: "/image?model=gpt2_generate" },
     { label: "Video", href: "/video" },
     { label: "Upscale", href: "/upscale" },
     { label: "Influencer", href: "/influencer" },
@@ -39,7 +39,7 @@ export const headerContent: { links: NavLink[] } = {
 /** Links shown in the header once the user is signed in. */
 export const signedInLinks: NavLink[] = [
   { label: "Explore", href: "/#top" },
-  { label: "Image", href: "/image?model=gpt_image_2" },
+  { label: "Image", href: "/image?model=gpt2_generate" },
   { label: "Video", href: "/video" },
   { label: "Upscale", href: "/upscale" },
   { label: "Influencer", href: "/influencer" },

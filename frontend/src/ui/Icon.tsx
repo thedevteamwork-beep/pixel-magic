@@ -1,6 +1,11 @@
 import {
   ArrowRight,
   Clapperboard,
+  FileImage,
+  Gem,
+  Layers,
+  ScanLine,
+  SlidersHorizontal,
   ImageIcon,
   Images,
   ImageUpscale,
@@ -35,6 +40,11 @@ const icons = {
   upscale: ImageUpscale,
   wand: WandSparkles,
   images: Images,
+  gem: Gem,
+  resolution: ScanLine,
+  file: FileImage,
+  layers: Layers,
+  sliders: SlidersHorizontal,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof icons;

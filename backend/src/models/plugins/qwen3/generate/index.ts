@@ -54,6 +54,7 @@ export const qwen3Generate = defineFalModel({
     const images = imageUrls(input.images);
     return {
       prompt: input.prompt,
+      num_images: input.num_images,
       image_size: qwen3ImageSize(
         input.aspect_ratio as string,
         input.output_resolution as string,
@@ -64,5 +65,7 @@ export const qwen3Generate = defineFalModel({
     };
   },
   output: "images",
+  // The mapping prices one image; each extra image costs the same again.
+  pricePerImage: { countField: "num_images" },
   // Priced on output_resolution ("1k" / "2k"), an option; the default facts include it.
 });

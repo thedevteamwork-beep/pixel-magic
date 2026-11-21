@@ -48,7 +48,8 @@ function priceJob(
  * The price of one job, from the same input the job is created with. Job
  * creation and the estimate endpoint both call this, so what is shown is
  * what is reserved. `creditsPerJob` is `baseCredits` plus every breakdown
- * item's credits, rounded up once. Upload ids are counted, never looked up:
+ * item's credits, rounded up once, times `images` for a model priced per
+ * image (several images cost the price of one each). Upload ids are counted, never looked up:
  * a model priced by its input's size is given `imageSize` (measured from the
  * upload when a job is created; as the client states it for an estimate).
  */
@@ -62,6 +63,8 @@ export function estimateCredits(
   tier: string;
   baseCredits: number;
   breakdown: ReturnType<typeof priceTier>["breakdown"];
+  /** The images the price is for: the tier prices one, the job pays for each. */
+  images: number;
 } {
   const input = model.input.parse(rawInput);
   if (model.pricedByImageSize && !imageSize) {
@@ -81,7 +84,14 @@ export function estimateCredits(
     model,
     facts,
   );
-  return { creditsPerJob: credits, tier, baseCredits, breakdown };
+  const images = model.priceMultiplier(facts);
+  return {
+    creditsPerJob: credits * images,
+    tier,
+    baseCredits,
+    breakdown,
+    images,
+  };
 }
 
 // Ranges by mapping, then model key. A mapping is fixed once loaded, and
@@ -107,7 +117,8 @@ export function creditRange(
   let min = Infinity;
   let max = -Infinity;
   for (const facts of billingSamples(model)) {
-    const { credits } = priceJob(deps, model, facts);
+    const credits =
+      priceJob(deps, model, facts).credits * model.priceMultiplier(facts);
     min = Math.min(min, credits);
     max = Math.max(max, credits);
   }
