@@ -12,6 +12,7 @@ implementation: copy its layout when in doubt.
 | Constants (one feature)  | `src/components/<feature>/constants.ts` | Option lists, limits, sample data and validation rules used by one feature.                            |
 | Constants (shared)       | `src/constants/<name>.ts`               | Only constants used by two or more features, such as `landing-media.ts`.                               |
 | Helpers (pure functions) | `src/lib/<feature>/`                    | Prompt builders, API clients, validators. No React. Tests sit next to the file (`x.test.ts`).          |
+| Shared helpers           | `src/helpers/<area>.ts`                 | Small pure helpers used by several features, e.g. `studio.ts` (`cssAspectRatio`). Test next to it.     |
 | Generic validators       | `src/lib/validation/validators.ts`      | Reusable `isNotEmpty`, `isTextLength`, `when`, `trimmed`, `validateFields`.                            |
 | Types                    | `src/types/<feature>.ts`                | Shared types. Types used by one file stay in that file.                                                |
 | Shared UI elements       | `src/ui/`                               | Button, Media, Modal, Badge, Chip, Container, Icon, SectionHeading, LazyVideo, MasonryGrid.            |

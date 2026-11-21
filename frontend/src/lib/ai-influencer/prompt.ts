@@ -95,6 +95,17 @@ function referenceSection({ photo, style }: ReferencesUsed, animal: boolean): st
   return lines.length ? ["## Reference images", ...lines] : [];
 }
 
+const USER_NOTES_HEADING = "## User notes";
+
+/** What the user wrote, back out of a prompt this file built; empty when there is none (or another format). */
+export function userNotesFromPrompt(prompt: string): string {
+  const start = prompt.indexOf(`${USER_NOTES_HEADING}\n`);
+  if (start < 0) return "";
+  const rest = prompt.slice(start + USER_NOTES_HEADING.length + 1);
+  const end = rest.indexOf("\n\n## ");
+  return (end < 0 ? rest : rest.slice(0, end)).trim();
+}
+
 /**
  * The prompt the model receives: fixed instructions, then a character sheet written from the traits that were picked
  * (traits that were not are left out), the reference images actually sent, the user's notes, and what to avoid.
@@ -151,7 +162,7 @@ export function composeInfluencerPrompt(traits: InfluencerTraits, references: Re
     character,
     style.length ? ["## Style", ...style] : [],
     referenceSection(references, animal),
-    notes ? ["## User notes", notes] : [],
+    notes ? [USER_NOTES_HEADING, notes] : [],
     avoidSection(animal),
   ];
   return sections

@@ -1,8 +1,9 @@
+/* The same 24px sides as Explore and History; the cap only stops very wide screens making huge cards. */
 .templates {
   width: 100%;
-  max-width: 1040px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 36px 28px;
+  padding: 28px 24px;
 }
 
 .heading {

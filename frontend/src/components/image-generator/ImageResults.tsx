@@ -20,7 +20,16 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type CSSProperties,
+} from "react";
 import { imageInspirations, imageTemplateArtwork, REMOTE_IMAGE } from "./constants";
 import { downloadResult } from "@/lib/image-generator/download";
 import { parseImageGuidance } from "@/lib/image-generator/guidance";
@@ -29,6 +38,8 @@ import type { ImageResult, InspirationItem, NextStep, NextStepOption, StudioMode
 import { Modal } from "@/ui/Modal";
 import { ImageWelcome } from "./ImageWelcome";
 import { ResultStage } from "./ResultStage";
+import { cssAspectRatio } from "@/helpers/studio";
+import { GenerationLoader } from "@/ui/GenerationLoader";
 import styles from "./main.module.css";
 
 export type ImageResultsProps = {
@@ -37,6 +48,8 @@ export type ImageResultsProps = {
   pendingCount: number;
   /** The model making the pending images. */
   pendingModel?: string;
+  /** The pending images' shape (e.g. "3:4"), so their loaders match the images on the way. */
+  pendingRatio?: string;
   generationKey?: number;
   variant?: "library" | "canvas";
   modelName?: string;
@@ -197,14 +210,15 @@ function ResultCard({
   );
 }
 
-function CanvasPending({ count, model }: { count: number; model?: string }) {
+function CanvasPending({ count, model, ratio }: { count: number; model?: string; ratio?: string }) {
   const images = Math.max(1, count);
   return (
-    <div className={styles.canvasPending}>
-      <div className={styles.canvasPendingArt} aria-hidden="true">
-        <span />
-        <span />
-        <Sparkles size={28} strokeWidth={1.3} />
+    <div className={styles.canvasPending} role="status">
+      <div
+        className={styles.canvasPendingFrame}
+        style={{ "--frame-ratio": cssAspectRatio(ratio ?? "1:1") } as CSSProperties}
+      >
+        <GenerationLoader />
       </div>
       <h3>A new direction is taking shape.</h3>
       <p>
@@ -222,6 +236,7 @@ export function ImageResults({
   pending,
   pendingCount,
   pendingModel,
+  pendingRatio,
   generationKey = 0,
   variant = "library",
   modelName: selectedModelName,
@@ -556,7 +571,7 @@ export function ImageResults({
         {showCreativeCanvas ? (
           <div className={styles.creativeCanvas}>
             {pending ? (
-              <CanvasPending count={pendingCount} model={pendingModel} />
+              <CanvasPending count={pendingCount} model={pendingModel} ratio={pendingRatio} />
             ) : active ? (
               <ResultStage
                 active={active}
@@ -616,11 +631,13 @@ export function ImageResults({
                 {pending &&
                   tab === "all" &&
                   Array.from({ length: Math.min(4, Math.max(1, pendingCount)) }, (_, index) => (
-                    <div className={styles.pendingCard} key={`pending-${index}`}>
-                      <span className={styles.pendingArt}>
-                        <Sparkles size={26} aria-hidden="true" />
-                        <span className={styles.pendingOrbit} />
-                      </span>
+                    <div className={styles.pendingCard} key={`pending-${index}`} role="status">
+                      <div
+                        className={styles.pendingFrame}
+                        style={{ aspectRatio: cssAspectRatio(pendingRatio ?? "3:4") }}
+                      >
+                        <GenerationLoader />
+                      </div>
                       <span>
                         <LoaderCircle size={13} className={styles.imageResultsSpinner} aria-hidden="true" />
                         Creating image {index + 1}

@@ -3,8 +3,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
-  min-height: 0;
 }
 
 .srOnly {
@@ -38,33 +36,51 @@
 
 .prompt {
   flex-shrink: 0;
-  padding: 0 6px 4px;
-  color: var(--muted);
-  font-size: var(--fs-xs);
+  padding: 4px 6px 0;
 }
 
-.promptAccordion {
-  flex-shrink: 0;
-  gap: 0;
+.promptHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.prompt summary {
-  cursor: pointer;
+.promptHead h4 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+  font-weight: 500;
 }
 
-.prompt p {
+/* The prompt as sent: its sections and lines kept, scrolling within a few lines' height. */
+.promptText {
+  composes: thinScroll from "../../../assets/styles/shared.module.css";
+  max-height: 240px;
   margin: 8px 0 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
   color: var(--subtle);
+  font-family: inherit;
+  font-size: var(--fs-xs);
   line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
+/* A fixed height, so the frame can size itself against this box (any shape fits whole) and the prompt below
+   never squeezes the portrait. */
 .canvas {
   position: relative;
   display: flex;
-  flex: 1;
+  flex: none;
   align-items: center;
   justify-content: center;
-  min-height: 260px;
+  height: clamp(320px, 58vh, 600px);
+  container-type: size;
 }
 
 .emptyNote {
@@ -74,12 +90,11 @@
   text-align: center;
 }
 
-.hero {
+/* The portrait's frame in its shape (--frame-ratio, e.g. "9 / 16"), as large as the canvas allows. */
+.frame {
   position: relative;
-  height: 100%;
-  max-height: 100%;
-  aspect-ratio: 3 / 4;
-  max-width: 100%;
+  width: min(100cqw, 100cqh * (var(--frame-ratio)));
+  aspect-ratio: var(--frame-ratio);
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -88,35 +103,37 @@
   animation: reveal 0.45s ease-out;
 }
 
+/* What is being made, along the bottom of the loader so the animation stays clear. */
 .busy {
   position: absolute;
   z-index: 5;
-  inset: 0;
+  inset: auto 0 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  border-radius: var(--radius-panel);
-  background: color-mix(in srgb, var(--background) 90%, transparent);
-  backdrop-filter: blur(8px);
-  color: var(--primary);
+  gap: 10px;
+  padding: 28px 16px 18px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--background) 75%, transparent));
+}
+
+.sampleBadge {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  color: var(--foreground);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  backdrop-filter: blur(6px);
 }
 
 .busy strong {
   color: var(--foreground);
   font-size: var(--fs-md);
   font-weight: 500;
-}
-
-.busy button {
-  min-height: 36px;
-  padding: 8px 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 7px;
-  background: var(--surface-raised);
-  color: var(--subtle);
-  font-size: var(--fs-xs);
 }
 
 @keyframes reveal {
@@ -126,12 +143,8 @@
   }
 }
 
-.spinner {
-  composes: spinner from "../../../assets/styles/shared.module.css";
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .hero {
+  .frame {
     animation: none;
   }
 }
@@ -170,6 +183,37 @@
   white-space: nowrap;
 }
 
+.toolbarActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  transition: background 0.16s;
+}
+
+.download:hover {
+  background: var(--overlay-hover);
+}
+
+.download:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .saved {
   display: inline-flex;
   flex-shrink: 0;
@@ -185,66 +229,3 @@
 }
 
 /* The padding leaves room for the focus ring, which the scroll box would clip; the negative margin keeps the spacing. */
-.strip {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-  margin-block: -8px;
-  padding: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-}
-
-/* Centred when they fit. Auto margins, unlike justify-content: center, keep the first ones reachable when they scroll. */
-.strip > :first-child {
-  margin-inline-start: auto;
-}
-
-.strip > :last-child {
-  margin-inline-end: auto;
-}
-
-.thumb,
-.slot {
-  position: relative;
-  flex-shrink: 0;
-  width: 56px;
-  height: 72px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-raised);
-}
-
-.thumb {
-  padding: 0;
-  opacity: 0.7;
-  transition:
-    opacity 0.15s,
-    border-color 0.15s;
-}
-
-.thumb:hover:enabled,
-.thumb[aria-checked="true"] {
-  opacity: 1;
-}
-
-.thumb[aria-checked="true"] {
-  border-color: var(--primary);
-}
-
-.slot {
-  display: grid;
-  place-items: center;
-  border-style: dashed;
-  color: var(--muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .thumb {
-    transition: none;
-  }
-}

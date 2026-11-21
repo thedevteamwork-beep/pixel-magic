@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultTraits, MAX_EXTRA_LENGTH } from "@/components/ai-influencer/constants";
-import { composeInfluencerPrompt, displayName, seedFrom, traitLabel } from "./prompt";
+import { composeInfluencerPrompt, displayName, seedFrom, traitLabel, userNotesFromPrompt } from "./prompt";
 
 const everyTrait = {
   ...defaultTraits,
@@ -153,5 +153,25 @@ describe("helpers", () => {
   it("hashes deterministically", () => {
     expect(seedFrom("a")).toBe(seedFrom("a"));
     expect(seedFrom("a")).not.toBe(seedFrom("b"));
+  });
+});
+
+describe("userNotesFromPrompt", () => {
+  it("gives back only what the user wrote", () => {
+    const prompt = composeInfluencerPrompt(
+      { ...defaultTraits, extra: "freckles, gold hoop earrings" },
+      { photo: true },
+    );
+    expect(userNotesFromPrompt(prompt)).toBe("freckles, gold hoop earrings");
+  });
+
+  it("keeps notes that span several lines", () => {
+    const prompt = composeInfluencerPrompt({ ...defaultTraits, extra: "freckles\nsoft smile" });
+    expect(userNotesFromPrompt(prompt)).toBe("freckles\nsoft smile");
+  });
+
+  it("is empty when the user wrote nothing, or for a prompt in another format", () => {
+    expect(userNotesFromPrompt(composeInfluencerPrompt(defaultTraits))).toBe("");
+    expect(userNotesFromPrompt("a cat")).toBe("");
   });
 });

@@ -15,11 +15,6 @@
   min-height: 0;
 }
 
-.panel[data-view="result"] {
-  padding: 0 14px 14px;
-  overflow: hidden;
-}
-
 .tabs {
   display: flex;
   flex-shrink: 0;

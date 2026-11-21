@@ -608,6 +608,7 @@ export function ImageWorkspace({
             pending={pending}
             pendingCount={jobs.render?.count ?? 1}
             pendingModel={jobs.render?.modelName}
+            pendingRatio={jobs.render?.ratio}
             generationKey={generationKey}
             models={models ?? undefined}
             onReuse={reuse}

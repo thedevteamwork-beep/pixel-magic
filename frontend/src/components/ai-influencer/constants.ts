@@ -42,7 +42,17 @@ import type {
   TraitOption,
 } from "@/types/ai-influencer";
 
-export const VARIATION_COUNT = 4;
+/** One portrait per Generate: only one is shown at a time, and each image costs credits. */
+export const VARIATION_COUNT = 1;
+/**
+ * While on, Generate shows the loader and then a sample portrait from the app's own images: nothing is saved and no
+ * credits are spent. Turn off once the backend is deployed.
+ */
+export const USE_SAMPLE_PORTRAITS = true;
+/** How long a sample Generate shows the loader: long enough to refresh or leave the page and see it pick up again. */
+export const SAMPLE_RENDER_MS = 6000;
+/** How many of the user's newest image jobs are checked for an influencer Generate still running. */
+export const RESUME_JOBS_LOOKUP = 20;
 export const MAX_EXTRA_LENGTH = 500;
 export const MAX_NAME_LENGTH = 40;
 export const PROJECT_TYPE = "ai-influencer";

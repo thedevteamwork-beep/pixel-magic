@@ -1887,27 +1887,14 @@
   text-align: center;
 }
 
-.canvasPendingArt {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 95px;
-  height: 90px;
+/* The loader in the shape of the images on the way (--frame-ratio, e.g. "3 / 4"), as tall as the stage allows
+   and never wider than it, keeping the shape either way. */
+.canvasPendingFrame {
+  width: min(100%, min(52vh, 420px) * (var(--frame-ratio)));
+  aspect-ratio: var(--frame-ratio);
   margin-bottom: 25px;
-  color: var(--primary);
-}
-
-.canvasPendingArt > span {
-  position: absolute;
-  width: 64px;
-  height: 78px;
-  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
-  border-radius: 9px;
-  transform: rotate(-12deg);
-}
-
-.canvasPendingArt > span + span {
-  transform: rotate(8deg);
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .canvasPending h3 {
@@ -2671,41 +2658,23 @@
   color: var(--danger) !important;
 }
 
+/* An image on the way: the loader in the image's shape, with what is being made below it. */
 .pendingCard {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-direction: column;
-  aspect-ratio: 3 / 4;
-  min-height: 250px;
-  gap: 13px;
-  padding: 24px 16px;
-  border: 1px solid var(--border);
-  border-radius: 11px;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--primary) 5%, var(--surface)), var(--surface));
+  gap: 8px;
   text-align: center;
 }
 
-.pendingArt {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 75px;
-  height: 75px;
-  margin-bottom: 8px;
-  color: var(--primary);
+.pendingFrame {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
 }
 
-.pendingOrbit {
-  position: absolute;
-  inset: 0;
-  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 4s linear infinite;
-}
-
-.pendingCard > span:not(.pendingArt) {
+.pendingCard > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -7,7 +7,7 @@ import { notifyCreditsChanged } from "@/lib/balance";
 import { pollJob } from "@/lib/generate/pollJob";
 import { submitGeneration } from "@/lib/generate/submit";
 import { uploadFile } from "@/lib/generate/uploadFile";
-import { imageCount } from "@/lib/image-generator/models";
+import { imageCount, shapeOf } from "@/lib/image-generator/models";
 import { isActiveJob, jobToResults, mergeResults, urlExpired } from "@/lib/image-generator/results";
 import type { ImageOptionValue, ImageResult, StudioModel } from "@/types/image-generator";
 import { HISTORY_PAGE_SIZE, IMAGE_POLL_INTERVAL_MS, IMAGE_WAIT_LIMIT_MS, SAMPLE_RENDER_MS } from "./constants";
@@ -22,7 +22,8 @@ export class StillRunningError extends Error {
 }
 
 /** A job being made right now, shown as placeholders. */
-export type ActiveRender = { count: number; modelName: string };
+/** The generation being made: how many images, by which model, and their shape (e.g. "3:4") for the loader frames. */
+export type ActiveRender = { count: number; modelName: string; ratio: string };
 
 export type GenerateRequest = {
   model: StudioModel;
@@ -135,9 +136,11 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
         const running = jobs.find(isActiveJob);
         const model = running && models.find((item) => item.key === running.model);
         if (!running || !model || polling.current) return;
+        const input = running.input as Record<string, ImageOptionValue>;
         return follow(running, {
-          count: imageCount(model, running.input as Record<string, ImageOptionValue>),
+          count: imageCount(model, input),
           modelName: model.name,
+          ratio: shapeOf(model, input)?.ratio ?? "1:1",
         });
       })
       // History is a convenience: a failure leaves the studio usable, and a failed resumed job shows in history.
@@ -168,7 +171,11 @@ export function useImageJobs(models: readonly StudioModel[] | null, signedIn: bo
         attempt.current = { key: newIdempotencyKey(), signature, uploadIds: [] };
       }
       const current = attempt.current;
-      const active = { count: imageCount(request.model, request.options), modelName: request.model.name };
+      const active = {
+        count: imageCount(request.model, request.options),
+        modelName: request.model.name,
+        ratio: shapeOf(request.model, request.options)?.ratio ?? "1:1",
+      };
       setRender(active);
       if (sample) {
         await new Promise((resolve) => setTimeout(resolve, SAMPLE_RENDER_MS));

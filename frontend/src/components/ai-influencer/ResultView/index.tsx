@@ -1,19 +1,22 @@
 "use client";
 
-import { composeInfluencerPrompt, displayName, traitLabel } from "@/lib/ai-influencer/prompt";
+import { downloadPortrait } from "@/lib/ai-influencer/download";
+import { displayName, traitLabel } from "@/lib/ai-influencer/prompt";
 import { useInfluencer } from "../InfluencerContext";
 import { ErrorBanner } from "./ErrorBanner";
 import { PromptDetails } from "./PromptDetails";
 import { ResultCanvas } from "./ResultCanvas";
 import { ResultToolbar } from "./ResultToolbar";
-import { VariationStrip } from "./VariationStrip";
 import styles from "./main.module.css";
 
 export function ResultView() {
-  const { state, dispatch, cancel, referencesUsed } = useInfluencer();
+  const { state, dispatch, aspectRatio, reuseInputs } = useInfluencer();
   const { traits, variations, selectedId, status, projectId } = state;
   const busy = status === "generating";
   const selected = variations.find((item) => item.id === selectedId) ?? null;
+  const userPrompt = selected?.userPrompt ?? traits.extra.trim();
+  // The shown influencer's inputs can come back once it is saved in History.
+  const canReuse = selected !== null && !busy && state.projects.some((project) => project.projectId === projectId);
   const summary = [
     traitLabel("age", traits.age),
     traits.ethnicity && traitLabel("ethnicity", traits.ethnicity),
@@ -24,21 +27,20 @@ export function ResultView() {
 
   return (
     <div className={styles.result}>
-      <ResultToolbar name={displayName(traits)} summary={summary} saved={projectId !== null} />
-      <ResultCanvas selected={selected} busy={busy} name={displayName(traits)} onCancel={cancel} />
-      <VariationStrip
-        variations={variations}
-        selectedId={selectedId}
-        busy={busy}
-        onSelect={(id) => dispatch({ type: "select", id })}
+      <ResultToolbar
+        name={displayName(traits)}
+        summary={summary}
+        saved={projectId !== null}
+        onReuse={canReuse ? reuseInputs : undefined}
+        onDownload={selected && !busy ? () => void downloadPortrait(displayName(traits), selected.url) : undefined}
       />
+      <ResultCanvas selected={selected} busy={busy} name={displayName(traits)} aspectRatio={aspectRatio} />
       {state.error && <ErrorBanner message={state.error} onDismiss={() => dispatch({ type: "dismissError" })} />}
-      <PromptDetails prompt={composeInfluencerPrompt(traits, referencesUsed)} />
-      {/* The strip shows every variation, so this count matches it. */}
+      {/* What the user wrote for the portrait on show (a sample influencer opened from History keeps it in its saved
+          notes). Hidden while the next one is being made, and when they wrote nothing. */}
+      {selected && !busy && userPrompt && <PromptDetails prompt={userPrompt} />}
       <span className={styles.srOnly} aria-live="polite">
-        {variations.length && !busy
-          ? `${variations.length} ${variations.length === 1 ? "variation" : "variations"} ready.`
-          : ""}
+        {selected && !busy ? `${displayName(traits)}'s portrait is ready.` : ""}
       </span>
     </div>
   );

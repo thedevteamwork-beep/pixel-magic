@@ -49,12 +49,18 @@ export type InfluencerVariation = {
   url: string;
   alt: string;
   seed?: number;
+  /** The shape it was made in (e.g. "4:5"); older jobs have none. */
+  aspectRatio?: string;
+  /** What the user wrote for it (their notes, not the system prompt); empty when they wrote nothing. */
+  userPrompt?: string;
+  /** A sample portrait shown while USE_SAMPLE_PORTRAITS is on, not a real render. */
+  sample?: boolean;
   /** Visual variety for the sample portraits. Real renders leave these out. */
   hue?: number;
   position?: string;
 };
 
-export type StageView = "explore" | "result" | "templates" | "history";
+export type StageView = "explore" | "templates" | "history";
 
 /** A ready-made persona shown on the Explore tab. Sample art only. */
 export type FeaturedInfluencer = {

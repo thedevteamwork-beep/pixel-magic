@@ -11,7 +11,7 @@ import { ApiError, type ApiClient } from "@/lib/api/client";
 import type { JobList, JobView, ProjectList, ProjectView, PublicModel } from "@/lib/api/types";
 import { buildInput, defaultOptions, imageFieldName } from "@/lib/generate/formFromSchema";
 import type { InfluencerTraits, InfluencerVariation, ReferencePhoto, TraitKey } from "@/types/ai-influencer";
-import { composeInfluencerPrompt } from "./prompt";
+import { composeInfluencerPrompt, userNotesFromPrompt } from "./prompt";
 
 export type InfluencerProjectData = {
   traits: Partial<Record<TraitKey, string>>;
@@ -92,9 +92,13 @@ export function variationsFromJobs(jobs: JobView[], alt: string): InfluencerVari
   const variations: InfluencerVariation[] = [];
   for (const job of jobs) {
     if (job.status !== "completed") continue;
+    const { aspect_ratio: ratio, prompt } = job.input;
     for (const output of job.outputs) {
       if (!output.url) continue;
-      variations.push({ id: `${job.jobId}-${output.index}`, url: output.url, alt });
+      const variation: InfluencerVariation = { id: `${job.jobId}-${output.index}`, url: output.url, alt };
+      if (typeof ratio === "string") variation.aspectRatio = ratio;
+      if (typeof prompt === "string") variation.userPrompt = userNotesFromPrompt(prompt);
+      variations.push(variation);
     }
   }
   return variations;

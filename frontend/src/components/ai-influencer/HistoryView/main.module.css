@@ -1,3 +1,16 @@
+/* The influencer being made or opened, above the saved ones. */
+.latest {
+  padding: 0 24px;
+}
+
+.heading {
+  margin: 0;
+  padding: 24px 24px 0;
+  color: var(--foreground);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));

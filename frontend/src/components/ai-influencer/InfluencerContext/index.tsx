@@ -15,10 +15,13 @@ import {
 import {
   archetypes,
   DEFAULT_ASPECT_RATIO,
+  RESUME_JOBS_LOOKUP,
   defaultTraits,
   POLL_INTERVAL_MS,
+  SAMPLE_RENDER_MS,
   textFieldRules,
   traitGroups,
+  USE_SAMPLE_PORTRAITS,
   type TextField,
   type TextValues,
 } from "@/components/ai-influencer/constants";
@@ -47,10 +50,24 @@ import {
   variationsFromJobs,
 } from "@/lib/ai-influencer/projects";
 import type { ReferencesUsed } from "@/lib/ai-influencer/prompt";
+import {
+  isSampleProject,
+  newSampleProjectId,
+  samplePortrait,
+  sampleProject,
+  sampleProjects,
+} from "@/lib/ai-influencer/samples";
+import {
+  clearPendingSample,
+  pendingInfluencerJob,
+  readPendingSample,
+  savePendingSample,
+  type PendingSample,
+} from "@/lib/ai-influencer/resume";
 import { restoreStyle, styleForGenerate, type RestoredStyle } from "@/lib/ai-influencer/styles";
 import { imageFileError, uploadImage } from "@/lib/ai-influencer/upload";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
-import type { JobView, ProjectView, PublicModel } from "@/lib/api/types";
+import type { JobList, JobView, ProjectView, PublicModel } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
 import { imageFieldName } from "@/lib/generate/formFromSchema";
 import { messageForError } from "@/lib/generate/messages";
@@ -118,7 +135,9 @@ type Action =
   | { type: "projectsStatus"; status: ProjectsStatus }
   | { type: "project"; view: ProjectView }
   | { type: "variations"; variations: InfluencerVariation[] }
-  | { type: "removed"; id: string };
+  | { type: "removed"; id: string }
+  | { type: "upsertProject"; view: ProjectView }
+  | { type: "resume"; traits: InfluencerTraits; archetypeId: string | null; aspectRatio: string };
 
 const initial: State = {
   traits: { ...defaultTraits },
@@ -192,12 +211,11 @@ function reducer(state: State, action: Action): State {
         projectId: null,
         variations: [],
         selectedId: null,
-        view: state.view === "result" ? "explore" : state.view,
       };
     case "randomize":
       return { ...state, traits: { ...state.traits, ...action.picks }, archetypeId: null };
     case "start":
-      return { ...state, status: "generating", error: "", view: "result" };
+      return { ...state, status: "generating", error: "", view: "history" };
     case "done":
       return { ...state, status: "idle", variations: action.variations, selectedId: action.variations[0]?.id ?? null };
     case "fail":
@@ -232,12 +250,39 @@ function reducer(state: State, action: Action): State {
       };
     case "variations":
       return { ...state, variations: action.variations, selectedId: action.variations[0]?.id ?? null, error: "" };
+    // A Generate still running when the page came back: its influencer, in History, with the loader.
+    case "resume":
+      return {
+        ...state,
+        traits: action.traits,
+        archetypeId: action.archetypeId,
+        aspectRatio: action.aspectRatio,
+        status: "generating",
+        error: "",
+        view: "history",
+      };
+    // A project saved here (a sample Generate): it replaces its old copy, or joins History at the top.
+    case "upsertProject": {
+      const rest = state.projects.filter((project) => project.projectId !== action.view.projectId);
+      return { ...state, projects: [action.view, ...rest] };
+    }
     case "removed": {
       const projects = state.projects.filter((project) => project.projectId !== action.id);
       if (action.id !== state.projectId) return { ...state, projects };
       return { ...state, projects, projectId: null, variations: [], selectedId: null };
     }
   }
+}
+
+/** Resolves after `ms`, or as soon as `signal` aborts. */
+function waitFor(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 function isSessionEnded(error: unknown): boolean {
@@ -263,11 +308,6 @@ function settingsFromProject(view: ProjectView): SavedSettings {
     photoUploadId: typeof photoUploadId === "string" ? photoUploadId : undefined,
     styleId: styleIdFromProject(view) ?? undefined,
   };
-}
-
-function showProjectInUrl(projectId: string | null) {
-  const path = projectId ? `/influencer?project=${encodeURIComponent(projectId)}` : "/influencer";
-  window.history.replaceState(null, "", path);
 }
 
 // What one Generate remembers for a retry: its key, the photo it already uploaded, and what it asked for.
@@ -301,6 +341,8 @@ type InfluencerContextValue = {
   modelTakesReference: boolean;
   /** Which of the attached photo and picked style the selected model receives (it may take only one image). */
   referencesUsed: ReferencesUsed;
+  /** Puts the shown influencer's inputs back in the left panel. */
+  reuseInputs: () => void;
   /** The aspect ratio the next Generate sends: the picked one when the model offers it. */
   aspectRatio: string;
   setAspectRatio: (value: string) => void;
@@ -326,6 +368,13 @@ export function InfluencerProvider({
   // Bumped by every open, Generate, New influencer and removal of the open project.
   // A result that arrives later applies only while its number is still the latest, so an older request can't win.
   const latest = useRef(0);
+  /** History as last rendered, so opening a sample influencer can find it without asking the backend. */
+  const projectsRef = useRef<ProjectView[]>([]);
+  useEffect(() => {
+    projectsRef.current = state.projects;
+  });
+  /** The project on show or being opened, so removing it from History lets it go. */
+  const shownProjectId = useRef<string | null>(null);
   /** savedForm() of what the server holds for the open project. */
   const saved = useRef<string | null>(null);
   const modelsError = useRef<unknown>(null);
@@ -341,78 +390,205 @@ export function InfluencerProvider({
     fields.current[key] = node;
   }, []);
 
-  /** Sends the user to sign in, then back to this page (with `?project=` when set). */
+  /** Sends the user to sign in, then back to this page. */
   const signIn = useCallback(() => {
     router.push(`/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
   }, [router]);
 
   /** Makes `view` the open project, as the server has it. */
   const keepProject = useCallback((view: ProjectView) => {
+    shownProjectId.current = view.projectId;
     saved.current = savedForm(traitsFromProject(view), archetypeFromProject(view), settingsFromProject(view));
     dispatch({ type: "project", view });
-    showProjectInUrl(view.projectId);
   }, []);
 
-  const loadProjects = useCallback(async (cursor?: string) => {
+  /** Loads a History page. Resolves to its influencers, or null when it failed. */
+  const loadProjects = useCallback(async (cursor?: string): Promise<ProjectView[] | null> => {
     dispatch({ type: "projectsStatus", status: "loading" });
     try {
       const page = await listInfluencerProjects(api, cursor);
       dispatch({ type: "projects", projects: page.projects, cursor: page.nextCursor, append: cursor !== undefined });
+      return page.projects;
     } catch (error) {
       dispatch({ type: "projectsStatus", status: isSessionEnded(error) ? "signed-out" : "error" });
+      return null;
     }
   }, []);
+
+  /**
+   * Fills the left panel from a saved influencer: its options, name, notes and ratio, the face photo it saved (any
+   * photo attached before is let go) and its style, fetched by id.
+   */
+  const applyProjectInputs = useCallback(
+    (view: ProjectView) => {
+      keepProject(view);
+      if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
+      photoUrl.current = null;
+      photoFile.current = null;
+      dispatch({ type: "reference", reference: photoFromProject(view) });
+      dispatch({ type: "style", style: null });
+      pendingStyle.current = null;
+      const styleId = styleIdFromProject(view);
+      if (styleId) {
+        const restoring = { id: styleId, promise: restoreStyle(api, styleId) };
+        pendingStyle.current = restoring;
+        void restoring.promise.then(({ style: saved }) => {
+          // Not when the user picked or cleared a style since, or opened another influencer.
+          if (saved && pendingStyle.current === restoring) dispatch({ type: "style", style: saved });
+        });
+      }
+    },
+    [keepProject],
+  );
 
   /** Opens project `id`, unless something newer started after `token`. */
   const loadProject = useCallback(
     async (id: string, token: number) => {
       if (token !== latest.current) return;
+      if (isSampleProject(id)) {
+        // A sample influencer has no backend project: its cover is its portrait.
+        const view = projectsRef.current.find((project) => project.projectId === id);
+        if (!view) return;
+        applyProjectInputs(view);
+        const ratio = aspectRatioFromProject(view) ?? undefined;
+        const portrait = view.cover && { id: `${id}-cover`, url: view.cover.url, alt: `${view.title} portrait` };
+        dispatch({
+          type: "variations",
+          variations: portrait ? [{ ...portrait, aspectRatio: ratio, sample: true }] : [],
+        });
+        dispatch({ type: "view", view: "history" });
+        return;
+      }
+      shownProjectId.current = id;
       try {
         const [view, page] = await Promise.all([getInfluencerProject(api, id), listProjectJobs(api, id)]);
         if (token !== latest.current) return;
-        keepProject(view);
-        // The saved face photo comes back signed with the project; a photo attached before is let go.
-        if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
-        photoUrl.current = null;
-        photoFile.current = null;
-        dispatch({ type: "reference", reference: photoFromProject(view) });
-        dispatch({ type: "style", style: null });
-        pendingStyle.current = null;
-        const styleId = styleIdFromProject(view);
-        if (styleId) {
-          const restoring = { id: styleId, promise: restoreStyle(api, styleId) };
-          pendingStyle.current = restoring;
-          void restoring.promise.then(({ style: saved }) => {
-            // Not when the user picked or cleared a style since, or opened another influencer.
-            if (saved && pendingStyle.current === restoring) dispatch({ type: "style", style: saved });
-          });
-        }
+        applyProjectInputs(view);
         dispatch({ type: "variations", variations: variationsFromJobs(page.jobs, `${view.title} portrait`) });
-        dispatch({ type: "view", view: "result" });
+        dispatch({ type: "view", view: "history" });
       } catch (error) {
         if (token !== latest.current) return;
         if (isSessionEnded(error)) signIn();
         dispatch({ type: "fail", message: messageForError(error) });
-        dispatch({ type: "view", view: "result" });
+        dispatch({ type: "view", view: "history" });
       }
     },
-    [keepProject, signIn],
+    [applyProjectInputs, signIn],
   );
+
+  /** Puts the shown influencer's inputs back in the left panel, undoing edits made since it was made or opened. */
+  const reuseInputs = useCallback(() => {
+    const view = projectsRef.current.find((project) => project.projectId === shownProjectId.current);
+    if (view) applyProjectInputs(view);
+  }, [applyProjectInputs]);
 
   const openProject = useCallback((id: string) => loadProject(id, ++latest.current), [loadProject]);
 
   /** Lets go of the open project: the next Generate creates a new one, and results still loading for it are dropped. */
   const forgetProject = useCallback(() => {
     latest.current += 1;
+    shownProjectId.current = null;
     saved.current = null;
     attempt.current = null;
-    showProjectInUrl(null);
   }, []);
+
+  /** Shows a finished sample Generate and keeps it in History, like the backend keeps a real one. */
+  const finishSample = useCallback(
+    (sample: Omit<PendingSample, "startedAt">) => {
+      const portrait = {
+        ...samplePortrait(sample.traits, sample.archetypeId, sample.aspectRatio),
+        userPrompt: sample.traits.extra.trim(),
+      };
+      // The same influencer again updates its card.
+      const sampleId = sample.projectId && isSampleProject(sample.projectId) ? sample.projectId : newSampleProjectId();
+      const view = sampleProject(sampleId, sample.traits, sample.archetypeId, portrait);
+      keepProject(view);
+      dispatch({ type: "upsertProject", view });
+      dispatch({ type: "done", variations: [portrait] });
+    },
+    [keepProject],
+  );
+
+  /** A sample Generate left running when the page went away: its loader for the time left, then its portrait. */
+  const resumeSample = useCallback(
+    async (left: { pending: PendingSample; remainingMs: number }, token: number) => {
+      if (token !== latest.current || running.current) return;
+      const next = new AbortController();
+      controller.current = next;
+      running.current = true;
+      const { pending } = left;
+      dispatch({
+        type: "resume",
+        traits: pending.traits,
+        archetypeId: pending.archetypeId,
+        aspectRatio: pending.aspectRatio,
+      });
+      try {
+        await waitFor(left.remainingMs, next.signal);
+        if (next.signal.aborted || token !== latest.current) return;
+        clearPendingSample(window.sessionStorage);
+        finishSample(pending);
+      } finally {
+        running.current = false;
+        if (token !== latest.current) dispatch({ type: "cancel" });
+      }
+    },
+    [finishSample],
+  );
+
+  /** A real Generate still running when the page came back: its influencer, in History, with the loader until done. */
+  const resumeJob = useCallback(
+    async (projects: ProjectView[], token: number) => {
+      let jobs: JobView[];
+      try {
+        jobs = (await api.get<JobList>(`/v1/jobs?kind=image&limit=${RESUME_JOBS_LOOKUP}`)).jobs;
+      } catch {
+        return; // Nothing to pick up; the job still finishes and shows in History.
+      }
+      const job = pendingInfluencerJob(jobs, new Set(projects.map((project) => project.projectId)));
+      const view = job && projects.find((project) => project.projectId === job.projectId);
+      if (!job || !view || token !== latest.current || running.current) return;
+      const next = new AbortController();
+      controller.current = next;
+      running.current = true;
+      applyProjectInputs(view);
+      const ratio = job.input.aspect_ratio;
+      dispatch({
+        type: "resume",
+        traits: traitsFromProject(view),
+        archetypeId: archetypeFromProject(view),
+        aspectRatio: typeof ratio === "string" ? ratio : (aspectRatioFromProject(view) ?? DEFAULT_ASPECT_RATIO),
+      });
+      try {
+        const finished = await pollJob(job.jobId, {
+          get: api.get,
+          intervalMs: POLL_INTERVAL_MS,
+          signal: next.signal,
+        }).finally(() => {
+          if (!next.signal.aborted) notifyCreditsChanged();
+        });
+        if (token === latest.current) {
+          dispatch({ type: "done", variations: variationsFromJobs([finished], `${view.title} portrait`) });
+        }
+      } catch (error) {
+        if (next.signal.aborted || token !== latest.current) return;
+        dispatch({ type: "fail", message: messageForError(error) });
+      } finally {
+        running.current = false;
+        if (token !== latest.current) dispatch({ type: "cancel" });
+        // Its card may have a new cover.
+        void loadProjects();
+      }
+    },
+    [applyProjectInputs, loadProjects],
+  );
 
   // Models first (public), then the signed-in user's projects, then the project from the URL.
   useEffect(() => {
     // Taken now, so a Generate pressed while the page is still loading wins over the project in the URL.
     const token = ++latest.current;
+    // The link has done its job: a refresh opens the main page, and the address can't name another influencer.
+    if (initialProjectId) window.history.replaceState(null, "", "/influencer");
     async function load() {
       try {
         dispatch({ type: "models", models: influencerImageModels(await api.get<PublicModel[]>("/v1/models")) });
@@ -420,11 +596,20 @@ export function InfluencerProvider({
         modelsError.current = error;
         dispatch({ type: "fail", message: messageForError(error) });
       }
-      await loadProjects();
+      // Sample mode shows a sample History, so the page can be seen without saved influencers.
+      // A Generate still running when the page went away comes back with its loader (in History, not Explore).
+      if (USE_SAMPLE_PORTRAITS) {
+        dispatch({ type: "projects", projects: sampleProjects(), cursor: null });
+        const left = readPendingSample(window.sessionStorage, Date.now());
+        if (left && !initialProjectId) void resumeSample(left, token);
+      } else {
+        const projects = await loadProjects();
+        if (projects && !initialProjectId) await resumeJob(projects, token);
+      }
       if (initialProjectId) await loadProject(initialProjectId, token);
     }
     void load();
-  }, [initialProjectId, loadProjects, loadProject]);
+  }, [initialProjectId, loadProjects, loadProject, resumeSample, resumeJob]);
 
   useEffect(() => {
     return () => {
@@ -472,6 +657,20 @@ export function InfluencerProvider({
     let savedProject = false;
 
     try {
+      if (USE_SAMPLE_PORTRAITS) {
+        // A preview while the backend isn't deployed: the loader for a moment, then a sample portrait.
+        // Nothing is saved and no credits are spent. It is remembered in the tab until it finishes, so leaving or
+        // refreshing the page picks it up again.
+        const sample = { traits: submitted, archetypeId, aspectRatio, projectId };
+        savePendingSample(window.sessionStorage, { ...sample, startedAt: Date.now() });
+        await waitFor(SAMPLE_RENDER_MS, next.signal);
+        // Aborted when the page went away: it stays remembered for when the page comes back.
+        if (next.signal.aborted || !isLatest()) return null;
+        clearPendingSample(window.sessionStorage);
+        finishSample(sample);
+        return null;
+      }
+
       const model = selectedModel;
       if (!model) throw modelsError.current ?? new Error("No image model is available.");
 
@@ -589,10 +788,12 @@ export function InfluencerProvider({
     referencesUsed,
     aspectRatio,
     loadProjects,
+    finishSample,
   ]);
 
   const cancel = useCallback(() => {
     controller.current?.abort();
+    clearPendingSample(window.sessionStorage);
     dispatch({ type: "cancel" });
   }, []);
 
@@ -635,6 +836,7 @@ export function InfluencerProvider({
       forgetProject();
       removeReference();
       pendingStyle.current = null;
+      clearPendingSample(window.sessionStorage);
       dispatch({ type: "reset" });
       if (look) dispatch({ type: "archetype", id: look.archetypeId, name: look.name });
     },
@@ -644,15 +846,15 @@ export function InfluencerProvider({
   const removeProject = useCallback(
     async (id: string) => {
       try {
-        await deleteInfluencerProject(api, id);
+        if (!isSampleProject(id)) await deleteInfluencerProject(api, id);
       } catch (error) {
         if (isSessionEnded(error)) signIn();
         dispatch({ type: "fail", message: messageForError(error) });
         return;
       }
       dispatch({ type: "removed", id });
-      // The URL names the open project, including one still loading from `?project=`.
-      if (new URLSearchParams(window.location.search).get("project") === id) forgetProject();
+      // The open project, including one still loading.
+      if (shownProjectId.current === id) forgetProject();
     },
     [signIn, forgetProject],
   );
@@ -684,6 +886,7 @@ export function InfluencerProvider({
       referencesUsed,
       aspectRatio,
       setAspectRatio,
+      reuseInputs,
     }),
     [
       state,
@@ -703,6 +906,7 @@ export function InfluencerProvider({
       referencesUsed,
       aspectRatio,
       setAspectRatio,
+      reuseInputs,
     ],
   );
   return <InfluencerContext.Provider value={value}>{children}</InfluencerContext.Provider>;

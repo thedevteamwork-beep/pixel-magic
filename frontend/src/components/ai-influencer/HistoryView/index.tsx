@@ -4,15 +4,37 @@ import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/ui/Button";
 import { useInfluencer } from "../InfluencerContext";
+import { ResultView } from "../ResultView";
 import { EmptyHistory } from "./EmptyHistory";
 import { HistoryCard } from "./HistoryCard";
 import styles from "./main.module.css";
 
-/** Saved influencers: one project each, kept in the signed-in account. */
+/** The influencer being made or opened, large, on top; below it the saved influencers, one project each. */
 export function HistoryView() {
+  const { state } = useInfluencer();
+  // Something to show on top: a portrait on its way, the latest result, an opened influencer, or what went wrong.
+  const showLatest =
+    state.status === "generating" || state.variations.length > 0 || state.projectId !== null || state.error !== "";
+  return (
+    <>
+      {showLatest && (
+        <section className={styles.latest} aria-label="Latest influencer">
+          <ResultView />
+        </section>
+      )}
+      {showLatest && state.projects.length > 0 && <h3 className={styles.heading}>Your influencers</h3>}
+      <SavedInfluencers compact={showLatest} />
+    </>
+  );
+}
+
+/** The saved influencers. `compact` drops the full-page empty states when the latest influencer is shown above. */
+function SavedInfluencers({ compact }: { compact: boolean }) {
   const { state, dispatch, openProject, removeProject, loadMoreProjects } = useInfluencer();
   const { projects, projectsCursor, projectsStatus } = state;
   const loading = projectsStatus === "loading";
+
+  if (compact && !projects.length) return null;
 
   if (projectsStatus === "signed-out")
     return (

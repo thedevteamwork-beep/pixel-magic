@@ -106,6 +106,27 @@ describe("archetypeFromProject", () => {
   });
 });
 
+describe("variationsFromJobs aspect ratio", () => {
+  const output = { index: 0, mimeType: "image/png", url: "https://storage.test/0.png" };
+
+  it("keeps the shape each job was made in", () => {
+    const shaped = jobView("completed", { input: { aspect_ratio: "9:16" }, outputs: [output] });
+    const [variation] = variationsFromJobs([shaped], "Mira portrait");
+    expect(variation.aspectRatio).toBe("9:16");
+  });
+
+  it("keeps only what the user wrote in each job's prompt", () => {
+    const prompt = composeInfluencerPrompt({ ...defaultTraits, extra: "freckles" });
+    const made = jobView("completed", { input: { prompt }, outputs: [output] });
+    expect(variationsFromJobs([made], "Mira portrait")[0].userPrompt).toBe("freckles");
+  });
+
+  it("leaves the shape out for a job made without one", () => {
+    const [variation] = variationsFromJobs([jobView("completed", { input: {}, outputs: [output] })], "Mira portrait");
+    expect(variation).not.toHaveProperty("aspectRatio");
+  });
+});
+
 describe("variationsFromJobs", () => {
   it("keeps completed outputs with a url, in order", () => {
     const jobs = [
@@ -121,10 +142,11 @@ describe("variationsFromJobs", () => {
       jobView("queued", { jobId: "q" }),
       jobView("completed", { jobId: "b", outputs: [{ index: 0, mimeType: "image/png", url: "b0" }] }),
     ];
+    // The fixture's prompt ("a cat") has no user notes, so each has an empty one.
     expect(variationsFromJobs(jobs, "Portrait")).toEqual([
-      { id: "a-0", url: "u0", alt: "Portrait" },
-      { id: "a-2", url: "u2", alt: "Portrait" },
-      { id: "b-0", url: "b0", alt: "Portrait" },
+      { id: "a-0", url: "u0", alt: "Portrait", userPrompt: "" },
+      { id: "a-2", url: "u2", alt: "Portrait", userPrompt: "" },
+      { id: "b-0", url: "b0", alt: "Portrait", userPrompt: "" },
     ]);
   });
 });
@@ -201,11 +223,11 @@ describe("aspect ratio", () => {
     expect(pickAspectRatio(wide, null)).toBe("16:9");
   });
 
-  it("sends the picked ratio to Nano Banana with four images and both references", () => {
+  it("sends the picked ratio to Nano Banana with one image and both references", () => {
     const traits = { ...defaultTraits, name: "Mira" };
     const input = influencerInput(nanoBanana, traits, { photo: "u1", style: "s1" }, "4:5");
     expect(input.aspect_ratio).toBe("4:5");
-    expect(input.num_images).toBe(4);
+    expect(input.num_images).toBe(1);
     expect(input.image).toEqual(["u1", "s1"]);
     expect(influencerInput(nanoBanana, traits, {}, "9:16").aspect_ratio).toBe("9:16");
     expect(influencerInput(nanoBanana, traits, {}, "7:3").aspect_ratio).toBe("4:5");
@@ -266,14 +288,14 @@ describe("usedReferences", () => {
 describe("influencerInput", () => {
   const traits = { ...defaultTraits, name: "Mira", hairColor: "black" };
 
-  it("asks flux for four portrait images", () => {
+  it("asks flux for one portrait image", () => {
     const input = influencerInput(fluxSchnell, traits, {}, "4:5");
     expect(input.image_size).toBe("portrait_4_3");
-    expect(input.num_images).toBe(4);
+    expect(input.num_images).toBe(1);
     expect(input.prompt).toBe(composeInfluencerPrompt(traits));
   });
 
-  it("caps num_images at the model maximum and skips an image_size without portrait_4_3", () => {
+  it("asks for one image within the model maximum and skips an image_size without portrait_4_3", () => {
     const model: PublicModel = {
       ...fluxSchnell,
       input: {
@@ -283,7 +305,7 @@ describe("influencerInput", () => {
       },
     };
     const input = influencerInput(model, traits, {}, "4:5");
-    expect(input.num_images).toBe(2);
+    expect(input.num_images).toBe(1);
     expect(input.image_size).toBe("square");
   });
 
