@@ -14,11 +14,15 @@ import { readmeExampleMapping } from "../helpers/creditMappings.js";
 
 const app = () => createApp(makeDeps().deps);
 
-describe("POST /v1/credits/estimate/:plugin/:operation", () => {
+describe("POST /v1/credits/estimate", () => {
   it("estimates kling21 text-to-video 10 s", async () => {
     const res = await request(app())
-      .post("/v1/credits/estimate/kling21/generate")
-      .send({ input: { prompt: "waves", duration: "10" } });
+      .post("/v1/credits/estimate")
+      .send({
+        plugin: "kling21",
+        operation: "generate",
+        input: { prompt: "waves", duration: "10" },
+      });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       model: "kling21_generate",
@@ -42,8 +46,13 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
 
   it("multiplies by count", async () => {
     const res = await request(app())
-      .post("/v1/credits/estimate/kling21/generate")
-      .send({ input: { prompt: "waves", duration: "5" }, count: 3 });
+      .post("/v1/credits/estimate")
+      .send({
+        plugin: "kling21",
+        operation: "generate",
+        input: { prompt: "waves", duration: "5" },
+        count: 3,
+      });
     expect(res.body).toMatchObject({
       creditsPerJob: 100,
       totalCredits: 300,
@@ -53,13 +62,17 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
 
   it("charges a model priced per image for each image it makes", async () => {
     const one = await request(app())
-      .post("/v1/credits/estimate/gpt2/generate")
+      .post("/v1/credits/estimate")
       .send({
+        plugin: "gpt2",
+        operation: "generate",
         input: { prompt: "a cat", output_resolution: "2K", quality: "high" },
       });
     const three = await request(app())
-      .post("/v1/credits/estimate/gpt2/generate")
+      .post("/v1/credits/estimate")
       .send({
+        plugin: "gpt2",
+        operation: "generate",
         input: {
           prompt: "a cat",
           output_resolution: "2K",
@@ -89,8 +102,12 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     };
     const { deps } = makeDeps({ creditMapping });
     const res = await request(createApp(deps))
-      .post("/v1/credits/estimate/kling21/generate")
-      .send({ input: { prompt: "waves", duration: "5" } });
+      .post("/v1/credits/estimate")
+      .send({
+        plugin: "kling21",
+        operation: "generate",
+        input: { prompt: "waves", duration: "5" },
+      });
     expect(res.body.creditsPerJob).toBe(13); // 12.5 → 13
   });
 
@@ -112,8 +129,12 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     };
     const { deps } = makeDeps({ creditMapping });
     const res = await request(createApp(deps))
-      .post("/v1/credits/estimate/kling21/generate")
-      .send({ input: { prompt: "waves", duration: "5" } });
+      .post("/v1/credits/estimate")
+      .send({
+        plugin: "kling21",
+        operation: "generate",
+        input: { prompt: "waves", duration: "5" },
+      });
     // 6.25 + 6.25 = 12.5 → 13 (rounding each meter would give 14).
     expect(res.body.creditsPerJob).toBe(13);
   });
@@ -128,8 +149,8 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       num_images: 4,
     };
     const estimate = await request(api)
-      .post("/v1/credits/estimate/gpt2/generate")
-      .send({ input });
+      .post("/v1/credits/estimate")
+      .send({ plugin: "gpt2", operation: "generate", input });
     await resetDb();
     await seedTestCatalog(testDb);
     const userId = await createFundedUser(deps, 500);
@@ -160,8 +181,8 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     const api = createApp(deps);
     const body = { input: { prompt: "a cat", duration: "5" } };
     const estimate = await request(api)
-      .post("/v1/credits/estimate/kling21/generate")
-      .send(body);
+      .post("/v1/credits/estimate")
+      .send({ plugin: "kling21", operation: "generate", ...body });
     await resetDb();
     await seedTestCatalog(testDb);
     const userId = await createFundedUser(deps, 100);
@@ -201,8 +222,10 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
   it("explains creditsPerJob: base credits plus the breakdown, rounded up once", async () => {
     const { deps } = makeDeps({ creditMapping: readmeExampleMapping() });
     const res = await request(createApp(deps))
-      .post("/v1/credits/estimate/kling21/generate")
+      .post("/v1/credits/estimate")
       .send({
+        plugin: "kling21",
+        operation: "generate",
         input: { prompt: "waves", duration: "5", image: [randomUUID()] },
       });
     expect(res.status).toBe(200);
@@ -247,8 +270,12 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
       };
       const { deps } = makeDeps({ creditMapping });
       const res = await request(createApp(deps))
-        .post("/v1/credits/estimate/kling21/generate")
-        .send({ input: { prompt: "waves", duration: "5" } });
+        .post("/v1/credits/estimate")
+        .send({
+          plugin: "kling21",
+          operation: "generate",
+          input: { prompt: "waves", duration: "5" },
+        });
       const sum = res.body.breakdown.reduce(
         (n: number, b: { credits: number }) => n + b.credits,
         res.body.baseCredits,
@@ -265,8 +292,10 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     });
     const api = createApp(deps);
     const estimate = await request(api)
-      .post("/v1/credits/estimate/kling21/generate")
+      .post("/v1/credits/estimate")
       .send({
+        plugin: "kling21",
+        operation: "generate",
         input: { prompt: "waves", duration: "5", image: [randomUUID()] },
       });
     expect(estimate.body.tier).toBe("Image to video");
@@ -310,26 +339,54 @@ describe("POST /v1/credits/estimate/:plugin/:operation", () => {
     ["extra body key", { input: { prompt: "waves" }, extra: 1 }],
   ])("422 for %s", async (_name, body) => {
     const res = await request(app())
-      .post("/v1/credits/estimate/kling21/generate")
-      .send(body);
+      .post("/v1/credits/estimate")
+      .send({ plugin: "kling21", operation: "generate", ...body });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("VALIDATION_FAILED");
   });
 
   it("returns 404 NOT_FOUND for an unknown plugin or operation", async () => {
-    for (const route of ["nope/generate", "kling21/nope"]) {
+    for (const [plugin, operation] of [
+      ["nope", "generate"],
+      ["kling21", "nope"],
+    ]) {
       const res = await request(app())
-        .post(`/v1/credits/estimate/${route}`)
-        .send({ input: { prompt: "waves" } });
+        .post("/v1/credits/estimate")
+        .send({ plugin, operation, input: { prompt: "waves" } });
       expect(res.status).toBe(404);
       expect(res.body.code).toBe("NOT_FOUND");
     }
   });
 
-  it("names the unknown option", async () => {
+  it.each([
+    ["no plugin", { operation: "generate" }],
+    ["no operation", { plugin: "kling21" }],
+    ["an empty plugin", { plugin: "", operation: "generate" }],
+    ["a plugin that is not a string", { plugin: 1, operation: "generate" }],
+  ])("422 naming the field for %s", async (_name, model) => {
+    const res = await request(app())
+      .post("/v1/credits/estimate")
+      .send({ ...model, input: { prompt: "waves" } });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe("VALIDATION_FAILED");
+    expect(JSON.stringify(res.body)).toMatch(/plugin|operation/);
+  });
+
+  it("no longer serves the model in the path", async () => {
     const res = await request(app())
       .post("/v1/credits/estimate/kling21/generate")
-      .send({ input: { prompt: "waves", durtion: "5" } });
+      .send({ input: { prompt: "waves" } });
+    expect(res.status).toBe(404);
+  });
+
+  it("names the unknown option", async () => {
+    const res = await request(app())
+      .post("/v1/credits/estimate")
+      .send({
+        plugin: "kling21",
+        operation: "generate",
+        input: { prompt: "waves", durtion: "5" },
+      });
     expect(JSON.stringify(res.body)).toContain("durtion");
   });
 

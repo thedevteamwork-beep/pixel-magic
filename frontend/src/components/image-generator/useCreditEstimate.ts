@@ -28,9 +28,9 @@ export function useCreditEstimate(
       const { plugin, operation } = model.source;
       api
         .post<{ creditsPerJob: number }>(
-          `/v1/credits/estimate/${encodeURIComponent(plugin)}/${encodeURIComponent(operation)}`,
+          "/v1/credits/estimate",
           // The key ends with the input's JSON, so the body always matches the key.
-          { input: JSON.parse(key.slice(model.key.length + 1)) },
+          { plugin, operation, input: JSON.parse(key.slice(model.key.length + 1)) },
           { signal: controller.signal },
         )
         .then((result) => setEstimate({ key, credits: result.creditsPerJob }))

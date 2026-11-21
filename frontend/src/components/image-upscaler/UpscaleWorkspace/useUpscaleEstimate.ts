@@ -31,8 +31,8 @@ export function useUpscaleEstimate(
       const { plugin, operation } = model.source;
       api
         .post<{ creditsPerJob: number }>(
-          `/v1/credits/estimate/${encodeURIComponent(plugin)}/${encodeURIComponent(operation)}`,
-          JSON.parse(key.slice(model.key.length + 1)),
+          "/v1/credits/estimate",
+          { plugin, operation, ...JSON.parse(key.slice(model.key.length + 1)) },
           { signal: controller.signal },
         )
         .then((result) => setEstimate({ key, credits: result.creditsPerJob }))

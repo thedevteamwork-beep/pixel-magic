@@ -8,10 +8,13 @@ import { MAX_IMAGE_SIDE } from "../../../services/uploads.js";
 import { estimateCredits } from "../../../services/credits/estimate.js";
 import { validate } from "../../middlewares/validate.js";
 
-// The same input as POST /v1/jobs/:plugin/:operation, plus how many jobs.
-// A model priced by its image's size (an upscaler) also needs the image's
-// size; the job itself is priced on the size measured from the upload.
+// The model (`plugin` and `operation`, as GET /v1/models lists them), the same
+// input as POST /v1/jobs/:plugin/:operation, and how many jobs. A model priced
+// by its image's size (an upscaler) also needs the image's size; the job itself
+// is priced on the size measured from the upload.
 const estimateBody = z.strictObject({
+  plugin: z.string().min(1),
+  operation: z.string().min(1),
   input: z.record(z.string(), z.unknown()),
   count: z.number().int().min(1).max(20).default(1),
   imageSize: z
@@ -27,16 +30,12 @@ export function creditsRoutes(deps: Deps): Router {
 
   // Public: the price list is not secret and needs no account.
   router.post(
-    "/credits/estimate/:plugin/:operation",
+    "/credits/estimate",
     express.json({ limit: "100kb" }),
     validate({ body: estimateBody }),
     (req, res) => {
       const body = req.body as z.infer<typeof estimateBody>;
-      const { plugin, operation } = req.params as {
-        plugin: string;
-        operation: string;
-      };
-      const model = getOperation(plugin, operation);
+      const model = getOperation(body.plugin, body.operation);
       if (!model) throw new AppError(404, "NOT_FOUND", "Plugin not found");
       const { creditsPerJob, tier, baseCredits, breakdown, images } =
         estimateCredits(deps, model, body.input, body.imageSize);

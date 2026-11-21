@@ -59,13 +59,13 @@ describe("upscaling", () => {
       })
     ).reduce((sum, row) => sum + row.amount, 0);
 
-  describe("POST /v1/credits/estimate/topaz/upscale", () => {
+  describe("POST /v1/credits/estimate (topaz upscale)", () => {
     // An estimate counts upload ids; it never looks them up.
     const image = ["00000000-0000-4000-8000-000000000001"];
     const estimate = (body: object) =>
       request(createApp(h.deps))
-        .post("/v1/credits/estimate/topaz/upscale")
-        .send(body);
+        .post("/v1/credits/estimate")
+        .send({ plugin: "topaz", operation: "upscale", ...body });
 
     it("needs the image's size", async () => {
       const res = await estimate({ input: { image, upscale_factor: 2 } });

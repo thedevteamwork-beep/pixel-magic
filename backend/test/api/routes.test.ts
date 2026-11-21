@@ -19,7 +19,7 @@ const PUBLIC: [Method, string][] = [
   ["get", "/v1/plans"],
   ["get", "/v1/addons"],
   ["get", "/v1/models"],
-  ["post", "/v1/credits/estimate/kling21/generate"],
+  ["post", "/v1/credits/estimate"],
   ["post", "/webhooks/paddle"],
   ["post", "/webhooks/fal"],
 ];

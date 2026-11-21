@@ -55,7 +55,7 @@ Route files only parse and validate; the logic is in `src/services/`.
 | api    | `GET /v1/billing/invoices`                         | paid invoices                                                                                                                                                                                                            |
 | api    | `POST /v1/uploads`                                 | `{filename, mimeType, sizeBytes}`: signed upload URL (auth)                                                                                                                                                              |
 | api    | `GET /v1/models`                                   | model catalog with `credits: {min, max}` (public)                                                                                                                                                                        |
-| api    | `POST /v1/credits/estimate/:plugin/:operation`     | price a job before creating it (public, see Credit pricing)                                                                                                                                                              |
+| api    | `POST /v1/credits/estimate`                        | price a job before creating it (public, see Credit pricing)                                                                                                                                                              |
 | api    | `POST /v1/projects`                                | `{type, title, data?}`: create a project (auth). Types: `ai-influencer`, and `influencer-style` (a saved style: `data: {uploadId}`, which must be your own upload whose file is in storage, else 422 `UPLOAD_NOT_READY`) |
 | api    | `GET /v1/projects`                                 | list your projects, newest updated first, with `type`/`limit`/`cursor`, a signed `cover` (1 h), and for `influencer-style` the image as a signed `upload` (24 h) (auth)                                                  |
 | api    | `GET /v1/projects/:id`                             | one project (auth)                                                                                                                                                                                                       |
@@ -161,9 +161,9 @@ Every model is priced by `TIERED_CREDIT_MAPPING`, a JSON object with one entry p
 - Supported units (`src/credits/units.ts`): `duration` (seconds) and `images` (count). A meter's `metric` must be a unit the model declares in `billing.units`. Adding a unit means editing that file.
 - Credits are whole numbers: the tier total can be fractional and is rounded up once, at the end. A job reserves exactly what the estimate returns.
 
-### POST /v1/credits/estimate/:plugin/:operation
+### POST /v1/credits/estimate
 
-Public. Body (strict): `{ "input": { "prompt": "waves", "duration": "10" }, "count": 1 }`. `input` is the same input `POST /v1/jobs/:plugin/:operation` takes and is checked the same way; `count` (1 to 20) defaults to 1. Upload ids in the image field are only counted, never looked up. An unknown plugin or operation returns `404 NOT_FOUND`; an unknown field, a bad value or too many uploads returns `422 VALIDATION_FAILED`. The `image` fact is true when the input has an upload, so with the example mapping above `"image": ["<upload id>"]` picks the "Image to video" tier.
+Public. Body (strict): `{ "plugin": "kling21", "operation": "generate", "input": { "prompt": "waves", "duration": "10" }, "count": 1 }`. `plugin` and `operation` name the model, as `GET /v1/models` lists them; `input` is the same input `POST /v1/jobs/:plugin/:operation` takes and is checked the same way; `count` (1 to 20) defaults to 1. Upload ids in the image field are only counted, never looked up. An unknown plugin or operation returns `404 NOT_FOUND`; an unknown field, a bad value or too many uploads returns `422 VALIDATION_FAILED`. The `image` fact is true when the input has an upload, so with the example mapping above `"image": ["<upload id>"]` picks the "Image to video" tier.
 
 ```json
 {
