@@ -1,31 +1,46 @@
 "use client";
 
 import { ArrowDownLeft, CircleHelp, Heart, Info, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { defaultVideoSettings, MAX_ACTIVE_RENDERS, videoInspirations } from "@/components/video-generator/constants";
+import {
+  defaultVideoSettings,
+  MAX_ACTIVE_RENDERS,
+  VIDEO_HISTORY_PAGE_SIZE,
+  videoInspirations,
+} from "@/components/video-generator/constants";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
-import { requestVideoPreview, VideoPreviewError } from "@/lib/video-generator/client";
+import { api, ApiError } from "@/lib/api/client";
+import type { JobList, JobView } from "@/lib/api/types";
+import { useSignedIn } from "@/lib/auth/useSignedIn";
+import { isSessionEnded, messageForError } from "@/lib/generate/messages";
+import { isActiveJob } from "@/lib/image-generator/results";
 import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
-import { FrameError, loadClipFile, loadFrameFile, loadSampleFrame } from "@/lib/video-generator/frames";
+import { jobToVideoResults } from "@/lib/video-generator/models";
+import { captureLastFrame, FrameError, loadClipFile, loadFrameFile } from "@/lib/video-generator/frames";
 import {
   closestAspectRatio,
-  effectiveDuration,
   fitSettingsToModel,
   getVideoModel,
   modeName,
   modelsForMode,
-  previewRenderMs,
+  estimateRenderSeconds,
 } from "@/lib/video-generator/settings";
 import type {
   FrameImage,
   RenderJob,
-  VideoGenerationRequest,
   VideoInputs,
   VideoMode,
+  VideoModel,
   VideoResult,
   VideoSettings,
 } from "@/types/video-generator";
+import { sampleVideoJobs } from "../fixtures/sampleVideos";
+import { VideoSkeleton } from "../VideoSkeleton";
+import { followJob, newRenderKeys, renderVideos, StillRenderingError, type RenderRequest } from "./renderVideos";
+import { useVideoEstimate } from "./useVideoEstimate";
+import { useVideoModels } from "./useVideoModels";
 import { DirectorPanel } from "../DirectorPanel";
 import type { InputTarget } from "../InputsSection";
 import { VideoFeed } from "../VideoFeed";
@@ -34,50 +49,75 @@ import { VideoWelcome } from "../VideoWelcome";
 import styles from "./main.module.css";
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void }; tone?: "success" | "info" };
-/** What a render needs to be retried or re-rendered at a higher resolution. */
-type Snapshot = { request: VideoGenerationRequest; prompt: string; frameUrl?: string };
+/** What a render needs to be retried or rendered again at a higher resolution. */
+type Snapshot = { request: RenderRequest; frameUrl?: string };
 type RowSize = "s" | "m" | "l";
 const rowHeights: Record<RowSize, string> = { s: "190px", m: "280px", l: "400px" };
 const MAX_ITEMS = 60;
 const emptyInputs: VideoInputs = { start: null, end: null, references: [], clip: null };
 
-function wait(ms: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(new DOMException("Aborted", "AbortError"));
-      },
-      { once: true },
-    );
-  });
-}
-
-function initialSettings(model: string, preset: string | null): VideoSettings {
+function initialSettings(models: readonly VideoModel[], modelId: string, preset: string | null): VideoSettings {
   const inspiration = videoInspirations.find((item) => item.id === preset);
-  const base: VideoSettings = { ...defaultVideoSettings, model };
-  if (!inspiration) return fitSettingsToModel(base).settings;
-  return fitSettingsToModel({
-    ...base,
-    prompt: inspiration.prompt,
-    aspectRatio: inspiration.aspectRatio,
-    duration: inspiration.duration,
-  }).settings;
+  const model = getVideoModel(models, modelId);
+  const base: VideoSettings = { ...defaultVideoSettings, model: model.id };
+  if (!inspiration) return fitSettingsToModel(base, model).settings;
+  return fitSettingsToModel(
+    {
+      ...base,
+      prompt: inspiration.prompt,
+      aspectRatio: inspiration.aspectRatio,
+      duration: inspiration.duration,
+    },
+    model,
+  ).settings;
 }
 
-const descriptor = (frame: FrameImage) => ({ id: frame.id, mimeType: frame.mimeType, size: frame.size });
+/** A frame's bytes, to upload: frames are local object URLs or bundled samples. */
+async function frameFile(frame: FrameImage): Promise<File> {
+  const blob = await (await fetch(frame.url)).blob();
+  return new File([blob], frame.name || "start-frame", { type: blob.type || frame.mimeType });
+}
 
-export function VideoWorkspace({
-  initialModel,
-  initialPreset,
-}: {
+function renderError(error: unknown): string {
+  if (error instanceof StillRenderingError) return error.message;
+  if (error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS")
+    return "You don’t have enough credits for this. Add credits on the Pricing page, or pick a shorter or smaller video.";
+  return messageForError(error);
+}
+
+type VideoWorkspaceProps = {
   initialModel: string;
   initialPreset: string | null;
-}) {
+  /** Development only: sample videos, and Generate only pretends. */
+  sample?: boolean;
+};
+
+/** Loads the backend's video models, then opens the studio; the skeleton shows meanwhile. */
+export function VideoWorkspace(props: VideoWorkspaceProps) {
+  const { models, error, retry } = useVideoModels();
+  if (models?.length) return <VideoStudio {...props} models={models} />;
+  if (!error && !models) return <VideoSkeleton />;
+  return (
+    <main className={styles.loadError} id="main-content" role="alert">
+      <h1>The video models couldn’t load.</h1>
+      <p>Check your connection, then try again.</p>
+      <button type="button" className="button-primary" onClick={retry}>
+        Try again
+      </button>
+    </main>
+  );
+}
+
+function VideoStudio({
+  initialModel,
+  initialPreset,
+  sample = false,
+  models,
+}: VideoWorkspaceProps & { models: readonly VideoModel[] }) {
+  const router = useRouter();
+  const signedIn = useSignedIn();
   const { motionEnabled } = useLandingMotion();
-  const [settings, setSettings] = useState<VideoSettings>(() => initialSettings(initialModel, initialPreset));
+  const [settings, setSettings] = useState<VideoSettings>(() => initialSettings(models, initialModel, initialPreset));
   const [inputs, setInputs] = useState<VideoInputs>(emptyInputs);
   const [inputBusy, setInputBusy] = useState<InputTarget | null>(null);
   const [inputError, setInputError] = useState("");
@@ -102,7 +142,8 @@ export function VideoWorkspace({
   useEffect(() => {
     latest.current = { settings, inputs };
   });
-  const model = getVideoModel(settings.model);
+  const model = getVideoModel(models, settings.model);
+  const credits = useVideoEstimate(model, settings);
 
   const notify = useCallback((text: string, action?: Toast["action"], tone: Toast["tone"] = "info") => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -157,7 +198,7 @@ export function VideoWorkspace({
   }
 
   function changeModel(id: string) {
-    const next = getVideoModel(id);
+    const next = getVideoModel(models, id);
     const { settings: fitted, adjustments } = fitSettingsToModel(latest.current.settings, next);
     setSettings(fitted);
     if (adjustments.length) notify(`Switched to ${next.name}. Adjusted to fit: ${adjustments.join(", ")}.`);
@@ -168,11 +209,11 @@ export function VideoWorkspace({
     const current = latest.current.settings;
     setInputError("");
     setError(null);
-    if (getVideoModel(current.model).modes.includes(mode)) {
+    if (getVideoModel(models, current.model).modes.includes(mode)) {
       setSettings({ ...current, mode });
       return;
     }
-    const next = modelsForMode(mode)[0];
+    const next = modelsForMode(models, mode)[0];
     const { settings: fitted, adjustments } = fitSettingsToModel({ ...current, mode }, next);
     setSettings(fitted);
     notify(`${modeName(mode)} uses ${next.name}${adjustments.length ? `. Adjusted: ${adjustments.join(", ")}` : ""}.`);
@@ -186,7 +227,7 @@ export function VideoWorkspace({
   /** The first image sets the shape of the shot, with a one-tap undo. */
   function matchShape(frame: FrameImage) {
     const current = latest.current.settings;
-    const ratio = closestAspectRatio(frame.width, frame.height, getVideoModel(current.model).aspectRatios);
+    const ratio = closestAspectRatio(frame.width, frame.height, getVideoModel(models, current.model).aspectRatios);
     if (ratio === current.aspectRatio) return;
     const previous = current.aspectRatio;
     update({ aspectRatio: ratio });
@@ -206,7 +247,7 @@ export function VideoWorkspace({
         const clip = track(await loadClipFile(file));
         setInputs((current) => ({ ...current, clip }));
       } else if (target === "reference") {
-        const limit = getVideoModel(latest.current.settings.model).maxReferences;
+        const limit = getVideoModel(models, latest.current.settings.model).maxReferences;
         const room = limit - latest.current.inputs.references.length;
         const issues: string[] =
           files.length > room ? [`Only ${room} more ${room === 1 ? "reference fits" : "references fit"}.`] : [];
@@ -268,7 +309,12 @@ export function VideoWorkspace({
     }
     if (current.mode === "text") changeMode("image");
     if (current.mode === "reference") void addFiles("reference", images);
-    else if (current.mode === "image" && attached.start && !attached.end && getVideoModel(current.model).endFrame)
+    else if (
+      current.mode === "image" &&
+      attached.start &&
+      !attached.end &&
+      getVideoModel(models, current.model).endFrame
+    )
       void addFiles("end", images);
     else void addFiles("start", images);
     return true;
@@ -313,9 +359,10 @@ export function VideoWorkspace({
 
   async function startFromResult(item: VideoResult) {
     try {
+      // Continue from where the shot ends.
       takeFrame(
-        await loadSampleFrame(item.poster, "Frame from your video"),
-        "Start image set. Describe how the scene should move next.",
+        await captureLastFrame(item.url, "Last frame of your video"),
+        "Start image set from the last frame. Describe what happens next.",
       );
     } catch {
       notify("That frame couldn’t be added. Please try again.");
@@ -330,13 +377,16 @@ export function VideoWorkspace({
     const inspiration = videoInspirations.find((item) => item.id === id);
     if (!inspiration) return;
     const current = latest.current.settings;
-    const { settings: next } = fitSettingsToModel({
-      ...current,
-      mode: keepMode ? current.mode : "text",
-      prompt: inspiration.prompt,
-      aspectRatio: inspiration.aspectRatio,
-      duration: inspiration.duration,
-    });
+    const { settings: next } = fitSettingsToModel(
+      {
+        ...current,
+        mode: keepMode ? current.mode : "text",
+        prompt: inspiration.prompt,
+        aspectRatio: inspiration.aspectRatio,
+        duration: inspiration.duration,
+      },
+      getVideoModel(models, current.model),
+    );
     setSettings(next);
     setError(null);
     notify(message ?? `“${inspiration.title}” is loaded. Make it yours, then generate.`);
@@ -349,46 +399,58 @@ export function VideoWorkspace({
     applyInspiration(pick.id, true, `Here’s an idea: “${pick.title}”.`);
   }
 
+  /** A render in the feed: a live card while it runs, its videos once done. Failures stay as a card with Retry. */
   const startRender = useCallback(
-    (snapshot: Snapshot) => {
-      const { request, prompt, frameUrl } = snapshot;
-      const id = `job-${crypto.randomUUID()}`;
+    (snapshot: Snapshot, existing?: JobView) => {
+      const { request, frameUrl } = snapshot;
+      const id = existing ? `job-${existing.jobId}` : `job-${crypto.randomUUID()}`;
       const job: RenderJob = {
         id,
-        prompt,
-        model: request.model,
-        mode: request.mode,
-        aspectRatio: request.aspectRatio,
-        duration: request.duration,
-        resolution: request.resolution,
-        count: request.count,
-        startedAt: Date.now(),
-        eta: previewRenderMs(request) + Math.round(Math.random() * 800),
+        prompt: request.prompt,
+        model: request.model.id,
+        mode: request.settings.mode,
+        aspectRatio: request.settings.aspectRatio,
+        duration: request.settings.duration,
+        resolution: request.settings.resolution,
+        count: request.keys.length,
+        startedAt: existing ? Date.parse(existing.createdAt) : Date.now(),
+        eta: estimateRenderSeconds(request.model, request.settings) * 1000,
         frameUrl,
         status: "rendering",
       };
       const controller = new AbortController();
       controllers.current.set(id, controller);
       snapshots.current.set(id, snapshot);
-      setJobs((current) => [job, ...current]);
-      setAnnouncement(
-        `Rendering ${request.count === 1 ? "a sample video" : `${request.count} sample videos`}. You can keep working.`,
-      );
+      setJobs((current) => [job, ...current.filter((entry) => entry.id !== id)]);
+      setAnnouncement(`Rendering ${job.count === 1 ? "a video" : `${job.count} videos`}. You can keep working.`);
 
-      Promise.all([requestVideoPreview(request, controller.signal), wait(job.eta, controller.signal)])
-        .then(([response]) => {
-          const videos = response.videos.map((video) => ({ ...video, prompt }));
-          snapshots.current.set(response.id, snapshot);
+      // A job already running (from an earlier visit) is only followed; a new render creates its jobs.
+      const work = existing
+        ? followJob(existing, controller.signal).then((done) => jobToVideoResults(done, { batchId: id }))
+        : renderVideos(request, id, controller.signal);
+      work
+        .then((videos) => {
+          snapshots.current.set(id, snapshot);
           setJobs((current) => current.filter((entry) => entry.id !== id));
           setItems((current) => [...videos, ...current].slice(0, MAX_ITEMS));
           setFilter("all");
-          const text = `${videos.length === 1 ? "Your video is" : `${videos.length} videos are`} ready. No credits were used.`;
+          const text = `${videos.length === 1 ? "Your video is" : `${videos.length} videos are`} ready.`;
           setAnnouncement(text);
           notify(text, { label: "Watch", run: () => setViewerId(videos[0].id) }, "success");
         })
         .catch((caught: unknown) => {
           if (controller.signal.aborted) return;
-          const message = caught instanceof VideoPreviewError ? caught.message : "Something interrupted the preview.";
+          if (isSessionEnded(caught)) {
+            router.push(`/sign-in?next=${encodeURIComponent("/video")}`);
+            return;
+          }
+          // Still running, not failed: retrying would pay twice, so the card goes and the video comes later.
+          if (caught instanceof StillRenderingError) {
+            setJobs((current) => current.filter((entry) => entry.id !== id));
+            notify(caught.message);
+            return;
+          }
+          const message = renderError(caught);
           setJobs((current) =>
             current.map((entry) => (entry.id === id ? { ...entry, status: "failed", error: message } : entry)),
           );
@@ -398,51 +460,104 @@ export function VideoWorkspace({
           controllers.current.delete(id);
         });
     },
-    [notify],
+    [notify, router],
   );
 
-  function generate(event?: FormEvent<HTMLFormElement>) {
+  // Signed in: the video history, and renders still running from an earlier visit. Sample mode: the samples.
+  useEffect(() => {
+    if (sample) {
+      const { jobs: samples, posters } = sampleVideoJobs();
+      // Fixtures stand in for the history request, so they are set the same way, from an effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setItems(samples.flatMap((job) => jobToVideoResults(job, { poster: posters[job.jobId] })));
+      return;
+    }
+    if (!signedIn) return;
+    const controller = new AbortController();
+    api
+      .get<JobList>(`/v1/jobs?kind=video&limit=${VIDEO_HISTORY_PAGE_SIZE}`, { signal: controller.signal })
+      .then(({ jobs: history }) => {
+        setItems((current) => {
+          const known = new Set(current.map((item) => item.jobId));
+          const loaded = history.flatMap((job) => (known.has(job.jobId) ? [] : jobToVideoResults(job)));
+          return [...current, ...loaded].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, MAX_ITEMS);
+        });
+        for (const job of history.filter(isActiveJob)) {
+          const jobModel = models.find((item) => item.id === job.model);
+          if (!jobModel) continue;
+          const prompt = typeof job.input.prompt === "string" ? job.input.prompt : "";
+          startRender(
+            {
+              request: {
+                model: jobModel,
+                settings: fitSettingsToModel(
+                  {
+                    ...defaultVideoSettings,
+                    model: jobModel.id,
+                    prompt,
+                    duration: Number(job.input.duration) || jobModel.durations[0],
+                    resolution: typeof job.input.resolution === "string" ? job.input.resolution : "",
+                    aspectRatio: typeof job.input.aspect_ratio === "string" ? job.input.aspect_ratio : "16:9",
+                    count: 1,
+                  },
+                  jobModel,
+                ).settings,
+                prompt,
+                start: null,
+                keys: [job.jobId],
+              },
+            },
+            job,
+          );
+        }
+      })
+      // History is a convenience: the studio works without it.
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [sample, signedIn, models, startRender]);
+
+  async function generate(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (jobs.filter((job) => job.status === "rendering").length >= MAX_ACTIVE_RENDERS) {
       notify(`Up to ${MAX_ACTIVE_RENDERS} videos can render at once. One will finish soon.`);
       return;
     }
-    const fitted = fitSettingsToModel(settings).settings;
+    const fitted = fitSettingsToModel(settings, model).settings;
     const prompt = fitted.prompt.trim();
-    const { start, end, references, clip } = inputs;
-    const needsPrompt = (message: string) => {
-      setError(message);
+    const { start } = inputs;
+    if (fitted.mode === "text" && !prompt) {
+      setError("Describe your scene in a few words first, or start from an image.");
       promptRef.current?.focus();
-    };
-    if (fitted.mode === "text" && !prompt)
-      return needsPrompt("Describe your scene in a few words first, or start from an image.");
+      return;
+    }
     if (fitted.mode === "image" && !start) return setInputError("Add a start image to animate.");
-    if (fitted.mode === "reference" && !references.length) return setInputError("Add at least one reference image.");
-    if (fitted.mode === "reference" && !prompt)
-      return needsPrompt("Describe how your references come together, e.g. “the person in image 1…”.");
-    if (fitted.mode === "motion" && !start) return setInputError("Add a character image to animate.");
-    if (fitted.mode === "motion" && !clip) return setInputError("Add a motion clip to copy.");
-
-    const usedReferences = fitted.mode === "reference" ? references.slice(0, model.maxReferences) : [];
-    const request: VideoGenerationRequest = {
-      ...fitted,
-      prompt,
-      duration: effectiveDuration(fitted, clip),
-      inputs: {
-        start: (fitted.mode === "image" || fitted.mode === "motion") && start ? descriptor(start) : null,
-        end: fitted.mode === "image" && model.endFrame && end ? descriptor(end) : null,
-        references: usedReferences.map(descriptor),
-        clip:
-          fitted.mode === "motion" && clip
-            ? { id: clip.id, mimeType: clip.mimeType, size: clip.size, duration: Math.round(clip.duration * 10) / 10 }
-            : null,
-      },
-    };
+    if (signedIn === false && !sample) {
+      router.push(`/sign-in?next=${encodeURIComponent(`/video?model=${model.id}`)}`);
+      return;
+    }
     setError(null);
     setInputError("");
-    const frameUrl =
-      fitted.mode === "reference" ? usedReferences[0]?.url : fitted.mode === "text" ? undefined : start?.url;
-    startRender({ request, prompt, frameUrl });
+    let file: File | null = null;
+    if (fitted.mode === "image" && start) {
+      try {
+        file = await frameFile(start);
+      } catch {
+        setInputError("That start image couldn’t be read. Please add it again.");
+        return;
+      }
+    }
+    startRender({
+      request: {
+        model,
+        settings: fitted,
+        prompt,
+        start: file,
+        poster: start?.url,
+        sample,
+        keys: newRenderKeys(fitted.count),
+      },
+      frameUrl: fitted.mode === "image" ? start?.url : undefined,
+    });
     if (window.matchMedia("(max-width: 900px)").matches) {
       requestAnimationFrame(() =>
         stageRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }),
@@ -450,20 +565,23 @@ export function VideoWorkspace({
     }
   }
 
+  /** Stops waiting here. A render already started keeps going on the server and appears on a later visit. */
   function cancelJob(id: string) {
     controllers.current.get(id)?.abort();
     controllers.current.delete(id);
     setJobs((current) => current.filter((job) => job.id !== id));
-    setAnnouncement("Render canceled.");
-    notify("Render canceled. Nothing was charged.");
+    setAnnouncement("Stopped waiting for this render.");
+    notify("Stopped waiting. If it had started, it will still finish and appear here next time.");
   }
 
   function retryJob(id: string) {
     const snapshot = snapshots.current.get(id);
     setJobs((current) => current.filter((job) => job.id !== id));
+    // New job ids: a failed job keeps its id, so reusing it would only return the same failure.
     if (snapshot)
       startRender({
         ...snapshot,
+        request: { ...snapshot.request, keys: newRenderKeys(snapshot.request.keys.length) },
         frameUrl:
           snapshot.frameUrl?.startsWith("blob:") && !ownedUrls.current.has(snapshot.frameUrl)
             ? undefined
@@ -472,37 +590,42 @@ export function VideoWorkspace({
   }
 
   function reuse(item: VideoResult) {
-    const { settings: next } = fitSettingsToModel({
-      ...settings,
-      model: item.model,
-      prompt: item.prompt,
-      mode: item.mode,
-      aspectRatio: item.aspectRatio,
-      resolution: item.resolution,
-      duration: item.duration,
-      audio: item.audio,
-    });
+    const { settings: next } = fitSettingsToModel(
+      {
+        ...settings,
+        model: item.model,
+        prompt: item.prompt,
+        mode: item.mode,
+        aspectRatio: item.aspectRatio,
+        resolution: item.resolution,
+        duration: item.duration,
+        audio: item.audio,
+      },
+      getVideoModel(models, item.model),
+    );
     setSettings(next);
     setError(null);
     notify(
       item.mode === "text"
         ? "Prompt and settings restored."
-        : `Settings restored. Check your ${item.mode === "reference" ? "references" : "uploads"} before rendering again.`,
+        : "Settings restored. Add the start image again before rendering.",
     );
     revealPanel();
     focusPrompt();
   }
 
+  /** Renders a shot again at 1080p, with the same prompt, settings and start image. */
   function upscale(item: VideoResult) {
     const snapshot = snapshots.current.get(item.batchId);
     if (!snapshot) {
       reuse(item);
       update({ resolution: "1080p" });
+      notify("Settings restored at 1080p. Generate to render it again.");
       return;
     }
+    const { request } = snapshot;
     startRender({
-      request: { ...snapshot.request, resolution: "1080p", count: 1 },
-      prompt: snapshot.prompt,
+      request: { ...request, settings: { ...request.settings, resolution: "1080p", count: 1 }, keys: newRenderKeys(1) },
       frameUrl: item.poster,
     });
     notify("Rendering this shot again in 1080p.");
@@ -569,6 +692,10 @@ export function VideoWorkspace({
 
       <div ref={formWrapRef} className={styles.panelWrap}>
         <DirectorPanel
+          models={models}
+          model={model}
+          creditsPerVideo={credits}
+          signedIn={sample ? true : signedIn}
           settings={settings}
           inputs={inputs}
           inputBusy={inputBusy}
@@ -584,7 +711,7 @@ export function VideoWorkspace({
           onSwap={swapFrames}
           onClearInputs={clearInputs}
           onSurprise={surprise}
-          onSubmit={generate}
+          onSubmit={(event) => void generate(event)}
         />
       </div>
 
@@ -665,6 +792,7 @@ export function VideoWorkspace({
             </div>
           ) : (
             <VideoFeed
+              models={models}
               items={visible}
               jobs={filter === "all" ? jobs : []}
               motionEnabled={motionEnabled}
@@ -719,6 +847,7 @@ export function VideoWorkspace({
       </section>
 
       <VideoViewer
+        models={models}
         items={visible}
         activeId={viewerId}
         autoplay={motionEnabled}
@@ -758,8 +887,8 @@ export function VideoWorkspace({
               <div>
                 <strong>Pick a mode and a model.</strong>
                 <p>
-                  Text, Image, Motion Control or Reference to Video. The model list shows only models that support your
-                  mode, and the uploads adapt to the model.
+                  Text to Video, or Image to Video from a start image. The settings adapt to each model: its lengths,
+                  shapes, resolutions and sound.
                 </p>
               </div>
             </li>
@@ -768,7 +897,7 @@ export function VideoWorkspace({
               <div>
                 <strong>Add your inputs and prompt.</strong>
                 <p>
-                  Drop, paste or upload images and clips. Then set the duration, shape, resolution and number of videos.
+                  Drop, paste or upload a start image. Then set the duration, shape, resolution and number of videos.
                 </p>
               </div>
             </li>
@@ -799,8 +928,8 @@ export function VideoWorkspace({
           <div className={styles.helpNotice}>
             <Info size={16} aria-hidden="true" />
             <p>
-              This is a design preview. Results are pre-existing sample clips, not AI-generated video, and no credits
-              are charged. Credit and time estimates are indicative. Your uploads stay in this browser.
+              Each video uses the credits shown on Generate; several videos cost that much each. If a render fails, its
+              credits are returned. Times are estimates. Your videos are saved to your account.
             </p>
           </div>
           <button

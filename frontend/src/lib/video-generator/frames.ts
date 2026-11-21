@@ -82,6 +82,32 @@ export async function captureVideoFrame(video: HTMLVideoElement, name: string): 
   };
 }
 
+/**
+ * The last frame of a video at `url`, to continue a shot from where it ends.
+ * Remote videos must allow CORS (storage URLs do). The object URL is owned by the caller.
+ */
+export async function captureLastFrame(url: string, name: string): Promise<FrameImage> {
+  const video = document.createElement("video");
+  video.crossOrigin = "anonymous";
+  video.muted = true;
+  video.preload = "auto";
+  video.src = url;
+  const once = (event: string) =>
+    new Promise<void>((resolve, reject) => {
+      video.addEventListener(event, () => resolve(), { once: true });
+      video.addEventListener("error", () => reject(new FrameError("That video couldn’t be read.")), { once: true });
+    });
+  try {
+    await once("loadeddata");
+    video.currentTime = Math.max(0, video.duration - 0.1);
+    await once("seeked");
+    return await captureVideoFrame(video, name);
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+  }
+}
+
 /** Read a local motion clip's length and shape. The object URL is owned by the caller. */
 export async function loadClipFile(file: File): Promise<MotionClip> {
   if (!CLIP_MIME_TYPES.some((type) => type === file.type))

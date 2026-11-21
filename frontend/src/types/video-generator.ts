@@ -1,3 +1,4 @@
+import type { PublicModel } from "@/lib/api/types";
 import type { MediaId } from "./landing";
 
 /**
@@ -6,7 +7,8 @@ import type { MediaId } from "./landing";
  * motion: copy the movement in a clip onto a character image.
  */
 export type VideoMode = "text" | "image" | "reference" | "motion";
-export type VideoResolution = "480p" | "720p" | "1080p";
+/** As the model names it: "720p", "1080p", "4K"… Empty when the model has no resolution choice. */
+export type VideoResolution = string;
 
 export type VideoSettings = {
   model: string;
@@ -55,20 +57,14 @@ export type VideoInputs = {
   clip: MotionClip | null;
 };
 
-export type VideoGenerationRequest = VideoSettings & {
-  inputs: {
-    start: FrameDescriptor | null;
-    end: FrameDescriptor | null;
-    references: FrameDescriptor[];
-    clip: ClipDescriptor | null;
-  };
-};
-
 export type VideoResult = {
   id: string;
+  /** The job that made it: videos from one Generate share a batch. */
   batchId: string;
+  jobId: string;
   url: string;
-  poster: string;
+  /** A still to show before the video plays: the start image, when there was one. */
+  poster?: string;
   alt: string;
   prompt: string;
   model: string;
@@ -77,17 +73,9 @@ export type VideoResult = {
   resolution: VideoResolution;
   duration: number;
   audio: boolean;
+  creditCost: number;
   createdAt: string;
   favorite: boolean;
-  demo: true;
-};
-
-export type VideoGenerationResponse = {
-  id: string;
-  demo: true;
-  creditsCharged: 0;
-  estimatedCredits: number;
-  videos: VideoResult[];
 };
 
 export type VideoModel = {
@@ -110,10 +98,19 @@ export type VideoModel = {
   /** Reference to video accepts up to this many images. */
   maxReferences: number;
   audio: boolean;
-  /** Indicative credits per second at each resolution, for the pre-flight estimate. */
-  creditsPerSecond: Readonly<Record<VideoResolution, number>>;
-  /** Typical seconds to render one second of 720p footage. */
+  /** Typical seconds to render one second of 720p footage, for the wait estimate. */
   speed: number;
+  /** The model as `GET /v1/models` returned it; jobs are built from this. */
+  source: PublicModel;
+};
+
+/** Display details the backend doesn't carry, keyed by model key. */
+export type VideoModelPresentation = {
+  maker: string;
+  symbol: string;
+  description?: string;
+  tag?: VideoModel["tag"];
+  speed?: number;
 };
 
 export type VideoModeOption = {
@@ -144,7 +141,7 @@ export type RenderJob = {
   resolution: VideoResolution;
   count: number;
   startedAt: number;
-  /** Total simulated render time in ms. */
+  /** Expected render time in ms, for the progress estimate. */
   eta: number;
   /** Image shown inside the placeholder while rendering. */
   frameUrl?: string;

@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
+import { placeholderUploadId } from "@/lib/generate/estimate";
 import { jobValues } from "@/lib/image-upscaler/models";
 import type { ImageSize, UpscaleModel, UpscaleValues } from "@/lib/image-upscaler/types";
 
 const DEBOUNCE_MS = 250;
-/** An estimate counts upload ids, never looks them up; any id stands for "one image". */
-const PLACEHOLDER_UPLOAD = "00000000-0000-4000-8000-000000000000";
 
 /**
  * The credits an upscale with these settings costs, from the backend's own
@@ -20,7 +19,7 @@ export function useUpscaleEstimate(
   size: ImageSize | null,
 ): number | null {
   const body =
-    model && size ? { input: { ...jobValues(model, values), image: [PLACEHOLDER_UPLOAD] }, imageSize: size } : null;
+    model && size ? { input: { ...jobValues(model, values), image: [placeholderUploadId()] }, imageSize: size } : null;
   const key = model && body ? `${model.key}:${JSON.stringify(body)}` : "";
   const [estimate, setEstimate] = useState<{ key: string; credits: number } | null>(null);
 

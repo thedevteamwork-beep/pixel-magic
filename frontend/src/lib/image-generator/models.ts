@@ -1,6 +1,7 @@
 import type { FieldSchema, PublicModel } from "@/lib/api/types";
 import { buildInput, imageField, imageFieldName } from "@/lib/generate/formFromSchema";
 import type { ImageOptionValue, ModelPresentation, ShapeOption, StudioModel } from "@/types/image-generator";
+import { ESTIMATE_PROMPT, placeholderUploadId } from "@/lib/generate/estimate";
 
 /** Field names the studio understands; any other enum becomes a plain choice. */
 const SHAPE_FIELDS = ["aspect_ratio", "image_size"];
@@ -139,8 +140,6 @@ export function shapeOf(model: StudioModel | undefined, options: Record<string, 
 }
 
 // Pricing never depends on the prompt or which images, only on how many.
-const ESTIMATE_PROMPT = "estimate";
-const placeholderUploadId = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 
 /** The `input` for `POST /v1/credits/estimate`: these options, priced with placeholder prompt and uploads. */
 export function estimateInput(

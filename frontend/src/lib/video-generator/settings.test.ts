@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { defaultVideoSettings, videoModels } from "@/components/video-generator/constants";
+import { defaultVideoSettings } from "@/components/video-generator/constants";
 import {
+  canRenderIn1080p,
   closestAspectRatio,
   durationLabel,
   effectiveDuration,
-  estimateCredits,
   estimateRenderSeconds,
   fitSettingsToModel,
   formatEta,
   formatTimecode,
   getVideoModel,
   modelsForMode,
-  previewRenderMs,
   resolutionLabel,
 } from "./settings";
+import { hailuo, kling21, seedance, testModels } from "./testModels";
 
 describe("video settings", () => {
   it("fits settings to a model and explains every change", () => {
@@ -26,51 +26,52 @@ describe("video settings", () => {
         aspectRatio: "21:9",
         audio: true,
       },
-      getVideoModel("hailuo_02"),
+      hailuo,
     );
     expect(settings).toMatchObject({
-      model: "hailuo_02",
+      model: "hailuo23_generate",
       mode: "text",
-      duration: 10,
-      resolution: "480p",
-      aspectRatio: "16:9",
+      duration: 5,
+      resolution: "1080p",
       audio: false,
     });
-    expect(adjustments).toEqual(["Reference to Video → Text to Video", "15s → 10s", "21:9 → 16:9", "sound off"]);
-    expect(fitSettingsToModel(defaultVideoSettings).adjustments).toEqual([]);
+    // Hailuo has no aspect-ratio choice, so the ratio is kept for the next model.
+    expect(settings.aspectRatio).toBe("21:9");
+    expect(adjustments).toEqual(["Reference to Video → Text to Video", "15s → 5s", "480p → 1080p", "sound off"]);
+    expect(fitSettingsToModel({ ...defaultVideoSettings, model: seedance.id }, seedance).adjustments).toEqual([]);
   });
 
-  it("lists only models that support a mode, and every mode has one", () => {
-    expect(modelsForMode("motion").map((model) => model.id)).toEqual(["kling_2_1", "wan_2_5"]);
-    for (const mode of ["text", "image", "reference", "motion"] as const)
-      expect(modelsForMode(mode).length).toBeGreaterThan(0);
-    for (const model of videoModels) {
-      expect(model.durations).toEqual([...model.durations].sort((a, b) => a - b));
-      if (model.modes.includes("reference")) expect(model.maxReferences).toBeGreaterThan(0);
-    }
+  it("keeps the resolution for a model without the choice", () => {
+    const { settings, adjustments } = fitSettingsToModel({ ...defaultVideoSettings, resolution: "720p" }, kling21);
+    expect(settings.resolution).toBe("720p");
+    expect(adjustments).toEqual([]);
+  });
+
+  it("finds models by id, falling back to the first, and by mode", () => {
+    expect(getVideoModel(testModels, "kling21_generate")).toBe(kling21);
+    expect(getVideoModel(testModels, "gone")).toBe(seedance);
+    expect(modelsForMode(testModels, "image")).toHaveLength(3);
+    expect(modelsForMode(testModels, "motion")).toEqual([]);
   });
 
   it("follows the motion clip’s length within the model’s range", () => {
-    const motion = { ...defaultVideoSettings, model: "kling_2_1", mode: "motion" as const, duration: 5 };
-    expect(effectiveDuration(motion, { duration: 8.4 })).toBe(10);
-    expect(effectiveDuration(motion, null)).toBe(5);
-    expect(effectiveDuration({ ...motion, mode: "image" }, { duration: 8.4 })).toBe(5);
+    const motion = { ...defaultVideoSettings, mode: "motion" as const, duration: 5 };
+    expect(effectiveDuration(motion, { duration: 8.4 }, kling21)).toBe(10);
+    expect(effectiveDuration(motion, null, kling21)).toBe(5);
+    expect(effectiveDuration({ ...motion, mode: "image" }, { duration: 8.4 }, kling21)).toBe(5);
   });
 
-  it("estimates credits per clip, with sound adding a quarter", () => {
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 1, audio: false })).toBe(
-      40,
-    );
-    expect(estimateCredits({ model: "seedance_2_5", resolution: "720p", duration: 5, count: 2, audio: true })).toBe(
-      100,
-    );
-    expect(estimateCredits({ model: "kling_2_1", resolution: "1080p", duration: 10, count: 1, audio: true })).toBe(200);
+  it("estimates render time, longer for bigger frames", () => {
+    expect(estimateRenderSeconds(seedance, { resolution: "720p", duration: 5 })).toBe(45);
+    expect(estimateRenderSeconds(seedance, { resolution: "1080p", duration: 5 })).toBe(60);
+    expect(estimateRenderSeconds(kling21, { resolution: "", duration: 5 })).toBe(60);
   });
 
-  it("estimates render time and compresses it for the preview", () => {
-    expect(estimateRenderSeconds({ model: "wan_2_5", resolution: "480p", duration: 5 })).toBe(24);
-    expect(previewRenderMs({ model: "wan_2_5", resolution: "480p", duration: 5 })).toBe(3500);
-    expect(previewRenderMs({ model: "kling_2_1", resolution: "1080p", duration: 10 })).toBe(9000);
+  it("offers a 1080p render only when it is bigger and the model has it", () => {
+    expect(canRenderIn1080p({ resolution: "720p" }, hailuo)).toBe(true);
+    expect(canRenderIn1080p({ resolution: "1080p" }, hailuo)).toBe(false);
+    expect(canRenderIn1080p({ resolution: "480p" }, seedance)).toBe(false);
+    expect(canRenderIn1080p({ resolution: "720p" }, undefined)).toBe(false);
   });
 
   it("formats times and capability labels for people", () => {
@@ -78,9 +79,10 @@ describe("video settings", () => {
     expect(formatEta(95)).toBe("~1.5 min");
     expect(formatTimecode(65.7)).toBe("1:05");
     expect(formatTimecode(Number.NaN)).toBe("0:00");
-    expect(durationLabel(getVideoModel("seedance_2_5"))).toBe("4s–30s");
-    expect(durationLabel(getVideoModel("veo_3_1"))).toBe("4s · 6s · 8s");
-    expect(resolutionLabel(getVideoModel("seedance_2_5_flash"))).toBe("480p–720p");
+    expect(durationLabel(seedance)).toBe("4s–30s");
+    expect(durationLabel(kling21)).toBe("5s · 10s");
+    expect(resolutionLabel(seedance)).toBe("480p–720p");
+    expect(resolutionLabel(kling21)).toBe("Auto");
   });
 
   it("matches an image to the closest supported aspect ratio", () => {

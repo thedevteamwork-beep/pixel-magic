@@ -1,158 +1,74 @@
 import type { MediaId } from "@/types/landing";
-import type {
-  VideoInspiration,
-  VideoModeOption,
-  VideoModel,
-  VideoResolution,
-  VideoSettings,
-} from "@/types/video-generator";
-
-const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
-
-/** In the order the mode menu shows them. */
-export const videoModes: readonly VideoModeOption[] = [
-  { id: "image", name: "Image to Video", description: "Bring a still to life, from a start to an end frame." },
-  { id: "text", name: "Text to Video", description: "Describe a scene and watch it unfold." },
-  {
-    id: "motion",
-    name: "Motion Control",
-    description: "Copy the movement in a clip onto your character.",
-    isNew: true,
-  },
-  {
-    id: "reference",
-    name: "Reference to Video",
-    description: "Keep characters, products and style consistent.",
-    isNew: true,
-  },
-];
+import type { VideoInspiration, VideoModelPresentation, VideoModeOption, VideoSettings } from "@/types/video-generator";
 
 /**
- * Preview capabilities, centralized for the later provider integration.
- * Credit rates are indicative only; the preview never charges.
+ * The modes the studio offers, in menu order. Reference to Video and Motion
+ * Control need inputs the backend doesn't take yet (several images, a clip);
+ * add them back here, and to `toVideoModel`, once it does.
  */
-export const videoModels: readonly VideoModel[] = [
-  {
-    id: "seedance_2_5",
-    name: "Seedance 2.5",
+export const videoModes: readonly VideoModeOption[] = [
+  { id: "image", name: "Image to Video", description: "Bring a still to life from a start image." },
+  { id: "text", name: "Text to Video", description: "Describe a scene and watch it unfold." },
+];
+
+/** Display details for the backend's video models, keyed by model key. */
+export const videoModelPresentation: Record<string, VideoModelPresentation> = {
+  seedance25_generate: {
     maker: "ByteDance",
     symbol: "❋",
     tag: "Top",
     description: "Multi-shot storytelling with steady subjects and fluid camera work.",
-    modes: ["text", "image", "reference"],
-    durations: range(4, 30),
-    durationMarks: [4, 10, 15, 20, 30],
-    resolutions: ["480p", "720p", "1080p"],
-    aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
-    endFrame: true,
-    maxReferences: 9,
-    audio: true,
-    creditsPerSecond: { "480p": 4, "720p": 8, "1080p": 16 },
     speed: 6,
   },
-  {
-    id: "seedance_2_5_flash",
-    name: "Seedance 2.5 Flash",
+  seedance2_generate: {
     maker: "ByteDance",
     symbol: "❋",
-    tag: "New",
-    description: "Quick, affordable drafts to explore an idea before the final render.",
-    modes: ["text", "image", "reference"],
-    durations: range(4, 30),
-    durationMarks: [4, 10, 15, 20, 30],
-    resolutions: ["480p", "720p"],
-    aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
-    endFrame: true,
-    maxReferences: 4,
-    audio: true,
-    creditsPerSecond: { "480p": 2, "720p": 4, "1080p": 8 },
-    speed: 3,
+    description: "Sharp detail up to 4K, with native sound.",
+    speed: 7,
   },
-  {
-    id: "kling_2_1",
-    name: "Kling 2.1",
+  klingv3_generate: {
     maker: "Kuaishou",
     symbol: "◆",
-    description: "Expressive human motion, physically grounded action and motion transfer.",
-    modes: ["text", "image", "motion", "reference"],
-    durations: [5, 10],
-    resolutions: ["720p", "1080p"],
-    aspectRatios: ["16:9", "9:16", "1:1"],
-    endFrame: true,
-    maxReferences: 4,
-    audio: false,
-    creditsPerSecond: { "480p": 6, "720p": 10, "1080p": 20 },
+    tag: "New",
+    description: "Expressive motion and multi-shot scenes, up to 4K, with sound.",
     speed: 9,
   },
-  {
-    id: "veo_3_1",
-    name: "Veo 3.1",
+  kling25_generate: {
+    maker: "Kuaishou",
+    symbol: "◆",
+    tag: "Fast",
+    description: "Fluid, physically grounded motion, fast.",
+    speed: 5,
+  },
+  kling21_generate: { maker: "Kuaishou", symbol: "◆", description: "Kling's cinematic Master model.", speed: 9 },
+  veo31Fast_generate: {
     maker: "Google",
     symbol: "✦",
     tag: "Audio",
-    description: "Cinematic realism with native dialogue, ambience and sound effects.",
-    modes: ["text", "image", "reference"],
-    durations: [4, 6, 8],
-    resolutions: ["720p", "1080p"],
-    aspectRatios: ["16:9", "9:16"],
-    endFrame: true,
-    maxReferences: 3,
-    audio: true,
-    creditsPerSecond: { "480p": 20, "720p": 25, "1080p": 40 },
-    speed: 8,
-  },
-  {
-    id: "veo_3_1_fast",
-    name: "Veo 3.1 Fast",
-    maker: "Google",
-    symbol: "✦",
-    tag: "Fast",
-    description: "Veo’s look and sound at a lower cost, for quick iterations.",
-    modes: ["text", "image"],
-    durations: [4, 6, 8],
-    resolutions: ["720p", "1080p"],
-    aspectRatios: ["16:9", "9:16"],
-    endFrame: false,
-    maxReferences: 0,
-    audio: true,
-    creditsPerSecond: { "480p": 10, "720p": 12, "1080p": 20 },
+    description: "Veo's cinematic look with native dialogue and sound, at a lower cost.",
     speed: 4,
   },
-  {
-    id: "hailuo_02",
-    name: "Hailuo 02",
+  sora2_generate: { maker: "OpenAI", symbol: "◯", description: "Realistic scenes with synced sound.", speed: 8 },
+  hailuo23_generate: {
     maker: "MiniMax",
     symbol: "◎",
     description: "Dynamic physics, fast action and dramatic camera moves.",
-    modes: ["text", "image"],
-    durations: [6, 10],
-    resolutions: ["480p", "720p", "1080p"],
-    aspectRatios: ["16:9", "9:16", "1:1"],
-    endFrame: false,
-    maxReferences: 0,
-    audio: false,
-    creditsPerSecond: { "480p": 3, "720p": 6, "1080p": 12 },
-    speed: 5,
+    speed: 6,
   },
-  {
-    id: "wan_2_5",
-    name: "Wan 2.5",
-    maker: "Alibaba",
-    symbol: "≋",
-    description: "Open, versatile and quick, with character animation from a clip.",
-    modes: ["text", "image", "motion"],
-    durations: [5, 10],
-    resolutions: ["480p", "720p", "1080p"],
-    aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
-    endFrame: true,
-    maxReferences: 0,
-    audio: true,
-    creditsPerSecond: { "480p": 2, "720p": 4, "1080p": 8 },
+  wan26_generate: { maker: "Alibaba", symbol: "≋", description: "Versatile and quick, up to 15 seconds.", speed: 4 },
+  wan25_generate: { maker: "Alibaba", symbol: "≋", description: "Open, versatile and quick.", speed: 3 },
+  ltx2Fast_generate: { maker: "Lightricks", symbol: "▲", description: "Long, sharp clips up to 4K, fast.", speed: 3 },
+  pixverse6_generate: {
+    maker: "PixVerse",
+    symbol: "✺",
+    description: "Stylised looks: anime, 3D, clay, comic.",
     speed: 3,
   },
-];
+};
 
-export const allVideoResolutions: readonly VideoResolution[] = ["480p", "720p", "1080p"];
+/** The model the studio opens on when the link doesn't name one. */
+export const DEFAULT_VIDEO_MODEL = "seedance25_generate";
+
 export const videoCounts = [1, 2, 3, 4] as const;
 export const MAX_ACTIVE_RENDERS = 3;
 export const MAX_VIDEO_PROMPT_LENGTH = 2500;
@@ -162,10 +78,9 @@ export const MAX_CLIP_BYTES = 100 * 1024 * 1024;
 export const CLIP_MIME_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
 export const MIN_CLIP_SECONDS = 2;
 export const MAX_CLIP_SECONDS = 30;
-export const MAX_REFERENCE_LIMIT = Math.max(...videoModels.map((model) => model.maxReferences));
 
 export const defaultVideoSettings: Readonly<VideoSettings> = {
-  model: "seedance_2_5",
+  model: DEFAULT_VIDEO_MODEL,
   prompt: "",
   mode: "text",
   aspectRatio: "16:9",
@@ -241,6 +156,13 @@ export const videoInspirations: readonly VideoInspiration[] = [
 
 /** Sample clips available to the preview; keyed by media id so posters stay in sync. */
 export const videoSampleAssets: readonly MediaId[] = ["desert", "ocean", "portrait", "product"];
+
+export const VIDEO_POLL_INTERVAL_MS = 5_000;
+/** Past this the studio stops waiting on a render; it still finishes and appears in the feed later. */
+export const VIDEO_WAIT_LIMIT_MS = 30 * 60_000;
+export const VIDEO_HISTORY_PAGE_SIZE = 30;
+/** How long sample mode (`/video?sample=1`, development only) pretends a render takes. */
+export const SAMPLE_RENDER_MS = 4_000;
 
 /** Stage labels shown during a render, by fraction of progress reached. */
 export const renderStages: readonly { at: number; label: string }[] = [

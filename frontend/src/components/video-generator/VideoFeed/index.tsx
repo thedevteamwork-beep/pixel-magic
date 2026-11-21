@@ -2,12 +2,13 @@
 
 import { AudioLines, Copy, MonitorUp, MoreHorizontal, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getVideoModel, modeName } from "@/lib/video-generator/settings";
-import type { RenderJob, VideoMode, VideoResult } from "@/types/video-generator";
+import { canRenderIn1080p, modeName } from "@/lib/video-generator/settings";
+import type { RenderJob, VideoMode, VideoModel, VideoResult } from "@/types/video-generator";
 import { FailedCard, RenderCard, VideoCard } from "./FeedCards";
 import styles from "./main.module.css";
 
 type VideoFeedProps = {
+  models: readonly VideoModel[];
   items: readonly VideoResult[];
   jobs: readonly RenderJob[];
   motionEnabled: boolean;
@@ -24,14 +25,14 @@ type VideoFeedProps = {
 };
 
 function Meta({
-  model,
+  modelName,
   mode,
   duration,
   aspectRatio,
   resolution,
   audio,
 }: {
-  model: string;
+  modelName: string;
   mode: VideoMode;
   duration: number;
   aspectRatio: string;
@@ -40,11 +41,11 @@ function Meta({
 }) {
   return (
     <span className={styles.meta}>
-      <span className={styles.metaModel}>{getVideoModel(model).name}</span>
+      <span className={styles.metaModel}>{modelName}</span>
       <span>{modeName(mode)}</span>
       <span>{duration}s</span>
       <span>{aspectRatio}</span>
-      <span>{resolution}</span>
+      {resolution && <span>{resolution}</span>}
       {audio && (
         <span>
           <AudioLines size={10} aria-hidden="true" />
@@ -64,6 +65,8 @@ function relativeTime(iso: string) {
 
 export function VideoFeed(props: VideoFeedProps) {
   const { items, jobs, motionEnabled } = props;
+  const modelOf = (id: string) => props.models.find((model) => model.id === id);
+  const nameOf = (id: string) => modelOf(id)?.name ?? "Video model";
   const [menu, setMenu] = useState<string | null>(null);
   useEffect(() => {
     if (!menu) return;
@@ -92,7 +95,7 @@ export function VideoFeed(props: VideoFeedProps) {
             <div className={styles.groupCopy}>
               <p className={styles.prompt}>{job.prompt || `${modeName(job.mode)} from your upload`}</p>
               <Meta
-                model={job.model}
+                modelName={nameOf(job.model)}
                 mode={job.mode}
                 duration={job.duration}
                 aspectRatio={job.aspectRatio}
@@ -122,7 +125,7 @@ export function VideoFeed(props: VideoFeedProps) {
 
       {batches.map(({ id, videos }) => {
         const first = videos[0];
-        const canUpscale = first.resolution !== "1080p" && getVideoModel(first.model).resolutions.includes("1080p");
+        const canUpscale = canRenderIn1080p(first, modelOf(first.model));
         return (
           <section key={id} className={styles.group} aria-label={`Videos: ${first.prompt || "animated frame"}`}>
             <header className={styles.groupHeader}>
@@ -130,7 +133,7 @@ export function VideoFeed(props: VideoFeedProps) {
                 <p className={styles.prompt} title={first.prompt}>
                   {first.prompt || `${modeName(first.mode)} from your upload`}
                 </p>
-                <Meta {...first} />
+                <Meta {...first} modelName={nameOf(first.model)} />
               </div>
               <div className={styles.groupActions}>
                 <span className={styles.time}>{relativeTime(first.createdAt)}</span>

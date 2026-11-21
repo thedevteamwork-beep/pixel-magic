@@ -23,14 +23,15 @@ import {
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Modal } from "@/ui/Modal";
 import { captureVideoFrame } from "@/lib/video-generator/frames";
-import { downloadName, formatTimecode, getVideoModel, modeName, ratioValue } from "@/lib/video-generator/settings";
-import type { FrameImage, VideoResult } from "@/types/video-generator";
+import { canRenderIn1080p, downloadName, formatTimecode, modeName, ratioValue } from "@/lib/video-generator/settings";
+import type { FrameImage, VideoModel, VideoResult } from "@/types/video-generator";
 import styles from "./main.module.css";
 
 const FRAME = 1 / 24;
 const rates = [0.5, 1, 1.5, 2] as const;
 
 type VideoViewerProps = {
+  models: readonly VideoModel[];
   items: readonly VideoResult[];
   activeId: string | null;
   autoplay: boolean;
@@ -62,6 +63,7 @@ export function VideoViewer(props: VideoViewerProps) {
 }
 
 function Player({
+  models,
   item,
   index,
   items,
@@ -86,10 +88,10 @@ function Player({
   const [rate, setRate] = useState<(typeof rates)[number]>(1);
   const [capturing, setCapturing] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
-  const model = getVideoModel(item.model);
+  const model = models.find((entry) => entry.id === item.model);
   const previous = items[index - 1];
   const next = items[index + 1];
-  const canUpscale = item.resolution !== "1080p" && model.resolutions.includes("1080p");
+  const canUpscale = canRenderIn1080p(item, model);
 
   useEffect(() => {
     const element = video.current;
@@ -288,8 +290,8 @@ function Player({
       <aside className={styles.details}>
         <div className={styles.detailsTop}>
           <span className={styles.modelBadge}>
-            <span aria-hidden="true">{model.symbol}</span>
-            {model.name}
+            <span aria-hidden="true">{model?.symbol ?? "◆"}</span>
+            {model?.name ?? "Video model"}
           </span>
           <button
             type="button"
@@ -330,7 +332,7 @@ function Player({
           </div>
           <div>
             <dt>Model</dt>
-            <dd>{model.name}</dd>
+            <dd>{model?.name ?? "Video model"}</dd>
           </div>
           <div>
             <dt>Duration</dt>

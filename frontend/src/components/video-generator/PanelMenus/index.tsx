@@ -30,7 +30,15 @@ const modeIcons: Record<VideoMode, typeof Type> = {
   reference: Images,
 };
 
-export function ModeMenu({ value, onChange }: { value: VideoMode; onChange: (mode: VideoMode) => void }) {
+export function ModeMenu({
+  models,
+  value,
+  onChange,
+}: {
+  models: readonly VideoModel[];
+  value: VideoMode;
+  onChange: (mode: VideoMode) => void;
+}) {
   const Icon = modeIcons[value];
   return (
     <Flyout
@@ -51,7 +59,7 @@ export function ModeMenu({ value, onChange }: { value: VideoMode; onChange: (mod
       {(close) =>
         videoModes.map((mode) => {
           const ModeIcon = modeIcons[mode.id];
-          const count = modelsForMode(mode.id).length;
+          const count = modelsForMode(models, mode.id).length;
           return (
             <button
               type="button"
@@ -97,18 +105,20 @@ function ModelTag({ tag }: { tag?: VideoModel["tag"] }) {
 }
 
 export function ModelMenu({
+  models: allModels,
   mode,
   value,
   model,
   onChange,
 }: {
+  models: readonly VideoModel[];
   mode: VideoMode;
   value: string;
   model: VideoModel;
   onChange: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const models = modelsForMode(mode);
+  const models = modelsForMode(allModels, mode);
   const search = query.trim().toLowerCase();
   const visible = models.filter((item) => `${item.name} ${item.maker}`.toLowerCase().includes(search));
   const featured = visible.filter((item) => item.tag === "Top" || item.tag === "New");

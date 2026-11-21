@@ -71,7 +71,7 @@ export const footerContent: {
       title: "Video models",
       links: [
         { label: "Kling", href: "#kling" },
-        { label: "Seedance", href: "/video?model=seedance_2_5" },
+        { label: "Seedance", href: "/video?model=seedance25_generate" },
         { label: "Veo", href: "#veo" },
         { label: "Wan", href: "#wan" },
       ],
