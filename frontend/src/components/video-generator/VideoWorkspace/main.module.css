@@ -9,6 +9,30 @@
   min-height: 560px;
   background: var(--background);
 }
+/* The models couldn't load: say so, and offer to try again. */
+.loadError {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  height: calc(100dvh - var(--header-height));
+  padding: 24px;
+  text-align: center;
+}
+
+.loadError h1 {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--fs-2xl);
+  font-weight: 500;
+}
+
+.loadError p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
 .workspace:focus {
   outline: none;
 }

@@ -66,14 +66,22 @@ export function VideoCard({ item, index, autoplay, onOpen, onFavorite, onUseFram
         aria-haspopup="dialog"
         aria-label={`Open video ${index + 1}: ${item.alt}`}
       >
-        <Media media={{ kind: "image", src: item.poster, alt: "" }} fill plain sizes="(max-width: 700px) 90vw, 480px" />
+        {item.poster && (
+          <Media
+            media={{ kind: "image", src: item.poster, alt: "" }}
+            fill
+            plain
+            sizes="(max-width: 700px) 90vw, 480px"
+          />
+        )}
+        {/* Without a poster, the video's first frame stands in for one. */}
         <video
           ref={video}
           src={item.url}
           muted
           loop
           playsInline
-          preload="none"
+          preload={item.poster ? "none" : "metadata"}
           aria-hidden="true"
           tabIndex={-1}
           onTimeUpdate={(event) => {
@@ -94,7 +102,6 @@ export function VideoCard({ item, index, autoplay, onOpen, onFavorite, onUseFram
             <AudioLines size={10} />
           </span>
         )}
-        <span className={styles.sample}>Sample</span>
       </span>
       <button
         type="button"

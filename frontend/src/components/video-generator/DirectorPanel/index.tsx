@@ -3,19 +3,23 @@
 import { AudioLines, Dices, Info, LoaderCircle, Sparkles, Timer, VolumeX, WandSparkles, X } from "lucide-react";
 import { useId, type FormEvent, type RefObject } from "react";
 import { MAX_ACTIVE_RENDERS, MAX_VIDEO_PROMPT_LENGTH } from "@/components/video-generator/constants";
-import {
-  effectiveDuration,
-  estimateCredits,
-  estimateRenderSeconds,
-  formatEta,
-  getVideoModel,
-} from "@/lib/video-generator/settings";
-import type { VideoInputs, VideoMode, VideoResolution, VideoSettings } from "@/types/video-generator";
+import { effectiveDuration, estimateRenderSeconds, formatEta } from "@/lib/video-generator/settings";
+import type { VideoInputs, VideoMode, VideoModel, VideoSettings } from "@/types/video-generator";
 import { InputsSection, type InputTarget } from "../InputsSection";
 import { ChoiceTile, CountTile, DurationTile, ModelMenu, ModeMenu, RatioShape } from "../PanelMenus";
 import styles from "./main.module.css";
 
-const resolutionHints: Record<VideoResolution, string> = { "480p": "Draft", "720p": "HD", "1080p": "Full HD" };
+const resolutionHints: Record<string, string> = {
+  "360p": "Draft",
+  "480p": "Draft",
+  "540p": "Draft",
+  "720p": "HD",
+  "1080p": "Full HD",
+  "1440p": "2K",
+  "2160p": "4K",
+  "4K": "Ultra HD",
+  "4k": "Ultra HD",
+};
 const placeholders: Record<VideoMode, string> = {
   text: "Describe your video: the scene, the subject, what happens and how the camera moves…",
   image: "Describe how the scene should move…",
@@ -24,7 +28,14 @@ const placeholders: Record<VideoMode, string> = {
 };
 
 type DirectorPanelProps = {
+  models: readonly VideoModel[];
+  /** The selected model. */
+  model: VideoModel;
   settings: VideoSettings;
+  /** Credits for one video with these settings, from the backend; null while it loads. */
+  creditsPerVideo: number | null;
+  /** False when signed out: Generate asks to sign in first. */
+  signedIn: boolean | null;
   inputs: VideoInputs;
   inputBusy: InputTarget | null;
   inputError: string;
@@ -43,12 +54,11 @@ type DirectorPanelProps = {
 };
 
 export function DirectorPanel(props: DirectorPanelProps) {
-  const { settings, inputs, activeRenders, error, promptRef, onChange } = props;
+  const { model, settings, inputs, activeRenders, error, promptRef, onChange } = props;
   const id = useId();
-  const model = getVideoModel(settings.model);
-  const duration = effectiveDuration(settings, inputs.clip);
-  const credits = estimateCredits({ ...settings, duration });
-  const eta = formatEta(estimateRenderSeconds({ ...settings, duration }));
+  const duration = effectiveDuration(settings, inputs.clip, model);
+  const credits = props.creditsPerVideo === null ? null : props.creditsPerVideo * settings.count;
+  const eta = formatEta(estimateRenderSeconds(model, { ...settings, duration }));
   const queueFull = activeRenders >= MAX_ACTIVE_RENDERS;
   const promptOptional = settings.mode === "image" || settings.mode === "motion";
   const sound = settings.audio && model.audio;
@@ -57,8 +67,14 @@ export function DirectorPanel(props: DirectorPanelProps) {
     <form className={styles.panel} onSubmit={props.onSubmit} aria-label="Video direction" noValidate>
       <div className={styles.scroll}>
         <div className={styles.stack}>
-          <ModeMenu value={settings.mode} onChange={props.onModeChange} />
-          <ModelMenu mode={settings.mode} value={settings.model} model={model} onChange={props.onModelChange} />
+          <ModeMenu models={props.models} value={settings.mode} onChange={props.onModeChange} />
+          <ModelMenu
+            models={props.models}
+            mode={settings.mode}
+            value={settings.model}
+            model={model}
+            onChange={props.onModelChange}
+          />
         </div>
 
         {settings.mode !== "text" && (
@@ -155,36 +171,48 @@ export function DirectorPanel(props: DirectorPanelProps) {
             onChange={(value) => onChange({ duration: value })}
             lockedTo={settings.mode === "motion" && inputs.clip ? duration : undefined}
           />
-          <ChoiceTile
-            label="Aspect ratio"
-            value={settings.aspectRatio}
-            options={model.aspectRatios}
-            onChange={(aspectRatio) => onChange({ aspectRatio })}
-            render={(ratio) => (
-              <>
-                <RatioShape ratio={ratio} />
-                {ratio}
-              </>
-            )}
-          />
-          <ChoiceTile
-            label="Resolution"
-            value={settings.resolution}
-            options={model.resolutions}
-            onChange={(resolution) => onChange({ resolution })}
-            hint={(resolution) => resolutionHints[resolution]}
-          />
+          {model.aspectRatios.length > 0 && (
+            <ChoiceTile
+              label="Aspect ratio"
+              value={settings.aspectRatio}
+              options={model.aspectRatios}
+              onChange={(aspectRatio) => onChange({ aspectRatio })}
+              render={(ratio) => (
+                <>
+                  <RatioShape ratio={ratio} />
+                  {ratio}
+                </>
+              )}
+            />
+          )}
+          {model.resolutions.length > 0 && (
+            <ChoiceTile
+              label="Resolution"
+              value={settings.resolution}
+              options={model.resolutions}
+              onChange={(resolution) => onChange({ resolution })}
+              hint={(resolution) => resolutionHints[resolution] ?? ""}
+            />
+          )}
           <CountTile value={settings.count} onChange={(count) => onChange({ count })} />
         </div>
       </div>
 
       <div className={styles.footer}>
         <button type="submit" className={styles.generate} disabled={queueFull} aria-describedby={`${id}-generate-note`}>
-          <span>{queueFull ? "Queue full" : activeRenders ? "Generate another" : "Generate"}</span>
+          <span>
+            {queueFull
+              ? "Queue full"
+              : props.signedIn === false
+                ? "Sign in to generate"
+                : activeRenders
+                  ? "Generate another"
+                  : "Generate"}
+          </span>
           {!queueFull && (
-            <span className={styles.price}>
+            <span className={styles.price} aria-label={credits === null ? "Price loading" : `${credits} credits`}>
               <Sparkles size={15} fill="currentColor" aria-hidden="true" />
-              {credits}
+              {credits ?? "…"}
             </span>
           )}
         </button>
@@ -193,9 +221,6 @@ export function DirectorPanel(props: DirectorPanelProps) {
             <span>Up to {MAX_ACTIVE_RENDERS} videos can render at once.</span>
           ) : (
             <>
-              <span>
-                <strong>Free in preview</strong>
-              </span>
               <span>
                 <Timer size={12} aria-hidden="true" />
                 {eta}

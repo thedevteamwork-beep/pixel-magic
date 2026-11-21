@@ -1,23 +1,24 @@
-import { videoModels, videoModes } from "@/components/video-generator/constants";
-import type {
-  MotionClip,
-  VideoMode,
-  VideoModel,
-  VideoResolution,
-  VideoResult,
-  VideoSettings,
-} from "@/types/video-generator";
+import { videoModes } from "@/components/video-generator/constants";
+import type { MotionClip, VideoMode, VideoModel, VideoResult, VideoSettings } from "@/types/video-generator";
+import { resolutionRank } from "./models";
 
-export function getVideoModel(id: string): VideoModel {
-  return videoModels.find((model) => model.id === id) ?? videoModels[0];
+/** The model with this id, else the first: an old link or a removed model still opens the studio. */
+export function getVideoModel(models: readonly VideoModel[], id: string): VideoModel {
+  return models.find((model) => model.id === id) ?? models[0];
 }
 
-export function modelsForMode(mode: VideoMode): readonly VideoModel[] {
-  return videoModels.filter((model) => model.modes.includes(mode));
+export function modelsForMode(models: readonly VideoModel[], mode: VideoMode): readonly VideoModel[] {
+  return models.filter((model) => model.modes.includes(mode));
 }
+
+/** Names for modes the studio doesn't offer yet, so they still read well where they appear. */
+const UPCOMING_MODE_NAMES: Partial<Record<VideoMode, string>> = {
+  reference: "Reference to Video",
+  motion: "Motion Control",
+};
 
 export function modeName(mode: VideoMode): string {
-  return videoModes.find((option) => option.id === mode)?.name ?? mode;
+  return videoModes.find((option) => option.id === mode)?.name ?? UPCOMING_MODE_NAMES[mode] ?? mode;
 }
 
 export function nearestDuration(options: readonly number[], value: number): number {
@@ -33,7 +34,7 @@ export function nearestDuration(options: readonly number[], value: number): numb
  */
 export function fitSettingsToModel(
   settings: VideoSettings,
-  model: VideoModel = getVideoModel(settings.model),
+  model: VideoModel,
 ): { settings: VideoSettings; adjustments: string[] } {
   const next = { ...settings, model: model.id };
   const adjustments: string[] = [];
@@ -46,16 +47,16 @@ export function fitSettingsToModel(
     adjustments.push(`${next.duration}s → ${duration}s`);
     next.duration = duration;
   }
-  if (!model.resolutions.includes(next.resolution)) {
-    const order: readonly VideoResolution[] = ["480p", "720p", "1080p"];
-    const index = nearestDuration(
-      model.resolutions.map((value) => order.indexOf(value)),
-      order.indexOf(next.resolution),
+  // A model without a resolution choice keeps the setting for the next model; it just isn't sent.
+  if (model.resolutions.length && !model.resolutions.includes(next.resolution)) {
+    const rank = resolutionRank(next.resolution) || 720;
+    const nearest = model.resolutions.reduce((best, option) =>
+      Math.abs(resolutionRank(option) - rank) < Math.abs(resolutionRank(best) - rank) ? option : best,
     );
-    adjustments.push(`${next.resolution} → ${order[index]}`);
-    next.resolution = order[index];
+    if (next.resolution) adjustments.push(`${next.resolution} → ${nearest}`);
+    next.resolution = nearest;
   }
-  if (!model.aspectRatios.includes(next.aspectRatio)) {
+  if (model.aspectRatios.length && !model.aspectRatios.includes(next.aspectRatio)) {
     adjustments.push(`${next.aspectRatio} → ${model.aspectRatios[0]}`);
     next.aspectRatio = model.aspectRatios[0];
   }
@@ -68,34 +69,21 @@ export function fitSettingsToModel(
 
 /** Motion control follows the length of the clip, within what the model supports. */
 export function effectiveDuration(
-  settings: Pick<VideoSettings, "mode" | "duration" | "model">,
+  settings: Pick<VideoSettings, "mode" | "duration">,
   clip: Pick<MotionClip, "duration"> | null,
+  model: VideoModel,
 ): number {
   if (settings.mode !== "motion" || !clip) return settings.duration;
-  return nearestDuration(getVideoModel(settings.model).durations, clip.duration);
+  return nearestDuration(model.durations, clip.duration);
 }
 
-const resolutionTime: Record<VideoResolution, number> = { "480p": 0.6, "720p": 1, "1080p": 1.8 };
-
-/** Indicative credits for a real render. Sound adds a quarter. */
-export function estimateCredits(
-  settings: Pick<VideoSettings, "model" | "resolution" | "duration" | "count" | "audio">,
+/** Typical wall-clock seconds for a render; clips in a batch render in parallel. Larger frames take longer. */
+export function estimateRenderSeconds(
+  model: VideoModel,
+  settings: Pick<VideoSettings, "resolution" | "duration">,
 ): number {
-  const model = getVideoModel(settings.model);
-  const perClip =
-    model.creditsPerSecond[settings.resolution] * settings.duration * (settings.audio && model.audio ? 1.25 : 1);
-  return Math.ceil(perClip) * settings.count;
-}
-
-/** Typical wall-clock seconds for a real render; clips in a batch render in parallel. */
-export function estimateRenderSeconds(settings: Pick<VideoSettings, "model" | "resolution" | "duration">): number {
-  const model = getVideoModel(settings.model);
-  return Math.round(model.speed * settings.duration * resolutionTime[settings.resolution] + 15);
-}
-
-/** The preview compresses real render time into a few seconds so the flow can be felt. */
-export function previewRenderMs(settings: Pick<VideoSettings, "model" | "resolution" | "duration">): number {
-  return Math.round(Math.min(9000, Math.max(3500, estimateRenderSeconds(settings) * 55)));
+  const scale = (resolutionRank(settings.resolution) || 720) / 720;
+  return Math.round(model.speed * settings.duration * Math.max(0.6, scale) + 15);
 }
 
 export function formatEta(seconds: number): string {
@@ -119,6 +107,7 @@ export function durationLabel(model: VideoModel): string {
 }
 
 export function resolutionLabel(model: VideoModel): string {
+  if (!model.resolutions.length) return "Auto";
   return model.resolutions.length > 1 ? `${model.resolutions[0]}–${model.resolutions.at(-1)}` : model.resolutions[0];
 }
 
@@ -138,7 +127,12 @@ export function closestAspectRatio(width: number, height: number, options: reado
   );
 }
 
-/** File name for a downloaded sample clip. */
+/** File name for a downloaded video. */
 export function downloadName(item: Pick<VideoResult, "id">) {
-  return `pixel-magic-sample-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-")}.mp4`;
+  return `pixel-magic-video-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 24)}.mp4`;
+}
+
+/** A shot can be rendered again in 1080p when it is smaller and its model offers 1080p. */
+export function canRenderIn1080p(item: Pick<VideoResult, "resolution">, model: VideoModel | undefined): boolean {
+  return Boolean(model?.resolutions.includes("1080p")) && (resolutionRank(item.resolution) || 0) < 1080;
 }
