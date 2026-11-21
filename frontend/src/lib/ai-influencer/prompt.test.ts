@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultTraits } from "@/components/ai-influencer/constants";
+import { defaultTraits, MAX_EXTRA_LENGTH } from "@/components/ai-influencer/constants";
 import { composeInfluencerPrompt, displayName, seedFrom, traitLabel } from "./prompt";
 
 const everyTrait = {
@@ -15,76 +15,130 @@ const everyTrait = {
 };
 
 describe("composeInfluencerPrompt", () => {
-  it("describes every chosen trait in readable words", () => {
-    const prompt = composeInfluencerPrompt(everyTrait);
-    expect(prompt).toContain("late 20s south asian woman");
-    expect(prompt).toContain("olive skin, black long waves hair, brown eyes, slim build");
-    expect(prompt).toContain("wearing streetwear, city street");
+  it("puts the sections in order", () => {
+    const prompt = composeInfluencerPrompt(everyTrait, { photo: true, style: true });
+    const order = [
+      "You are an expert AI influencer creator",
+      "## Priorities",
+      "## Output",
+      "## Photography",
+      "## Realism details",
+      "## Character",
+      "## Style",
+      "## Reference images",
+      "## Avoid",
+    ].map((heading) => prompt.indexOf(heading));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("leaves out traits that were not chosen", () => {
+  it("gives user notes the highest priority", () => {
     const prompt = composeInfluencerPrompt(defaultTraits);
-    expect(prompt).toContain("A photorealistic portrait of a late 20s woman.");
-    expect(prompt).not.toContain("skin,");
-    expect(prompt).not.toContain("hair");
-    expect(prompt).not.toContain("wearing");
+    expect(prompt).toContain("1. User notes: the user's own words win over everything below.");
+    expect(prompt).toContain("never overridden");
   });
 
-  it("handles a hair style or colour on its own", () => {
-    expect(composeInfluencerPrompt({ ...defaultTraits, hairStyle: "bob" })).toContain("bob hair");
-    expect(composeInfluencerPrompt({ ...defaultTraits, hairColor: "blonde" })).toContain("blonde hair");
+  it("writes a picked colour as words plus its hex", () => {
+    const prompt = composeInfluencerPrompt({
+      ...defaultTraits,
+      skinTone: "olive",
+      hairColor: "pastel",
+      eyeColor: "hazel",
+    });
+    expect(prompt).toContain("- Skin tone: olive, medium skin with warm golden-olive undertones (#c99a6e)");
+    expect(prompt).toContain("- Hair colour: pastel, dyed pastel lavender (#c7a7f0)");
+    expect(prompt).toContain("- Eyes: hazel, golden brown with green flecks (#8a6a35)");
   });
 
-  it("appends trimmed extra direction", () => {
-    expect(composeInfluencerPrompt({ ...defaultTraits, extra: "  freckles  " })).toContain("freckles.");
+  it("describes hair style, build and age", () => {
+    const prompt = composeInfluencerPrompt({ ...defaultTraits, hairStyle: "long-waves", build: "athletic" });
+    expect(prompt).toContain("- Hair style: long, soft, loose waves falling past the shoulders");
+    expect(prompt).toContain("- Build: toned, athletic build with visible muscle definition");
+    expect(prompt).toContain("- Age: late 20s (looks about 26–29)");
+  });
+
+  it("describes the outfit and setting it was given", () => {
+    const prompt = composeInfluencerPrompt({ ...defaultTraits, outfit: "streetwear", setting: "café" });
+    expect(prompt).toContain(
+      "- Outfit: streetwear (oversized hoodie or graphic tee, wide-leg jeans or cargo pants, chunky sneakers, layered accessories)",
+    );
+    expect(prompt).toContain("- Setting: café (cosy café interior, wooden table, warm ambient light)");
+  });
+
+  it("leaves out traits that were not picked", () => {
+    const prompt = composeInfluencerPrompt(defaultTraits);
+    expect(prompt).toContain("- Character type: human");
+    expect(prompt).toContain("- Gender: woman");
+    for (const missing of ["Heritage", "Skin tone", "Hair style", "Hair colour", "- Eyes", "- Build", "## Style"]) {
+      expect(prompt).not.toContain(missing);
+    }
+  });
+
+  it("adds user notes only when there is text", () => {
+    expect(composeInfluencerPrompt({ ...defaultTraits, extra: "  freckles  " })).toContain("## User notes\nfreckles\n");
+    expect(composeInfluencerPrompt({ ...defaultTraits, extra: "   " })).not.toContain("## User notes");
+  });
+
+  it("lists the safety rules", () => {
+    expect(composeInfluencerPrompt(defaultTraits)).toContain("anyone who looks under 18");
+  });
+
+  it("stays within Nano Banana's 5000-character prompt limit", () => {
+    // The longest description of every trait, both references and the longest notes.
+    const longest = {
+      ...defaultTraits,
+      character: "wild",
+      gender: "non-binary",
+      ethnicity: "southeast-asian",
+      skinTone: "deep",
+      hairStyle: "pixie",
+      hairColor: "silver",
+      eyeColor: "hazel",
+      build: "athletic",
+      outfit: "streetwear",
+      setting: "rooftop-at-golden-hour",
+      extra: "x".repeat(MAX_EXTRA_LENGTH),
+    };
+    expect(composeInfluencerPrompt(longest, { photo: true, style: true }).length).toBeLessThanOrEqual(5000);
   });
 });
 
 describe("character type", () => {
-  it("keeps the human prompt unchanged for a natural character", () => {
-    expect(composeInfluencerPrompt({ ...everyTrait, character: "natural" })).toBe(composeInfluencerPrompt(everyTrait));
-  });
-
   it("adds the look of an expressive or wild human character", () => {
+    expect(composeInfluencerPrompt({ ...defaultTraits, character: "natural" })).toContain(
+      "- Character type: human, natural look",
+    );
     expect(composeInfluencerPrompt({ ...defaultTraits, character: "expressive" })).toContain(
-      "bold, expressive features",
+      "- Character type: human, bold, expressive features",
     );
     expect(composeInfluencerPrompt({ ...defaultTraits, character: "wild" })).toContain(
-      "extreme, exaggerated, eccentric look",
+      "- Character type: human, extreme, exaggerated, eccentric look",
     );
   });
 
-  it("describes an animal character and drops human-only traits", () => {
-    const prompt = composeInfluencerPrompt({ ...everyTrait, character: "kitty" });
-    expect(prompt).toContain("A photorealistic portrait of an anthropomorphic cat character, female, late 20s");
-    expect(prompt).toContain("black long waves hair, brown eyes");
-    expect(prompt).not.toContain("south asian");
-    expect(prompt).not.toContain("olive skin");
-    expect(prompt).not.toContain("natural skin texture");
+  it("describes an animal character without human-only traits", () => {
+    const prompt = composeInfluencerPrompt({ ...everyTrait, character: "kitty" }, { photo: true });
+    expect(prompt).toContain("- Character type: anthropomorphic cat character");
+    expect(prompt).toContain("- Gender: female");
+    expect(prompt).toContain("Fur or feathers");
+    expect(prompt).toContain("a single character");
+    expect(prompt).toContain("keep the same character identity");
+    for (const human of ["Heritage", "Skin tone", "- Skin:", "makeup", "a single person"]) {
+      expect(prompt).not.toContain(human);
+    }
   });
 });
 
 describe("reference images", () => {
-  it("mentions no reference when none is used", () => {
-    expect(composeInfluencerPrompt(defaultTraits)).not.toContain("reference");
-  });
-
-  it("asks to keep the uploaded likeness when only the photo is used", () => {
-    const prompt = composeInfluencerPrompt(defaultTraits, { photo: true });
-    expect(prompt).toContain("keep the face and likeness of the uploaded reference photo");
-    expect(prompt).not.toContain("styling");
-  });
-
-  it("asks to match the style image when only the style is used", () => {
-    const prompt = composeInfluencerPrompt(defaultTraits, { style: true });
-    expect(prompt).toContain("match the outfit, styling and mood of the style reference image");
-    expect(prompt).not.toContain("likeness");
-  });
-
-  it("names the photo first and the style second when both are used", () => {
-    const prompt = composeInfluencerPrompt(defaultTraits, { photo: true, style: true });
-    expect(prompt).toContain("keep the face and likeness of the first reference image");
-    expect(prompt).toContain("match the outfit, styling and mood of the second reference image");
+  it.each([
+    [{}, [], ["## Reference images"]],
+    [{ photo: true }, ["- Image 1 (face): keep the same face"], ["Image 2", "(style)"]],
+    [{ style: true }, ["- Image 1 (style): match its outfit"], ["Image 2", "(face)"]],
+    [{ photo: true, style: true }, ["- Image 1 (face)", "- Image 2 (style)"], []],
+  ])("for %o lists the images sent", (references, present, absent) => {
+    const prompt = composeInfluencerPrompt(defaultTraits, references);
+    for (const text of present) expect(prompt).toContain(text);
+    for (const text of absent) expect(prompt).not.toContain(text);
   });
 });
 

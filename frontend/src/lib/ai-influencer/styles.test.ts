@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ApiClient } from "@/lib/api/client";
 import type { ProjectView } from "@/lib/api/types";
-import { listStyleReferences, saveStyleReference, styleFromProject } from "./styles";
+import { getStyleReference, listStyleReferences, saveStyleReference, styleFromProject } from "./styles";
 
 function styleProject(id: string, title: string, upload: ProjectView["upload"]): ProjectView {
   return {
@@ -79,5 +79,19 @@ describe("saveStyleReference", () => {
     ]);
     expect(style.id).toBe("p3");
     expect(style.url).toContain("u3");
+  });
+});
+
+describe("getStyleReference", () => {
+  it("loads one saved style by its encoded id", async () => {
+    const { api, calls } = fakeApi(styleProject("st/1", "Pink street", image("up1")));
+    const style = await getStyleReference(api, "st/1");
+    expect(calls).toEqual([{ method: "GET", path: "/v1/projects/st%2F1", body: undefined }]);
+    expect(style).toEqual({ id: "st/1", name: "Pink street", uploadId: "up1", url: image("up1").url });
+  });
+
+  it("gives null for a style whose image is gone", async () => {
+    const { api } = fakeApi(styleProject("st1", "Old", null));
+    expect(await getStyleReference(api, "st1")).toBeNull();
   });
 });

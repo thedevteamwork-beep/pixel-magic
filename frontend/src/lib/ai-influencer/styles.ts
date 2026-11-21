@@ -9,6 +9,11 @@ export function styleFromProject(view: ProjectView): StyleReference | null {
   return { id: view.projectId, name: view.title, uploadId: view.upload.uploadId, url: view.upload.url };
 }
 
+/** One saved style by its project id (the one an influencer saved), or null when its image is gone. */
+export async function getStyleReference(api: ApiClient, id: string): Promise<StyleReference | null> {
+  return styleFromProject(await api.get<ProjectView>(`/v1/projects/${encodeURIComponent(id)}`));
+}
+
 /** The user's saved styles, most recently saved first. Each image link is fresh for a day. */
 export async function listStyleReferences(api: ApiClient): Promise<StyleReference[]> {
   const page = await api.get<ProjectList>(`/v1/projects?type=${STYLE_PROJECT_TYPE}&limit=${STYLES_PAGE_SIZE}`);

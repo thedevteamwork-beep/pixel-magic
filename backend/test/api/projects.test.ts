@@ -428,6 +428,31 @@ describe("projects API", () => {
       expect(res.body.upload).toBeNull();
     });
 
+    it("saves an influencer's face photo and returns it signed", async () => {
+      const photoUploadId = await uploadImage();
+      const res = await create({
+        type: "ai-influencer",
+        title: "Mira",
+        data: { traits: {}, photoUploadId, aspectRatio: "4:5" },
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.data.photoUploadId).toBe(photoUploadId);
+      expect(res.body.upload.uploadId).toBe(photoUploadId);
+      expect(res.body.upload.url).toContain("expires=86400");
+    });
+
+    it("rejects another user's photo on an influencer", async () => {
+      const otherUser = await insertProfile(testDb);
+      const theirs = await uploadImage(otherUser);
+      const res = await create({
+        type: "ai-influencer",
+        title: "Mira",
+        data: { photoUploadId: theirs },
+      });
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe("UPLOAD_NOT_READY");
+    });
+
     it("rejects another user's upload with 422 and writes nothing", async () => {
       const otherUser = await insertProfile(testDb);
       const theirs = await uploadImage(otherUser);

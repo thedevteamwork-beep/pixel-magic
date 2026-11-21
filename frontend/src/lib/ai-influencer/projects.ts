@@ -1,4 +1,6 @@
 import {
+  DEFAULT_ASPECT_RATIO,
+  INFLUENCER_MODEL_KEY,
   PROJECT_JOBS_PAGE_SIZE,
   PROJECT_TYPE,
   PROJECTS_PAGE_SIZE,
@@ -8,14 +10,23 @@ import {
 import { ApiError, type ApiClient } from "@/lib/api/client";
 import type { JobList, JobView, ProjectList, ProjectView, PublicModel } from "@/lib/api/types";
 import { buildInput, defaultOptions, imageFieldName } from "@/lib/generate/formFromSchema";
-import type { InfluencerTraits, InfluencerVariation, TraitKey } from "@/types/ai-influencer";
+import type { InfluencerTraits, InfluencerVariation, ReferencePhoto, TraitKey } from "@/types/ai-influencer";
 import { composeInfluencerPrompt } from "./prompt";
 
 export type InfluencerProjectData = {
   traits: Partial<Record<TraitKey, string>>;
   extra?: string;
   archetypeId?: string;
+  /** The image shape, e.g. "4:5". Projects saved before it existed have none. */
+  aspectRatio?: string;
+  /** The face photo's upload; the backend returns it signed as the project's `upload`. */
+  photoUploadId?: string;
+  /** The picked saved style (an influencer-style project). */
+  styleId?: string;
 };
+
+/** What an influencer saves besides its traits. */
+export type SavedSettings = Pick<InfluencerProjectData, "aspectRatio" | "photoUploadId" | "styleId">;
 
 const traitKeys: TraitKey[] = traitGroups.flatMap((group) => group.fields.map((field) => field.key));
 
@@ -23,13 +34,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** What is saved in a project: only the traits that were chosen, and extra direction when there is some. */
-export function projectData(traits: InfluencerTraits, archetypeId: string | null): InfluencerProjectData {
+export function projectData(
+  traits: InfluencerTraits,
+  archetypeId: string | null,
+  settings: SavedSettings = {},
+): InfluencerProjectData {
   const data: InfluencerProjectData = { traits: {} };
   for (const key of traitKeys) {
     if (traits[key]) data.traits[key] = traits[key];
   }
   if (traits.extra.trim()) data.extra = traits.extra.trim();
   if (archetypeId) data.archetypeId = archetypeId;
+  if (settings.aspectRatio) data.aspectRatio = settings.aspectRatio;
+  if (settings.photoUploadId) data.photoUploadId = settings.photoUploadId;
+  if (settings.styleId) data.styleId = settings.styleId;
   return data;
 }
 
@@ -52,6 +70,21 @@ export function traitsFromProject(view: ProjectView): InfluencerTraits {
 /** The character type the project was started from, or null. */
 export function archetypeFromProject(view: ProjectView): string | null {
   return typeof view.data.archetypeId === "string" ? view.data.archetypeId : null;
+}
+
+/** The aspect ratio the project was saved with, or null (projects saved before it existed). */
+export function aspectRatioFromProject(view: ProjectView): string | null {
+  return typeof view.data.aspectRatio === "string" ? view.data.aspectRatio : null;
+}
+
+/** The saved face photo, from the project's signed upload; null when none was saved. */
+export function photoFromProject(view: ProjectView): ReferencePhoto | null {
+  return view.upload ? { url: view.upload.url, name: "Saved photo", uploadId: view.upload.uploadId } : null;
+}
+
+/** The saved style's project id, or null. */
+export function styleIdFromProject(view: ProjectView): string | null {
+  return typeof view.data.styleId === "string" ? view.data.styleId : null;
 }
 
 /** The images of completed jobs, in the order given. */
@@ -89,13 +122,38 @@ export function usedReferences<T>(model: PublicModel, references: References<T>)
   return used;
 }
 
-/** The job input for a set of traits: portrait shape, up to VARIATION_COUNT images, the references and the prompt. */
+/** The model every influencer is made with: Nano Banana 2 when the backend lists it, otherwise the first one. */
+export function influencerModel(models: PublicModel[]): PublicModel | undefined {
+  return models.find((model) => model.key === INFLUENCER_MODEL_KEY) ?? models[0];
+}
+
+/** The aspect ratios the model offers, in its own order; none when it has no `aspect_ratio` option. */
+export function aspectRatios(model: PublicModel | undefined): string[] {
+  const field = model?.input.aspect_ratio;
+  return field?.type === "string" && field.enum ? [...field.enum] : [];
+}
+
+/** `wanted` when the model offers it, else 4:5, else the model's own default, else 4:5. */
+export function pickAspectRatio(model: PublicModel | undefined, wanted: string | null): string {
+  const offered = aspectRatios(model);
+  if (wanted && offered.includes(wanted)) return wanted;
+  if (offered.length === 0 || offered.includes(DEFAULT_ASPECT_RATIO)) return DEFAULT_ASPECT_RATIO;
+  const field = model?.input.aspect_ratio;
+  return field?.type === "string" && typeof field.default === "string" ? field.default : DEFAULT_ASPECT_RATIO;
+}
+
+/**
+ * The job input for a set of traits: the picked aspect ratio (or a portrait size for a model without one), up to
+ * VARIATION_COUNT images, the references and the prompt.
+ */
 export function influencerInput(
   model: PublicModel,
   traits: InfluencerTraits,
   uploadIds: References<string>,
+  aspectRatio: string,
 ): Record<string, unknown> {
   const values = defaultOptions(model);
+  if (aspectRatios(model).length > 0) values.aspect_ratio = pickAspectRatio(model, aspectRatio);
 
   const size = model.input.image_size;
   if (size?.type === "string" && size.enum?.includes("portrait_4_3")) values.image_size = "portrait_4_3";

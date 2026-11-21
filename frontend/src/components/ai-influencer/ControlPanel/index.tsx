@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfluencer } from "../InfluencerContext";
+import { AspectRatioPicker } from "./AspectRatioPicker";
 import { ReferenceUpload } from "../ReferenceUpload";
 import { TraitSections } from "../TraitSections";
 import { PanelFooter } from "./PanelFooter";
@@ -9,7 +10,17 @@ import { PromptField } from "./PromptField";
 import styles from "./main.module.css";
 
 export function ControlPanel() {
-  const { state, dispatch, generate, randomize, newInfluencer, registerField } = useInfluencer();
+  const {
+    state,
+    dispatch,
+    generate,
+    randomize,
+    newInfluencer,
+    registerField,
+    selectedModel,
+    aspectRatio,
+    setAspectRatio,
+  } = useInfluencer();
   const busy = state.status === "generating";
   const send = () => {
     if (!busy) void generate();
@@ -40,6 +51,7 @@ export function ControlPanel() {
             onSubmit={send}
             inputRef={(node) => registerField("extra", node)}
           />
+          <AspectRatioPicker model={selectedModel} value={aspectRatio} disabled={busy} onChange={setAspectRatio} />
           <PanelFooter busy={busy} hasResult={state.variations.length > 0} onShuffle={randomize} />
         </div>
       </form>

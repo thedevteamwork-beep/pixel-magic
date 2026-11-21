@@ -58,6 +58,24 @@ describe("ai-influencer data", () => {
     expect(out.archetypeId).toBe("street");
   });
 
+  it("keeps the face photo and the picked style", () => {
+    const refs = {
+      photoUploadId: "6f1c2c8e-6c3b-4b8e-9a51-0d6f1b7a2c11",
+      styleId: "0b8f6c1e-2a4d-4f7b-8e3c-5d9a1c2b3e44",
+    };
+    expect(aiInfluencer.data.parse(refs)).toEqual({ traits: {}, ...refs });
+  });
+
+  it("checks the face photo like a style's image", () => {
+    expect(aiInfluencer.uploadField).toBe("photoUploadId");
+  });
+
+  it("keeps aspectRatio", () => {
+    expect(aiInfluencer.data.parse({ aspectRatio: "4:5" }).aspectRatio).toBe(
+      "4:5",
+    );
+  });
+
   it("accepts the character type trait", () => {
     expect(
       aiInfluencer.data.parse({ traits: { character: "kitty" } }).traits,
@@ -69,6 +87,9 @@ describe("ai-influencer data", () => {
     ["trait too long", { traits: { gender: "x".repeat(41) } }],
     ["extra too long", { extra: "x".repeat(501) }],
     ["archetypeId too long", { archetypeId: "x".repeat(61) }],
+    ["aspectRatio too long", { aspectRatio: "x".repeat(11) }],
+    ["photoUploadId not a uuid", { photoUploadId: "photo" }],
+    ["styleId not a uuid", { styleId: "style" }],
     ["unknown field", { other: 1 }],
   ])("rejects %s", (_name, input) => {
     expect(() => aiInfluencer.data.parse(input)).toThrow(ZodError);

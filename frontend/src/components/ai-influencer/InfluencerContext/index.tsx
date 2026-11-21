@@ -14,6 +14,7 @@ import {
 } from "react";
 import {
   archetypes,
+  DEFAULT_ASPECT_RATIO,
   defaultTraits,
   POLL_INTERVAL_MS,
   textFieldRules,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ai-influencer/constants";
 import {
   archetypeFromProject,
+  aspectRatioFromProject,
   catchDeletedProject,
   createInfluencerJob,
   createInfluencerProject,
@@ -30,16 +32,22 @@ import {
   getInfluencerProject,
   influencerImageModels,
   influencerInput,
+  influencerModel,
+  photoFromProject,
+  pickAspectRatio,
   listInfluencerProjects,
   listProjectJobs,
   ProjectDeletedError,
   projectData,
+  styleIdFromProject,
+  type SavedSettings,
   traitsFromProject,
   updateInfluencerProject,
   usedReferences,
   variationsFromJobs,
 } from "@/lib/ai-influencer/projects";
 import type { ReferencesUsed } from "@/lib/ai-influencer/prompt";
+import { getStyleReference } from "@/lib/ai-influencer/styles";
 import { imageFileError, uploadImage } from "@/lib/ai-influencer/upload";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
 import type { JobView, ProjectView, PublicModel } from "@/lib/api/types";
@@ -80,9 +88,12 @@ type State = {
   /** Where the next History page starts; null when there are no more. */
   projectsCursor: string | null;
   projectsStatus: ProjectsStatus;
-  /** The image models the picker offers. */
+  /** The image models the backend lists. */
   models: PublicModel[];
+  /** The model every Generate uses: Nano Banana 2 when listed (see influencerModel). */
   modelKey: string;
+  /** The image shape picked under the prompt, e.g. "4:5"; checked against the model when used. */
+  aspectRatio: string;
 };
 
 type Action =
@@ -102,6 +113,7 @@ type Action =
   | { type: "select"; id: string }
   | { type: "dismissError" }
   | { type: "models"; models: PublicModel[] }
+  | { type: "aspectRatio"; value: string }
   | { type: "projects"; projects: ProjectView[]; cursor: string | null; append?: boolean }
   | { type: "projectsStatus"; status: ProjectsStatus }
   | { type: "project"; view: ProjectView }
@@ -126,6 +138,7 @@ const initial: State = {
   projectsStatus: "loading",
   models: [],
   modelKey: "",
+  aspectRatio: DEFAULT_ASPECT_RATIO,
 };
 
 /** Keeps the first copy of each project. The list is ordered by `updated_at`, so one can show up on two pages. */
@@ -173,6 +186,7 @@ function reducer(state: State, action: Action): State {
         traits: { ...defaultTraits },
         archetypeId: null,
         style: null,
+        aspectRatio: DEFAULT_ASPECT_RATIO,
         error: "",
         fieldErrors: {},
         projectId: null,
@@ -195,7 +209,9 @@ function reducer(state: State, action: Action): State {
     case "dismissError":
       return { ...state, error: "" };
     case "models":
-      return { ...state, models: action.models, modelKey: action.models[0]?.key ?? "" };
+      return { ...state, models: action.models, modelKey: influencerModel(action.models)?.key ?? "" };
+    case "aspectRatio":
+      return { ...state, aspectRatio: action.value };
     case "projects": {
       const projects = action.append ? withoutDuplicates([...state.projects, ...action.projects]) : action.projects;
       return { ...state, projects, projectsCursor: action.cursor, projectsStatus: "idle" };
@@ -209,6 +225,8 @@ function reducer(state: State, action: Action): State {
         projectId: action.view.projectId,
         traits: traitsFromProject(action.view),
         archetypeId: archetypeFromProject(action.view),
+        // Projects saved before the picker existed open with the default shape.
+        aspectRatio: aspectRatioFromProject(action.view) ?? DEFAULT_ASPECT_RATIO,
         error: "",
         fieldErrors: {},
       };
@@ -233,8 +251,18 @@ function isClientError(error: unknown): boolean {
 }
 
 /** The title and data a project is saved with, as text. A Generate patches the project only when this changes. */
-function savedForm(traits: InfluencerTraits, archetypeId: string | null): string {
-  return JSON.stringify({ title: traits.name, data: projectData(traits, archetypeId) });
+function savedForm(traits: InfluencerTraits, archetypeId: string | null, settings: SavedSettings): string {
+  return JSON.stringify({ title: traits.name, data: projectData(traits, archetypeId, settings) });
+}
+
+/** What the server holds for a project besides its traits. */
+function settingsFromProject(view: ProjectView): SavedSettings {
+  const photoUploadId = view.data.photoUploadId;
+  return {
+    aspectRatio: aspectRatioFromProject(view) ?? undefined,
+    photoUploadId: typeof photoUploadId === "string" ? photoUploadId : undefined,
+    styleId: styleIdFromProject(view) ?? undefined,
+  };
 }
 
 function showProjectInUrl(projectId: string | null) {
@@ -244,7 +272,7 @@ function showProjectInUrl(projectId: string | null) {
 
 // What one Generate remembers for a retry: its key, the photo it already uploaded, and what it asked for.
 // A retry of the same request reuses the key, so it cannot create a second job; any change gets a new key.
-type Attempt = { key: string; uploadId?: string; request: string };
+type Attempt = { key: string; request: string };
 
 type InfluencerContextValue = {
   state: State;
@@ -273,6 +301,9 @@ type InfluencerContextValue = {
   modelTakesReference: boolean;
   /** Which of the attached photo and picked style the selected model receives (it may take only one image). */
   referencesUsed: ReferencesUsed;
+  /** The aspect ratio the next Generate sends: the picked one when the model offers it. */
+  aspectRatio: string;
+  setAspectRatio: (value: string) => void;
 };
 
 const InfluencerContext = createContext<InfluencerContextValue | null>(null);
@@ -300,6 +331,8 @@ export function InfluencerProvider({
   const modelsError = useRef<unknown>(null);
   const photoUrl = useRef<string | null>(null);
   const photoFile = useRef<File | null>(null);
+  /** The attached photo's upload, so a retry or the next Generate doesn't send the same file again. */
+  const photoUpload = useRef<{ url: string; uploadId: string } | null>(null);
   const fields = useRef<Record<TextField, HTMLInputElement | HTMLTextAreaElement | null>>({ name: null, extra: null });
 
   const registerField = useCallback((key: TextField, node: HTMLInputElement | HTMLTextAreaElement | null) => {
@@ -313,7 +346,7 @@ export function InfluencerProvider({
 
   /** Makes `view` the open project, as the server has it. */
   const keepProject = useCallback((view: ProjectView) => {
-    saved.current = savedForm(traitsFromProject(view), archetypeFromProject(view));
+    saved.current = savedForm(traitsFromProject(view), archetypeFromProject(view), settingsFromProject(view));
     dispatch({ type: "project", view });
     showProjectInUrl(view.projectId);
   }, []);
@@ -336,6 +369,21 @@ export function InfluencerProvider({
         const [view, page] = await Promise.all([getInfluencerProject(api, id), listProjectJobs(api, id)]);
         if (token !== latest.current) return;
         keepProject(view);
+        // The saved face photo comes back signed with the project; a photo attached before is let go.
+        if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
+        photoUrl.current = null;
+        photoFile.current = null;
+        dispatch({ type: "reference", reference: photoFromProject(view) });
+        dispatch({ type: "style", style: null });
+        const styleId = styleIdFromProject(view);
+        if (styleId) {
+          // A style deleted since is skipped.
+          void getStyleReference(api, styleId)
+            .then((saved) => {
+              if (saved && token === latest.current) dispatch({ type: "style", style: saved });
+            })
+            .catch(() => undefined);
+        }
         dispatch({ type: "variations", variations: variationsFromJobs(page.jobs, `${view.title} portrait`) });
         dispatch({ type: "view", view: "result" });
       } catch (error) {
@@ -385,6 +433,8 @@ export function InfluencerProvider({
   const { traits, archetypeId, reference, style, projectId, projectsStatus, projectsCursor } = state;
   const selectedModel = state.models.find((model) => model.key === state.modelKey);
   const modelTakesReference = selectedModel !== undefined && imageFieldName(selectedModel) !== undefined;
+  // The picked shape when the model offers it, otherwise the default (or the model's own).
+  const aspectRatio = pickAspectRatio(selectedModel, state.aspectRatio);
   const referencesUsed = useMemo((): ReferencesUsed => {
     if (!selectedModel) return {};
     const used = usedReferences(selectedModel, { photo: reference ?? undefined, style: style ?? undefined });
@@ -422,8 +472,19 @@ export function InfluencerProvider({
       const model = selectedModel;
       if (!model) throw modelsError.current ?? new Error("No image model is available.");
 
-      // 1. Save the influencer: a project on the first Generate, then a patch only when the name or traits changed.
-      const data = projectData(submitted, archetypeId);
+      // 1. The face photo, uploaded once, so the save below can keep it. A saved influencer's photo is already stored.
+      let photoUploadId = reference?.uploadId;
+      if (!photoUploadId && reference && referencesUsed.photo && photoFile.current) {
+        if (photoUpload.current?.url !== reference.url) {
+          photoUpload.current = { url: reference.url, uploadId: await uploadImage(photoFile.current) };
+        }
+        photoUploadId = photoUpload.current.uploadId;
+      }
+      if (next.signal.aborted || !isLatest()) return null;
+
+      // 2. Save the influencer: a project on the first Generate, then a patch only when something saved changed.
+      const settings: SavedSettings = { aspectRatio, photoUploadId, styleId: style?.id };
+      const data = projectData(submitted, archetypeId, settings);
       let id = projectId;
       if (!id) {
         const view = await createInfluencerProject(api, submitted.name, data);
@@ -431,33 +492,30 @@ export function InfluencerProvider({
         if (!isLatest()) return null;
         keepProject(view);
         id = view.projectId;
-      } else if (savedForm(submitted, archetypeId) !== saved.current) {
+      } else if (savedForm(submitted, archetypeId, settings) !== saved.current) {
         const view = await catchDeletedProject(id, updateInfluencerProject(api, id, { title: submitted.name, data }));
         savedProject = true;
         if (!isLatest()) return null;
         // Still the open project, and the form already shows what was sent: only the snapshot changes.
-        saved.current = savedForm(traitsFromProject(view), archetypeFromProject(view));
+        saved.current = savedForm(traitsFromProject(view), archetypeFromProject(view), settingsFromProject(view));
       }
       savedProject = true;
       // Cancelled before the job was sent: nothing is charged.
       if (next.signal.aborted || !isLatest()) return null;
 
-      // 2. Send the reference photo and the picked style, as many as the model takes (the photo first).
+      // 3. Create the job in the project with the photo and the style, as many as the model takes (the photo first).
+      // The same request keeps its idempotency key, so a retry can't create a second job.
       const request = JSON.stringify({
         model: model.key,
         projectId: id,
         traits: submitted,
-        photo: reference?.url,
+        photo: photoUploadId,
         style: style?.uploadId,
+        aspectRatio,
       });
       if (attempt.current?.request !== request) attempt.current = { key: newIdempotencyKey(), request };
       const current = attempt.current;
-      const photo = referencesUsed.photo ? photoFile.current : null;
-      if (photo && !current.uploadId) current.uploadId = await uploadImage(photo);
-      if (next.signal.aborted || !isLatest()) return null;
-
-      // 3. Create the job in the project. The style is already in storage, saved with its project.
-      const input = influencerInput(model, submitted, { photo: current.uploadId, style: style?.uploadId });
+      const input = influencerInput(model, submitted, { photo: photoUploadId, style: style?.uploadId }, aspectRatio);
       let job: JobView;
       try {
         job = await catchDeletedProject(
@@ -515,6 +573,7 @@ export function InfluencerProvider({
     reference,
     style,
     referencesUsed,
+    aspectRatio,
     loadProjects,
   ]);
 
@@ -584,6 +643,8 @@ export function InfluencerProvider({
     await loadProjects(projectsCursor ?? undefined);
   }, [projectsStatus, projectsCursor, loadProjects]);
 
+  const setAspectRatio = useCallback((value: string) => dispatch({ type: "aspectRatio", value }), []);
+
   const value = useMemo(
     () => ({
       state,
@@ -602,6 +663,8 @@ export function InfluencerProvider({
       selectedModel,
       modelTakesReference,
       referencesUsed,
+      aspectRatio,
+      setAspectRatio,
     }),
     [
       state,
@@ -619,6 +682,8 @@ export function InfluencerProvider({
       selectedModel,
       modelTakesReference,
       referencesUsed,
+      aspectRatio,
+      setAspectRatio,
     ],
   );
   return <InfluencerContext.Provider value={value}>{children}</InfluencerContext.Provider>;

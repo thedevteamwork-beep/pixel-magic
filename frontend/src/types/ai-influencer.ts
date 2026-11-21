@@ -23,8 +23,10 @@ export type InfluencerTraits = Record<TraitKey, string> & {
 export type TraitOption = {
   value: string;
   label: string;
-  /** Colour chip for skin, hair and eye options. */
+  /** Colour chip for skin, hair and eye options; also sent in the prompt as its hex code. */
   swatch?: string;
+  /** What the option means in plain words, written into the prompt (e.g. "medium skin with warm golden-olive undertones"). */
+  description?: string;
   /** Photo id or icon name for tile options. */
   art?: string;
 };
@@ -66,7 +68,8 @@ export type FeaturedInfluencer = {
   archetypeId: string;
 };
 
-export type ReferencePhoto = { url: string; name: string };
+/** The face photo. `uploadId` is set when it is already in storage (a saved influencer's photo), so it isn't sent again. */
+export type ReferencePhoto = { url: string; name: string; uploadId?: string };
 
 /** A saved style reference: an `influencer-style` project and its image, signed for a day. */
 export type StyleReference = { id: string; name: string; uploadId: string; url: string };

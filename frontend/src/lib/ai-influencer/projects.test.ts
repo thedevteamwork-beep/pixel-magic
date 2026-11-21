@@ -6,6 +6,8 @@ import { fluxSchnell, jobView, kling21 } from "@/lib/generate/fixtures";
 import { portraitStyle } from "./portrait";
 import {
   archetypeFromProject,
+  aspectRatioFromProject,
+  aspectRatios,
   catchDeletedProject,
   createInfluencerJob,
   createInfluencerProject,
@@ -13,10 +15,14 @@ import {
   getInfluencerProject,
   influencerImageModels,
   influencerInput,
+  influencerModel,
   listInfluencerProjects,
   listProjectJobs,
+  photoFromProject,
+  pickAspectRatio,
   ProjectDeletedError,
   projectData,
+  styleIdFromProject,
   traitsFromProject,
   updateInfluencerProject,
   usedReferences,
@@ -129,6 +135,122 @@ const multiImage: PublicModel = {
   input: { ...kling21.input, image: { ...kling21.input.image, maxItems: 4 } } as PublicModel["input"],
 };
 
+const NANO_RATIOS = [
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "4:5",
+  "5:4",
+  "9:16",
+  "16:9",
+  "21:9",
+  "4:1",
+  "1:4",
+  "1:8",
+  "8:1",
+];
+
+/** Nano Banana 2 as GET /v1/models lists it: up to 14 reference images, an aspect ratio defaulting to 16:9. */
+const nanoBanana: PublicModel = {
+  ...fluxSchnell,
+  key: "nanoBanana2_generate",
+  plugin: "nanoBanana2",
+  name: "Nano Banana 2",
+  input: {
+    prompt: { type: "string", description: "", required: true, maxLength: 5000 },
+    image: { ...kling21.input.image, maxItems: 14 },
+    aspect_ratio: { type: "string", description: "", enum: NANO_RATIOS, default: "16:9" },
+    num_images: { type: "integer", description: "", minimum: 1, maximum: 4, default: 1 },
+  } as PublicModel["input"],
+};
+
+describe("influencerModel", () => {
+  it("uses Nano Banana 2 when the backend lists it", () => {
+    expect(influencerModel([fluxSchnell, nanoBanana])).toBe(nanoBanana);
+  });
+  it("falls back to the first image model", () => {
+    expect(influencerModel([fluxSchnell])).toBe(fluxSchnell);
+    expect(influencerModel([])).toBeUndefined();
+  });
+});
+
+describe("aspect ratio", () => {
+  it("offers the model's own ratios, or none", () => {
+    expect(aspectRatios(nanoBanana)).toEqual(NANO_RATIOS);
+    expect(aspectRatios(fluxSchnell)).toEqual([]);
+    expect(aspectRatios(undefined)).toEqual([]);
+  });
+
+  it("keeps an offered ratio and falls back to 4:5 otherwise", () => {
+    expect(pickAspectRatio(nanoBanana, "9:16")).toBe("9:16");
+    expect(pickAspectRatio(nanoBanana, "7:3")).toBe("4:5");
+    expect(pickAspectRatio(nanoBanana, null)).toBe("4:5");
+    expect(pickAspectRatio(fluxSchnell, "9:16")).toBe("4:5");
+  });
+
+  it("uses the model's default when it doesn't offer 4:5", () => {
+    const wide: PublicModel = {
+      ...nanoBanana,
+      input: {
+        ...nanoBanana.input,
+        aspect_ratio: { type: "string", description: "", enum: ["1:1", "16:9"], default: "16:9" },
+      },
+    };
+    expect(pickAspectRatio(wide, null)).toBe("16:9");
+  });
+
+  it("sends the picked ratio to Nano Banana with four images and both references", () => {
+    const traits = { ...defaultTraits, name: "Mira" };
+    const input = influencerInput(nanoBanana, traits, { photo: "u1", style: "s1" }, "4:5");
+    expect(input.aspect_ratio).toBe("4:5");
+    expect(input.num_images).toBe(4);
+    expect(input.image).toEqual(["u1", "s1"]);
+    expect(influencerInput(nanoBanana, traits, {}, "9:16").aspect_ratio).toBe("9:16");
+    expect(influencerInput(nanoBanana, traits, {}, "7:3").aspect_ratio).toBe("4:5");
+  });
+
+  it("sends no aspect ratio to a model without one", () => {
+    const input = influencerInput(fluxSchnell, { ...defaultTraits, name: "Mira" }, {}, "9:16");
+    expect(input).not.toHaveProperty("aspect_ratio");
+    expect(input.image_size).toBe("portrait_4_3");
+  });
+
+  it("is saved with the project and read back", () => {
+    expect(projectData(defaultTraits, null, { aspectRatio: "4:5" }).aspectRatio).toBe("4:5");
+    expect(projectData(defaultTraits, null)).not.toHaveProperty("aspectRatio");
+    expect(aspectRatioFromProject(view("Mira", { aspectRatio: "9:16" }))).toBe("9:16");
+    expect(aspectRatioFromProject(view("Mira", {}))).toBeNull();
+    expect(aspectRatioFromProject(view("Mira", { aspectRatio: 3 }))).toBeNull();
+  });
+});
+
+describe("saved references", () => {
+  it("saves the face photo's upload and the picked style with the influencer", () => {
+    expect(projectData(defaultTraits, null, { photoUploadId: "up1", styleId: "st1" })).toEqual({
+      traits: { gender: "woman", age: "late-20s" },
+      photoUploadId: "up1",
+      styleId: "st1",
+    });
+  });
+
+  it("restores the face photo from the project's signed upload", () => {
+    const saved = {
+      ...view("Mira", { photoUploadId: "up1" }),
+      upload: { uploadId: "up1", mimeType: "image/jpeg", url: "https://x/up1", expiresAt: "" },
+    };
+    expect(photoFromProject(saved)).toEqual({ url: "https://x/up1", name: "Saved photo", uploadId: "up1" });
+    expect(photoFromProject(view("Mira", {}))).toBeNull();
+  });
+
+  it("reads the picked style's id back", () => {
+    expect(styleIdFromProject(view("Mira", { styleId: "st1" }))).toBe("st1");
+    expect(styleIdFromProject(view("Mira", {}))).toBeNull();
+    expect(styleIdFromProject(view("Mira", { styleId: 4 }))).toBeNull();
+  });
+});
+
 describe("usedReferences", () => {
   it("sends the photo first, then the style, while the image field has room", () => {
     expect(usedReferences(multiImage, { photo: "u1", style: "s1" })).toEqual({ photo: "u1", style: "s1" });
@@ -145,7 +267,7 @@ describe("influencerInput", () => {
   const traits = { ...defaultTraits, name: "Mira", hairColor: "black" };
 
   it("asks flux for four portrait images", () => {
-    const input = influencerInput(fluxSchnell, traits, {});
+    const input = influencerInput(fluxSchnell, traits, {}, "4:5");
     expect(input.image_size).toBe("portrait_4_3");
     expect(input.num_images).toBe(4);
     expect(input.prompt).toBe(composeInfluencerPrompt(traits));
@@ -160,31 +282,31 @@ describe("influencerInput", () => {
         num_images: { type: "integer", description: "", minimum: 1, maximum: 2, default: 1 },
       },
     };
-    const input = influencerInput(model, traits, {});
+    const input = influencerInput(model, traits, {}, "4:5");
     expect(input.num_images).toBe(2);
     expect(input.image_size).toBe("square");
   });
 
   it("puts the photo in the image field and prompts with it", () => {
-    const input = influencerInput(kling21, traits, { photo: "u1" });
+    const input = influencerInput(kling21, traits, { photo: "u1" }, "4:5");
     expect(input.image).toEqual(["u1"]);
     expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true }));
   });
 
   it("sends the photo and the style together when the model takes both", () => {
-    const input = influencerInput(multiImage, traits, { photo: "u1", style: "s1" });
+    const input = influencerInput(multiImage, traits, { photo: "u1", style: "s1" }, "4:5");
     expect(input.image).toEqual(["u1", "s1"]);
     expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true, style: true }));
   });
 
   it("keeps only the photo, and prompts for it alone, when the model takes one image", () => {
-    const input = influencerInput(kling21, traits, { photo: "u1", style: "s1" });
+    const input = influencerInput(kling21, traits, { photo: "u1", style: "s1" }, "4:5");
     expect(input.image).toEqual(["u1"]);
     expect(input.prompt).toBe(composeInfluencerPrompt(traits, { photo: true }));
   });
 
   it("prompts without a reference when the model has no image field", () => {
-    const input = influencerInput(fluxSchnell, traits, { photo: "u1", style: "s1" });
+    const input = influencerInput(fluxSchnell, traits, { photo: "u1", style: "s1" }, "4:5");
     expect(input.prompt).toBe(composeInfluencerPrompt(traits));
     expect(input.image).toBeUndefined();
   });

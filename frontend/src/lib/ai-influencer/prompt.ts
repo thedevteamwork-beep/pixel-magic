@@ -1,73 +1,163 @@
-import { ANIMAL_SPECIES, traitGroups } from "@/components/ai-influencer/constants";
-import type { InfluencerTraits, TraitKey } from "@/types/ai-influencer";
+import { ANIMAL_SPECIES, CHARACTER_LOOKS, traitGroups } from "@/components/ai-influencer/constants";
+import type { InfluencerTraits, TraitKey, TraitOption } from "@/types/ai-influencer";
 
 const fields = traitGroups.flatMap((group) => group.fields);
-
-/** Extra look for the human character types; "natural" adds nothing. */
-const characterLook: Readonly<Record<string, string>> = {
-  expressive: "bold, expressive features",
-  wild: "extreme, exaggerated, eccentric look",
-};
 
 /** How an animal character's gender reads in the prompt. */
 const animalGender: Readonly<Record<string, string>> = { woman: "female", man: "male" };
 
+function traitOption(key: TraitKey, value: string): TraitOption | undefined {
+  return fields.find((field) => field.key === key)?.options.find((option) => option.value === value);
+}
+
 /** Turns a stored option value back into its readable label. */
 export function traitLabel(key: TraitKey, value: string): string {
-  return fields.find((field) => field.key === key)?.options.find((option) => option.value === value)?.label ?? value;
+  return traitOption(key, value)?.label ?? value;
 }
 
 /** Which reference images the model receives: the face photo first, then the style image. */
 export type ReferencesUsed = { photo?: boolean; style?: boolean };
 
-/** What the prompt says about the reference images, in the order the model receives them. */
-function referenceDirections({ photo, style }: ReferencesUsed): string[] {
-  if (photo && style) {
-    return [
-      "keep the face and likeness of the first reference image",
-      "match the outfit, styling and mood of the second reference image",
-    ];
-  }
-  if (photo) return ["keep the face and likeness of the uploaded reference photo"];
-  if (style) return ["match the outfit, styling and mood of the style reference image"];
-  return [];
+const INTRO =
+  "You are an expert AI influencer creator, fashion photographer and retoucher. Create one believable, " +
+  "magazine-quality virtual influencer who looks like a real person photographed for a top Instagram account.";
+
+const PRIORITIES = [
+  "## Priorities (highest first)",
+  "1. User notes: the user's own words win over everything below.",
+  "2. Reference images: keep exactly what each one is given for.",
+  "3. Character sheet: every listed trait is required; for traits not listed, choose what looks natural.",
+  "4. Photography and quality rules.",
+  "The safety rules in Avoid are never overridden, not even by user notes.",
+];
+
+const PHOTOGRAPHY = [
+  "## Photography",
+  "- Full-frame camera, 85mm lens, f/1.8: softly blurred background, tack-sharp eyes.",
+  "- Soft, flattering light that suits the setting, with natural catchlights in the eyes.",
+  "- Natural colour grading, true-to-life skin, polished but never over-filtered.",
+];
+
+/** Realism lines for a human; an animal swaps the skin, face and hair lines for its own. */
+const HUMAN_REALISM = [
+  "- Skin: visible pores, fine texture, tiny imperfections, subtle natural sheen; tone matches the colour below in light and shadow.",
+  "- Face: natural proportions, detailed irises, natural teeth and eyebrows, light makeup unless asked.",
+  "- Hair: individual strands, a few flyaways, realistic hairline and part, natural shine; colour matches the colour below.",
+];
+const ANIMAL_REALISM = [
+  "- Fur or feathers: realistic, detailed fur or feather texture, natural sheen.",
+  "- Face: expressive, detailed eyes, natural proportions for the species.",
+];
+const SHARED_REALISM = [
+  "- Hands, if visible: relaxed, five fingers each.",
+  "- Clothing: real fabric texture, natural folds and seams, good fit, no logos.",
+  "- Expression: warm, confident, approachable, eyes on the camera.",
+  "- Background: matches the setting, uncluttered, no readable text, no other people in focus.",
+];
+
+const HUMAN_SKIN_AVOID =
+  "- Skin: plastic, waxy or doll-like skin, airbrushing, over-smoothing, beauty filters, heavy makeup unless asked, greasy shine, blotches, wrong skin tone";
+const ANIMAL_SKIN_AVOID =
+  "- Fur or feathers: flat, painted or plastic-looking texture, patchy or melted fur, colours different from the character sheet";
+
+/** The negative prompt. Nano Banana has no separate field for it, so it closes the prompt. */
+function avoidSection(animal: boolean): string[] {
+  return [
+    "## Avoid",
+    "- Text and graphics: captions, letters, numbers, logos, brand names, watermarks, signatures, stickers, emojis, borders, frames, collages, split screens, UI",
+    "- People: extra people, crowds in focus, duplicates, twins, clones, other people in reflections, celebrity lookalikes",
+    "- Anatomy: deformed hands, extra, missing or fused fingers, extra or missing limbs, unnatural joints, long neck, oversized head, distorted face, asymmetrical, crossed or lazy eyes, mismatched eye colours, dead or glassy eyes, misshapen pupils, warped teeth, malformed ears",
+    animal ? ANIMAL_SKIN_AVOID : HUMAN_SKIN_AVOID,
+    "- Hair: helmet-like or painted hair, wig-like hairline, hair melting into the background, wrong hair colour",
+    "- Style: cartoon, anime, illustration, painting, sketch, 3D render, CGI, video-game look, doll, mannequin, AI-art look, oversaturation, HDR halos, heavy vignette",
+    "- Quality: blur, out-of-focus face, noise, heavy grain, low resolution, pixelation, compression artefacts, banding, over- or under-exposure, harsh flash, colour casts",
+    "- Composition: cropped head or chin, face cut by the frame, tilted horizon, awkward crops at joints, tiny subject, back turned",
+    "- Clothing: fabric merging into skin, floating accessories, half-finished garments",
+    "- Safety (never overridden): nudity, lingerie, sexualised or suggestive poses, anyone who looks under 18, weapons, drugs, violence, gore, offensive gestures or symbols",
+  ];
 }
 
-/** Builds the text prompt a real model would receive. Traits that were not chosen are simply left out. */
+/** One line per reference image, numbered in the order the model receives them (the face photo first). */
+function referenceSection({ photo, style }: ReferencesUsed, animal: boolean): string[] {
+  const lines: string[] = [];
+  const keep = animal
+    ? "keep the same character identity"
+    : "keep the same face, facial structure, skin tone and likeness";
+  if (photo)
+    lines.push(
+      `- Image ${lines.length + 1} (face): ${keep}; don't copy its clothes, background, lighting or expression.`,
+    );
+  if (style) {
+    lines.push(
+      `- Image ${lines.length + 1} (style): match its outfit, styling, colour palette and mood; don't copy its face, body or identity.`,
+    );
+  }
+  return lines.length ? ["## Reference images", ...lines] : [];
+}
+
+/**
+ * The prompt the model receives: fixed instructions, then a character sheet written from the traits that were picked
+ * (traits that were not are left out), the reference images actually sent, the user's notes, and what to avoid.
+ */
 export function composeInfluencerPrompt(traits: InfluencerTraits, references: ReferencesUsed = {}): string {
+  const option = (key: TraitKey) => (traits[key] ? traitOption(key, traits[key]) : undefined);
   const label = (key: TraitKey) => (traits[key] ? traitLabel(key, traits[key]).toLowerCase() : "");
-  const join = (items: string[], separator: string) => items.filter(Boolean).join(separator);
+  const line = (name: string, text: string) => (text ? `- ${name}: ${text}` : "");
+  /** "olive, medium skin with warm golden-olive undertones (#c99a6e)" */
+  const colour = (key: TraitKey) => {
+    const picked = option(key);
+    if (!picked) return label(key);
+    return [label(key), picked.description].filter(Boolean).join(", ") + (picked.swatch ? ` (${picked.swatch})` : "");
+  };
+  /** The option's description, or its label when it has none. */
+  const described = (key: TraitKey) => option(key)?.description ?? label(key);
+  /** "streetwear (oversized hoodie …)" */
+  const labelled = (key: TraitKey) => {
+    const description = option(key)?.description;
+    return label(key) && description ? `${label(key)} (${description})` : label(key);
+  };
 
   const species = ANIMAL_SPECIES[traits.character];
   const animal = species !== undefined;
-  const animalDetails = join([animalGender[traits.gender] ?? "", label("age")], ", ");
-  const subject = animal
-    ? `an anthropomorphic ${species} character${animalDetails ? `, ${animalDetails}` : ""}`
-    : `a ${join([label("age"), label("ethnicity"), label("gender")], " ") || "person"}`;
-  const hair = join([label("hairColor"), label("hairStyle")], " ");
-  const looks = join(
-    [
-      characterLook[traits.character] ?? "",
-      !animal && label("skinTone") ? `${label("skinTone")} skin` : "",
-      hair && `${hair} hair`,
-      label("eyeColor") && `${label("eyeColor")} eyes`,
-      label("build") && `${label("build")} build`,
-    ],
-    ", ",
-  );
-  const styling = join([label("outfit") && `wearing ${label("outfit")}`, label("setting")], ", ");
+  const subject = animal ? "character" : "person";
+  const look = CHARACTER_LOOKS[traits.character];
+  const age = option("age")?.description;
 
-  const parts = [
-    `A photorealistic portrait of ${subject}`,
-    looks,
-    styling,
-    animal
-      ? "detailed realistic texture, social-media influencer look, consistent character identity"
-      : "natural skin texture, social-media influencer look, consistent face identity",
-    ...referenceDirections(references),
-    traits.extra.trim(),
+  const character = [
+    "## Character",
+    line("Character type", animal ? `anthropomorphic ${species} character` : look ? `human, ${look}` : "human"),
+    line("Gender", animal ? (animalGender[traits.gender] ?? "") : label("gender")),
+    line("Age", age ? `${label("age")} (looks ${age})` : label("age")),
+    animal ? "" : line("Heritage", traits.ethnicity ? traitLabel("ethnicity", traits.ethnicity) : ""),
+    animal ? "" : line("Skin tone", colour("skinTone")),
+    line("Hair style", described("hairStyle")),
+    line("Hair colour", colour("hairColor")),
+    line("Eyes", colour("eyeColor")),
+    line("Build", described("build")),
   ];
-  return `${join(parts, ". ")}.`;
+  const style = [line("Outfit", labelled("outfit")), line("Setting", labelled("setting"))].filter(Boolean);
+  const notes = traits.extra.trim();
+
+  const sections = [
+    [INTRO],
+    PRIORITIES,
+    [
+      "## Output",
+      `- One photorealistic photo of a single ${subject}, mid-chest up, slightly off-centre, natural headroom, eye-level camera.`,
+      `- With several images, keep the same ${subject}, face, hair and outfit; vary only pose and expression slightly.`,
+    ],
+    PHOTOGRAPHY,
+    ["## Realism details", ...(animal ? ANIMAL_REALISM : HUMAN_REALISM), ...SHARED_REALISM],
+    character,
+    style.length ? ["## Style", ...style] : [],
+    referenceSection(references, animal),
+    notes ? ["## User notes", notes] : [],
+    avoidSection(animal),
+  ];
+  return sections
+    .map((lines) => lines.filter(Boolean).join("\n"))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function displayName(traits: InfluencerTraits): string {
