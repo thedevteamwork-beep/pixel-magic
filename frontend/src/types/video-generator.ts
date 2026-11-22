@@ -33,6 +33,8 @@ export type FrameImage = {
   source: "upload" | "sample" | "capture";
   width: number;
   height: number;
+  /** Already uploaded (a reopened video's start image): reused, not uploaded again. */
+  uploadId?: string;
 };
 export type FrameDescriptor = Pick<FrameImage, "id" | "mimeType" | "size">;
 
@@ -46,6 +48,8 @@ export type MotionClip = {
   duration: number;
   width: number;
   height: number;
+  /** Already uploaded (an earlier take used it): reused, not uploaded again. */
+  uploadId?: string;
 };
 export type ClipDescriptor = Pick<MotionClip, "id" | "mimeType" | "size" | "duration">;
 
@@ -97,6 +101,8 @@ export type VideoModel = {
   endFrame: boolean;
   /** Reference to video accepts up to this many images. */
   maxReferences: number;
+  /** Motion control's clip types (e.g. MP4, MOV); empty for a model without one. */
+  clipTypes: readonly string[];
   audio: boolean;
   /** Typical seconds to render one second of 720p footage, for the wait estimate. */
   speed: number;

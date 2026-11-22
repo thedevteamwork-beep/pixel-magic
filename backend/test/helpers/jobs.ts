@@ -15,6 +15,7 @@ export function jobBody(
   const model = getModel(key);
   if (!model) throw new Error(`No model ${key}`);
   const input: Record<string, unknown> = { prompt: p.prompt, ...p.options };
-  if (p.uploadIds?.length) input[model.uploads.field ?? "image"] = p.uploadIds;
+  if (p.uploadIds?.length)
+    input[model.uploads[0]?.field ?? "image"] = p.uploadIds;
   return { plugin: model.plugin, operation: model.operation, input };
 }

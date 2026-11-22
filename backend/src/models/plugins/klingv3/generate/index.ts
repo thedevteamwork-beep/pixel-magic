@@ -27,7 +27,10 @@ export const klingv3Generate = defineFalModel({
     shot_type: input.shot_type,
     generate_audio: input.audio,
     ...(input.image
-      ? { start_image_url: input.image }
+      ? {
+          start_image_url: input.image,
+          ...(input.end_image ? { end_image_url: input.end_image } : {}),
+        }
       : { aspect_ratio: input.aspect_ratio }),
   }),
   output: "video",

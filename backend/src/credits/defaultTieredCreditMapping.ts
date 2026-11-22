@@ -1386,6 +1386,69 @@ export const DEFAULT_TIERED_CREDIT_MAPPING: TieredCreditMapping = {
       },
     ],
   },
+  // Pixelbin's KlingO3RefToVideo and Kling3MC rates. Kling3MC is per second of
+  // the motion clip (the video follows it), measured from the upload.
+  klingO3Ref_generate: {
+    tiers: [
+      {
+        name: "2160p",
+        priority: 1,
+        meters: [{ metric: "duration", unitSize: 1, rate: 30, round: "ceil" }],
+        conditions: {
+          all: [
+            { fact: "output_resolution", operator: "equal", value: "2160p" },
+          ],
+        },
+      },
+      {
+        name: "1080p Audio On",
+        priority: 2,
+        meters: [{ metric: "duration", unitSize: 1, rate: 10, round: "ceil" }],
+        conditions: {
+          all: [
+            { fact: "output_resolution", operator: "equal", value: "1080p" },
+            { fact: "audio", operator: "equal", value: true },
+          ],
+        },
+      },
+      {
+        name: "1080p Audio Off",
+        priority: 3,
+        meters: [{ metric: "duration", unitSize: 1, rate: 8, round: "ceil" }],
+        conditions: {
+          all: [
+            { fact: "output_resolution", operator: "equal", value: "1080p" },
+            { fact: "audio", operator: "equal", value: false },
+          ],
+        },
+      },
+      {
+        name: "720p Audio On",
+        priority: 4,
+        meters: [{ metric: "duration", unitSize: 1, rate: 8, round: "ceil" }],
+        conditions: {
+          all: [
+            { fact: "output_resolution", operator: "equal", value: "720p" },
+            { fact: "audio", operator: "equal", value: true },
+          ],
+        },
+      },
+      {
+        name: "720p Audio Off",
+        isDefault: true,
+        meters: [{ metric: "duration", unitSize: 1, rate: 6, round: "ceil" }],
+      },
+    ],
+  },
+  kling3MC_generate: {
+    tiers: [
+      {
+        name: "Basic",
+        isDefault: true,
+        meters: [{ metric: "duration", unitSize: 1, rate: 11, round: "ceil" }],
+      },
+    ],
+  },
   // Upscalers. Topaz and SeedVR are Pixelbin's TopazUpscale and SeedvrUpscale
   // rates, in tiers of the result's megapixels (output_megapixels). Pixelbin
   // checks its highest priority first; here 1 is checked first, so the

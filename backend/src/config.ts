@@ -90,6 +90,17 @@ const baseSchema = z.object({
         .filter(Boolean),
     )
     .refine((types) => types.length > 0, "must list at least one MIME type"),
+  /** Video clips (motion control) may be uploaded too, with their own size limit. */
+  UPLOAD_VIDEO_MAX_BYTES: int(104857600, 1),
+  UPLOAD_VIDEO_MIME_TYPES: z
+    .string()
+    .default("video/mp4,video/quicktime")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ),
   /** How long a project's own image link (a style reference) lasts; a day, so a picker left open keeps its images. */
   PROJECT_UPLOAD_URL_TTL_SECONDS: int(86400, 1),
   TIERED_CREDIT_MAPPING: jsonMapping(),

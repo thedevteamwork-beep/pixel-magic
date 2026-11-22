@@ -1,14 +1,22 @@
 import type { MediaId } from "@/types/landing";
 import type { VideoInspiration, VideoModelPresentation, VideoModeOption, VideoSettings } from "@/types/video-generator";
 
-/**
- * The modes the studio offers, in menu order. Reference to Video and Motion
- * Control need inputs the backend doesn't take yet (several images, a clip);
- * add them back here, and to `toVideoModel`, once it does.
- */
+/** The modes the studio offers, in menu order. A model offers the ones its upload fields allow (see `toVideoModel`). */
 export const videoModes: readonly VideoModeOption[] = [
-  { id: "image", name: "Image to Video", description: "Bring a still to life from a start image." },
+  { id: "image", name: "Image to Video", description: "Bring a still to life, from a start to an end frame." },
   { id: "text", name: "Text to Video", description: "Describe a scene and watch it unfold." },
+  {
+    id: "motion",
+    name: "Motion Control",
+    description: "Copy the movement in a clip onto your character.",
+    isNew: true,
+  },
+  {
+    id: "reference",
+    name: "Reference to Video",
+    description: "Keep characters, products and style consistent.",
+    isNew: true,
+  },
 ];
 
 /** Display details for the backend's video models, keyed by model key. */
@@ -58,6 +66,20 @@ export const videoModelPresentation: Record<string, VideoModelPresentation> = {
   wan26_generate: { maker: "Alibaba", symbol: "≋", description: "Versatile and quick, up to 15 seconds.", speed: 4 },
   wan25_generate: { maker: "Alibaba", symbol: "≋", description: "Open, versatile and quick.", speed: 3 },
   ltx2Fast_generate: { maker: "Lightricks", symbol: "▲", description: "Long, sharp clips up to 4K, fast.", speed: 3 },
+  klingO3Ref_generate: {
+    maker: "Kuaishou",
+    symbol: "◆",
+    tag: "New",
+    description: "Keeps people, products and styles from up to four images consistent in a new scene.",
+    speed: 9,
+  },
+  kling3MC_generate: {
+    maker: "Kuaishou",
+    symbol: "◆",
+    tag: "New",
+    description: "Moves your character exactly like the person in a reference clip.",
+    speed: 8,
+  },
   pixverse6_generate: {
     maker: "PixVerse",
     symbol: "✺",
@@ -75,7 +97,8 @@ export const MAX_VIDEO_PROMPT_LENGTH = 2500;
 export const MAX_FRAME_BYTES = 20 * 1024 * 1024;
 export const FRAME_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_CLIP_BYTES = 100 * 1024 * 1024;
-export const CLIP_MIME_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
+/** MP4 and MOV: the server reads a clip's length from them, and motion control is priced on it. */
+export const CLIP_MIME_TYPES = ["video/mp4", "video/quicktime"] as const;
 export const MIN_CLIP_SECONDS = 2;
 export const MAX_CLIP_SECONDS = 30;
 

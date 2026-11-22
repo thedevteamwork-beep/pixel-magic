@@ -11,14 +11,8 @@ export function modelsForMode(models: readonly VideoModel[], mode: VideoMode): r
   return models.filter((model) => model.modes.includes(mode));
 }
 
-/** Names for modes the studio doesn't offer yet, so they still read well where they appear. */
-const UPCOMING_MODE_NAMES: Partial<Record<VideoMode, string>> = {
-  reference: "Reference to Video",
-  motion: "Motion Control",
-};
-
 export function modeName(mode: VideoMode): string {
-  return videoModes.find((option) => option.id === mode)?.name ?? UPCOMING_MODE_NAMES[mode] ?? mode;
+  return videoModes.find((option) => option.id === mode)?.name ?? mode;
 }
 
 export function nearestDuration(options: readonly number[], value: number): number {
@@ -74,6 +68,8 @@ export function effectiveDuration(
   model: VideoModel,
 ): number {
   if (settings.mode !== "motion" || !clip) return settings.duration;
+  // A model without a length of its own makes a video as long as the clip.
+  if (!model.source.input.duration) return Math.max(1, Math.round(clip.duration));
   return nearestDuration(model.durations, clip.duration);
 }
 

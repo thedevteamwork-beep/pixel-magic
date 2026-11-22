@@ -8,7 +8,6 @@ export const seedance2Generate = defineFalModel({
   plugin: "seedance2",
   operation: "generate",
   schema,
-  // Pixelbin's reference-to-video needs image_urls/video_urls, which are not ported.
   endpoint: (input) =>
     `${APP}/${input.image ? "image-to-video" : "text-to-video"}`,
   app: APP,
@@ -19,6 +18,9 @@ export const seedance2Generate = defineFalModel({
     duration: input.duration,
     generate_audio: input.audio,
     ...(input.image ? { image_url: input.image } : {}),
+    ...(input.image && input.end_image
+      ? { end_image_url: input.end_image }
+      : {}),
   }),
   output: "video",
   // As Pixelbin bills it. There is no reference-video input here, so `video` is always false.

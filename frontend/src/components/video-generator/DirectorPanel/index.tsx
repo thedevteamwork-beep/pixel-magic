@@ -1,6 +1,6 @@
 "use client";
 
-import { AudioLines, Dices, Info, LoaderCircle, Sparkles, Timer, VolumeX, WandSparkles, X } from "lucide-react";
+import { AudioLines, Dices, Info, Layers, LoaderCircle, Sparkles, Timer, VolumeX, WandSparkles, X } from "lucide-react";
 import { useId, type FormEvent, type RefObject } from "react";
 import { MAX_ACTIVE_RENDERS, MAX_VIDEO_PROMPT_LENGTH } from "@/components/video-generator/constants";
 import { effectiveDuration, estimateRenderSeconds, formatEta } from "@/lib/video-generator/settings";
@@ -36,6 +36,9 @@ type DirectorPanelProps = {
   creditsPerVideo: number | null;
   /** False when signed out: Generate asks to sign in first. */
   signedIn: boolean | null;
+  /** The video idea Generate adds a take to, by title; null when it starts a new one. */
+  continuing: string | null;
+  onNewIdea: () => void;
   inputs: VideoInputs;
   inputBusy: InputTarget | null;
   inputError: string;
@@ -199,6 +202,17 @@ export function DirectorPanel(props: DirectorPanelProps) {
       </div>
 
       <div className={styles.footer}>
+        {props.continuing && (
+          <p className={styles.continuing}>
+            <Layers size={12} aria-hidden="true" />
+            <span>
+              Adding a take to <strong title={props.continuing}>{props.continuing}</strong>
+            </span>
+            <button type="button" onClick={props.onNewIdea}>
+              Start new
+            </button>
+          </p>
+        )}
         <button type="submit" className={styles.generate} disabled={queueFull} aria-describedby={`${id}-generate-note`}>
           <span>
             {queueFull

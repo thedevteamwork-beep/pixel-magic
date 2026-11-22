@@ -1,7 +1,8 @@
 import type { ModelSchema } from "../../../types.js";
+import { endImageField, referenceImagesField } from "../../../videoInputs.js";
 
 // Ported from Pixelbin's seedance25_generate transformation schema.
-// Not ported (one upload field per model, or no fixed range), so reference-to-video is not offered: end_image, image_urls, video_urls, audio_urls.
+// end_image is sent as end_image_url; reference_images use fal's reference-to-video (image_urls). Not ported: video_urls, audio_urls.
 export const schema: ModelSchema = {
   info: {
     name: "seedance25_generate",
@@ -34,6 +35,8 @@ export const schema: ModelSchema = {
         "image/webp",
       ],
     },
+    end_image: endImageField(),
+    reference_images: referenceImagesField(4),
     resolution: {
       type: "string",
       description: "Resolution of the generated video.",

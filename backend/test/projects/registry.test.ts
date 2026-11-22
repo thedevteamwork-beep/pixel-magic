@@ -23,7 +23,11 @@ describe("project type registry", () => {
   });
 
   it("lists the types", () => {
-    expect(listProjectTypes()).toEqual(["ai-influencer", "influencer-style"]);
+    expect(listProjectTypes()).toEqual([
+      "ai-influencer",
+      "influencer-style",
+      "video",
+    ]);
   });
 });
 

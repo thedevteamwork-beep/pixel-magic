@@ -8,7 +8,9 @@ import { grokImagineImage } from "./plugins/grokImagineImage/index.js";
 import { hailuo23 } from "./plugins/hailuo23/index.js";
 import { ideogram } from "./plugins/ideogram/index.js";
 import { kling21 } from "./plugins/kling21/index.js";
+import { kling3MC } from "./plugins/kling3MC/index.js";
 import { kling25 } from "./plugins/kling25/index.js";
+import { klingO3Ref } from "./plugins/klingO3Ref/index.js";
 import { klingv3 } from "./plugins/klingv3/index.js";
 import { krea2 } from "./plugins/krea2/index.js";
 import { ltx2Fast } from "./plugins/ltx2Fast/index.js";
@@ -53,6 +55,8 @@ const PLUGINS: Record<string, Record<string, ModelDefinition>> = {
   sora2,
   ltx2Fast,
   pixverse6,
+  klingO3Ref,
+  kling3MC,
   // Upscale
   topaz,
   seedvr,

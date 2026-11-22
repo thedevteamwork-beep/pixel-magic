@@ -33,6 +33,15 @@ export interface StorageClient {
     path: string,
     maxBytes: number,
   ): Promise<Buffer | null>;
+  /**
+   * Up to the last `maxBytes` of an object (a clip's header, kept at its
+   * end), or null when it doesn't exist.
+   */
+  readObjectEnd(
+    bucket: string,
+    path: string,
+    maxBytes: number,
+  ): Promise<Buffer | null>;
   /** Streams sourceUrl into the bucket, overwriting any existing object. */
   copyFromUrl(
     bucket: string,
@@ -78,6 +87,34 @@ export function createSupabaseStorage(
     config.SUPABASE_SECRET_KEY,
     { auth: { persistSession: false } },
   );
+
+  /**
+   * Part of an object, by an HTTP Range (`bytes=0-99`, `bytes=-100`): only the
+   * header is needed, however large the file. `keep` trims a whole file sent by
+   * a server that ignores Range. Null when the object doesn't exist.
+   */
+  async function readRange(
+    bucket: string,
+    path: string,
+    range: string,
+    keep: (bytes: Buffer) => Buffer,
+  ): Promise<Buffer | null> {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 60);
+    if (error) {
+      if (isNotFound(error)) return null;
+      throw error;
+    }
+    const res = await fetchFn(data.signedUrl, {
+      headers: { Range: range },
+      signal: AbortSignal.timeout(STORAGE_READ_TIMEOUT_MS),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok)
+      throw new StorageError(`object read returned HTTP ${res.status}`);
+    return keep(Buffer.from(await res.arrayBuffer()));
+  }
 
   return {
     createSignedUploadUrl: (bucket, path) =>
@@ -129,27 +166,18 @@ export function createSupabaseStorage(
       }),
 
     readObjectStart: (bucket, path, maxBytes) =>
-      wrap("readObjectStart", async () => {
-        const { data, error } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(path, 60);
-        if (error) {
-          if (isNotFound(error)) return null;
-          throw error;
-        }
-        // A range request: only the header is needed, however large the file.
-        const res = await fetchFn(data.signedUrl, {
-          headers: { Range: `bytes=0-${maxBytes - 1}` },
-          signal: AbortSignal.timeout(STORAGE_READ_TIMEOUT_MS),
-        });
-        if (res.status === 404) return null;
-        if (!res.ok) {
-          throw new StorageError(`object read returned HTTP ${res.status}`);
-        }
-        const bytes = Buffer.from(await res.arrayBuffer());
-        // A server that ignores Range sends the whole file; keep the start.
-        return bytes.subarray(0, maxBytes);
-      }),
+      wrap("readObjectStart", () =>
+        readRange(bucket, path, `bytes=0-${maxBytes - 1}`, (b) =>
+          b.subarray(0, maxBytes),
+        ),
+      ),
+
+    readObjectEnd: (bucket, path, maxBytes) =>
+      wrap("readObjectEnd", () =>
+        readRange(bucket, path, `bytes=-${maxBytes}`, (b) =>
+          b.subarray(-maxBytes),
+        ),
+      ),
 
     copyFromUrl: (bucket, path, sourceUrl, mimeType) =>
       wrap("copyFromUrl", async () => {

@@ -20,7 +20,8 @@ export type FieldSchema =
     }
   | { type: "boolean"; description: string; default: boolean }
   | {
-      type: "image";
+      /** Uploaded files: images, or a video clip (motion control). A job sends upload ids. */
+      type: "image" | "video";
       description: string;
       required: boolean;
       maxItems: number;

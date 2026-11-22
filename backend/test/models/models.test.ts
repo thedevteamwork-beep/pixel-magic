@@ -46,6 +46,8 @@ describe("model registry", () => {
       "sora2",
       "ltx2Fast",
       "pixverse6",
+      "klingO3Ref",
+      "kling3MC",
     ];
     const upscale = [
       "topaz",

@@ -118,3 +118,42 @@ describe("submitGeneration", () => {
     expect(jobCalls[1].body).toMatchObject({ input: { image: ["up-1"] } });
   });
 });
+
+describe("submitGeneration with earlier uploads", () => {
+  it("uses already-uploaded images when it gets no files, and sends the project", async () => {
+    const posts: { path: string; body: unknown }[] = [];
+    const api = {
+      post: async <T>(path: string, body: unknown) => {
+        posts.push({ path, body });
+        return { jobId: "j1" } as T;
+      },
+    };
+    const model = {
+      key: "m_generate",
+      plugin: "m",
+      operation: "generate",
+      name: "M",
+      kind: "video" as const,
+      category: [],
+      description: "",
+      credits: { min: 1, max: 1 },
+      input: {
+        prompt: { type: "string" as const, description: "", required: true },
+        image: { type: "image" as const, description: "", required: false, maxItems: 1, supportedContentTypes: [] },
+      },
+    };
+    await submitGeneration({
+      api,
+      uploadFile: async () => undefined,
+      model,
+      prompt: "Waves",
+      values: {},
+      uploadIds: ["up-1"],
+      idempotencyKey: "k",
+      projectId: "p1",
+    });
+    expect(posts).toEqual([
+      { path: "/v1/jobs/m/generate", body: { input: { prompt: "Waves", image: ["up-1"] }, projectId: "p1" } },
+    ]);
+  });
+});

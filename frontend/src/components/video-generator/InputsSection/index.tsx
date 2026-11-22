@@ -175,7 +175,8 @@ function RatioNote({
   model: VideoModel;
   onMatch: (ratio: string) => void;
 }) {
-  if (!frame) return null;
+  // No shape to choose (motion control follows its clip): nothing to suggest.
+  if (!frame || !model.aspectRatios.length) return null;
   const suggested = closestAspectRatio(frame.width, frame.height, model.aspectRatios);
   if (suggested === aspectRatio || !differs(frame.width / frame.height, ratioValue(aspectRatio))) return null;
   return (

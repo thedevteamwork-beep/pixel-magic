@@ -13,7 +13,7 @@ import {
   modelsForMode,
   resolutionLabel,
 } from "./settings";
-import { hailuo, kling21, seedance, testModels } from "./testModels";
+import { hailuo, kling21, kling3MC, seedance, testModels } from "./testModels";
 
 describe("video settings", () => {
   it("fits settings to a model and explains every change", () => {
@@ -51,7 +51,11 @@ describe("video settings", () => {
     expect(getVideoModel(testModels, "kling21_generate")).toBe(kling21);
     expect(getVideoModel(testModels, "gone")).toBe(seedance);
     expect(modelsForMode(testModels, "image")).toHaveLength(3);
-    expect(modelsForMode(testModels, "motion")).toEqual([]);
+    expect(modelsForMode(testModels, "reference").map((model) => model.id)).toEqual([
+      "seedance25_generate",
+      "klingO3Ref_generate",
+    ]);
+    expect(modelsForMode(testModels, "motion").map((model) => model.id)).toEqual(["kling3MC_generate"]);
   });
 
   it("follows the motion clip’s length within the model’s range", () => {
@@ -59,6 +63,8 @@ describe("video settings", () => {
     expect(effectiveDuration(motion, { duration: 8.4 }, kling21)).toBe(10);
     expect(effectiveDuration(motion, null, kling21)).toBe(5);
     expect(effectiveDuration({ ...motion, mode: "image" }, { duration: 8.4 }, kling21)).toBe(5);
+    // Motion control's own model has no length: the video is as long as the clip.
+    expect(effectiveDuration(motion, { duration: 4.2 }, kling3MC)).toBe(4);
   });
 
   it("estimates render time, longer for bigger frames", () => {

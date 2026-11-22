@@ -10,6 +10,7 @@ import { getUserUploads } from "../../db/repositories/uploads.repo.js";
 import type { JobRow } from "../../db/rows.js";
 import type { ModelDefinition, PredictionInput } from "../../models/types.js";
 import { getModel } from "../../models/registry.js";
+import { uploadIdsOf } from "../../models/schemaGenerator.js";
 import { failJob } from "./jobs.js";
 
 export const GENERATE_LEASE_MS = 120_000;
@@ -144,26 +145,22 @@ export async function runGenerate(
   try {
     const uploads = await getUserUploads(deps.db, job.user_id, job.upload_ids);
     const byId = new Map(uploads.map((u) => [u.id, u]));
-    const inputUrls: string[] = [];
-    for (const id of job.upload_ids) {
+    const signedUrl = async (id: string) => {
       const upload = byId.get(id);
       if (!upload) throw new Error(`Upload ${id} missing for job ${jobId}`);
-      inputUrls.push(
-        await deps.storage.createSignedUrl(
-          deps.config.STORAGE_BUCKET_INPUTS,
-          upload.path,
-          INPUT_URL_TTL_SECONDS,
-        ),
+      return deps.storage.createSignedUrl(
+        deps.config.STORAGE_BUCKET_INPUTS,
+        upload.path,
+        INPUT_URL_TTL_SECONDS,
       );
-    }
-    // The model gets the job's input with its uploads as signed URLs: one URL
-    // for a single-image field, the whole list for a field that takes several.
-    const input: PredictionInput = {
-      ...(job.input as Record<string, unknown>),
     };
-    if (model.uploads.field) {
-      input[model.uploads.field] =
-        model.uploads.max > 1 ? inputUrls : inputUrls[0];
+    // The model gets the job's input with each upload field's ids as signed
+    // URLs: one URL for a field that takes one file, the list for one that takes several.
+    const stored = job.input as Record<string, unknown>;
+    const input: PredictionInput = { ...stored };
+    for (const rule of model.uploads) {
+      const urls = await Promise.all(uploadIdsOf(rule, stored).map(signedUrl));
+      input[rule.field] = rule.max > 1 ? urls : urls[0];
     }
     const leaseEnd = job.lease_expires_at?.getTime() ?? 0;
     if (deps.clock.now().getTime() >= leaseEnd - SUBMIT_LEASE_MARGIN_MS) {

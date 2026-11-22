@@ -230,8 +230,8 @@ describe("POST /v1/jobs", () => {
     });
     // The test config allows png everywhere, so narrow the model instead.
     const model = getModel("kling21_generate")!;
-    const original = model.uploads.supportedContentTypes;
-    model.uploads.supportedContentTypes = ["image/jpeg"];
+    const original = model.uploads[0]!.supportedContentTypes;
+    model.uploads[0]!.supportedContentTypes = ["image/jpeg"];
     try {
       const res = await postTo(KLING, {
         input: { prompt: "move", image: [up.body.uploadId] },
@@ -240,7 +240,7 @@ describe("POST /v1/jobs", () => {
       expect(res.body.code).toBe("UPLOAD_NOT_READY");
       expect(res.body.meta).toMatchObject({ reason: "mime_type" });
     } finally {
-      model.uploads.supportedContentTypes = original;
+      model.uploads[0]!.supportedContentTypes = original;
     }
     expect(await jobCount()).toBe(0);
   });

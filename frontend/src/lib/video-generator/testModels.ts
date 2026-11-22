@@ -30,6 +30,8 @@ export const seedanceSource: PublicModel = {
   input: {
     prompt,
     image,
+    end_image: image,
+    reference_images: { ...image, maxItems: 4 },
     resolution: choice(["720p", "480p"], "720p"),
     duration: choice(
       Array.from({ length: 27 }, (_, index) => String(index + 4)),
@@ -56,6 +58,32 @@ export const kling21Source: PublicModel = {
   input: { prompt, image, duration: choice(["5", "10"], "5"), aspect_ratio: choice(["9:16", "16:9", "1:1"], "16:9") },
 };
 
+export const klingO3RefSource: PublicModel = {
+  ...seedanceSource,
+  key: "klingO3Ref_generate",
+  plugin: "klingO3Ref",
+  name: "Kling O3 Reference",
+  input: {
+    prompt,
+    reference_images: { ...image, required: true, maxItems: 4 },
+    duration: choice(["3", "5", "10"], "5"),
+    aspect_ratio: choice(["16:9", "9:16", "1:1"], "16:9"),
+  },
+};
+
+export const kling3MCSource: PublicModel = {
+  ...seedanceSource,
+  key: "kling3MC_generate",
+  plugin: "kling3MC",
+  name: "Kling 3.0 Motion Control",
+  input: {
+    prompt: { type: "string", description: "Prompt", maxLength: 2500 },
+    image: { ...image, required: true },
+    video: { ...image, type: "video", required: true, supportedContentTypes: ["video/mp4", "video/quicktime"] },
+    audio: { type: "boolean", description: "Keep the clip's sound", default: false },
+  },
+};
+
 export const seedance: VideoModel = toVideoModel(seedanceSource, {
   maker: "ByteDance",
   symbol: "❋",
@@ -64,4 +92,6 @@ export const seedance: VideoModel = toVideoModel(seedanceSource, {
 });
 export const hailuo: VideoModel = toVideoModel(hailuoSource, { maker: "MiniMax", symbol: "◎" });
 export const kling21: VideoModel = toVideoModel(kling21Source, { maker: "Kuaishou", symbol: "◆", speed: 9 });
-export const testModels: readonly VideoModel[] = [seedance, hailuo, kling21];
+export const klingO3Ref: VideoModel = toVideoModel(klingO3RefSource);
+export const kling3MC: VideoModel = toVideoModel(kling3MCSource);
+export const testModels: readonly VideoModel[] = [seedance, hailuo, kling21, klingO3Ref, kling3MC];
