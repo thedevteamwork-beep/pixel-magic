@@ -31,7 +31,7 @@ export function samplePortrait(
   return {
     id: `sample-${Date.now()}`,
     url: picture.src,
-    alt: `${displayName(traits)} sample portrait`,
+    alt: `${displayName(traits, archetypeId)} sample portrait`,
     aspectRatio,
     sample: true,
   };
@@ -75,7 +75,7 @@ export function sampleProject(
   return {
     projectId,
     type: PROJECT_TYPE,
-    title: displayName(traits),
+    title: displayName(traits, archetypeId),
     data: { ...projectData(traits, archetypeId, { aspectRatio: portrait.aspectRatio }) },
     cover: { mimeType: "image/jpeg", url: portrait.url, expiresAt: "" },
     upload: null,

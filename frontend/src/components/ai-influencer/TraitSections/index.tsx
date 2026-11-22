@@ -10,8 +10,9 @@ import { OptionTiles } from "./OptionTiles";
 import { TextField } from "./TextField";
 
 /**
- * Trait groups. `part="lead"` shows the groups that open the panel (character type); `part="main"` shows the name
- * and every other group. Required traits always keep a value; the rest can be cleared by clicking them again.
+ * Trait groups. `part="lead"` shows the groups that open the panel (character type); `part="main"` shows every other
+ * group, with the name first in Identity. Required traits always keep a value; the rest can be cleared by clicking them
+ * again.
  */
 export function TraitSections({ part }: { part: "lead" | "main" }) {
   const { state, dispatch, registerField } = useInfluencer();
@@ -22,21 +23,6 @@ export function TraitSections({ part }: { part: "lead" | "main" }) {
 
   return (
     <>
-      {part === "main" && (
-        <ControlSection eventKey="name" title="Name">
-          <TextField
-            label="Name"
-            value={traits.name}
-            maxLength={MAX_NAME_LENGTH}
-            placeholder="e.g. Mira Kapoor"
-            disabled={busy}
-            error={fieldErrors.name}
-            fieldRef={(node) => registerField("name", node)}
-            onChange={(value) => dispatch({ type: "trait", key: "name", value })}
-          />
-        </ControlSection>
-      )}
-
       {groups.map((group) => (
         <ControlSection
           eventKey={group.id}
@@ -45,6 +31,19 @@ export function TraitSections({ part }: { part: "lead" | "main" }) {
           description={group.description}
           defaultOpen={group.id === "character"}
         >
+          {group.id === "identity" && (
+            <TextField
+              label="Name"
+              optional
+              value={traits.name}
+              maxLength={MAX_NAME_LENGTH}
+              placeholder="e.g. Mira Kapoor"
+              disabled={busy}
+              error={fieldErrors.name}
+              fieldRef={(node) => registerField("name", node)}
+              onChange={(value) => dispatch({ type: "trait", key: "name", value })}
+            />
+          )}
           {group.id === "style" && <StyleReference />}
           {group.fields.map((field) => {
             const allowClear = !field.required;

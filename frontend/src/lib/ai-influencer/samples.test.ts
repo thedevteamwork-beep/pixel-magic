@@ -63,3 +63,11 @@ describe("sample History", () => {
     expect(isSampleProject("6f1c2c8e-6c3b-4b8e-9a51-0d6f1b7a2c11")).toBe(false);
   });
 });
+
+describe("sample influencer without a name", () => {
+  it("is titled from its look", () => {
+    const portrait = samplePortrait(defaultTraits, null, "4:5");
+    expect(sampleProject("sample-1", defaultTraits, null, portrait).title).toBe("Woman, late 20s");
+    expect(portrait.alt).toBe("Woman, late 20s sample portrait");
+  });
+});

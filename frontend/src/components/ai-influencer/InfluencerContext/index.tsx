@@ -64,6 +64,7 @@ import {
   savePendingSample,
   type PendingSample,
 } from "@/lib/ai-influencer/resume";
+import { displayName } from "@/lib/ai-influencer/prompt";
 import { restoreStyle, styleForGenerate, type RestoredStyle } from "@/lib/ai-influencer/styles";
 import { imageFileError, uploadImage } from "@/lib/ai-influencer/upload";
 import { api, ApiError, newIdempotencyKey } from "@/lib/api/client";
@@ -297,7 +298,7 @@ function isClientError(error: unknown): boolean {
 
 /** The title and data a project is saved with, as text. A Generate patches the project only when this changes. */
 function savedForm(traits: InfluencerTraits, archetypeId: string | null, settings: SavedSettings): string {
-  return JSON.stringify({ title: traits.name, data: projectData(traits, archetypeId, settings) });
+  return JSON.stringify({ title: displayName(traits, archetypeId), data: projectData(traits, archetypeId, settings) });
 }
 
 /** What the server holds for a project besides its traits. */
@@ -634,7 +635,12 @@ export function InfluencerProvider({
     if (!checked.ok) {
       dispatch({ type: "invalid", errors: checked.errors });
       const invalid = (Object.keys(checked.errors) as TextField[])[0];
-      fields.current[invalid]?.focus();
+      const field = fields.current[invalid];
+      // The field may sit in a closed section, where its error can't be seen: open it, then focus the field once the
+      // section is shown (a closed section's content can't take focus).
+      const section = field?.closest("details");
+      if (section && !section.open) section.open = true;
+      setTimeout(() => field?.focus(), 0);
       return invalid;
     }
     if (running.current) return null;
@@ -695,13 +701,16 @@ export function InfluencerProvider({
       const data = projectData(submitted, archetypeId, settings);
       let id = projectId;
       if (!id) {
-        const view = await createInfluencerProject(api, submitted.name, data);
+        const view = await createInfluencerProject(api, displayName(submitted, archetypeId), data);
         savedProject = true;
         if (!isLatest()) return null;
         keepProject(view);
         id = view.projectId;
       } else if (savedForm(submitted, archetypeId, settings) !== saved.current) {
-        const view = await catchDeletedProject(id, updateInfluencerProject(api, id, { title: submitted.name, data }));
+        const view = await catchDeletedProject(
+          id,
+          updateInfluencerProject(api, id, { title: displayName(submitted, archetypeId), data }),
+        );
         savedProject = true;
         if (!isLatest()) return null;
         // Still the open project, and the form already shows what was sent: only the snapshot changes.
@@ -752,7 +761,10 @@ export function InfluencerProvider({
         if (!next.signal.aborted) notifyCreditsChanged();
       });
       if (isLatest())
-        dispatch({ type: "done", variations: variationsFromJobs([finished], `${submitted.name} portrait`) });
+        dispatch({
+          type: "done",
+          variations: variationsFromJobs([finished], `${displayName(submitted, archetypeId)} portrait`),
+        });
     } catch (error) {
       // Cancelled, or something newer owns the screen: this run shows nothing.
       if (next.signal.aborted || !isLatest()) return null;

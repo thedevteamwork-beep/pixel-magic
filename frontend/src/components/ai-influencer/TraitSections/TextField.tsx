@@ -3,6 +3,8 @@ import styles from "./main.module.css";
 
 type TextFieldProps = {
   label: string;
+  /** Shows a small "Optional" tag after the label, like the optional traits. */
+  optional?: boolean;
   value: string;
   maxLength: number;
   placeholder: string;
@@ -15,6 +17,7 @@ type TextFieldProps = {
 
 export function TextField({
   label,
+  optional = false,
   value,
   maxLength,
   placeholder,
@@ -26,7 +29,9 @@ export function TextField({
   const id = useId();
   return (
     <div className={styles.textField}>
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label} {optional && <small>Optional</small>}
+      </label>
       <input
         id={id}
         ref={fieldRef}

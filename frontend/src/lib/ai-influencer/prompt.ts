@@ -1,4 +1,4 @@
-import { ANIMAL_SPECIES, CHARACTER_LOOKS, traitGroups } from "@/components/ai-influencer/constants";
+import { ANIMAL_SPECIES, archetypes, CHARACTER_LOOKS, traitGroups } from "@/components/ai-influencer/constants";
 import type { InfluencerTraits, TraitKey, TraitOption } from "@/types/ai-influencer";
 
 const fields = traitGroups.flatMap((group) => group.fields);
@@ -171,8 +171,22 @@ export function composeInfluencerPrompt(traits: InfluencerTraits, references: Re
     .join("\n\n");
 }
 
-export function displayName(traits: InfluencerTraits): string {
-  return traits.name.trim() || "Untitled influencer";
+/**
+ * The influencer's title: the name the user typed; else its template's title ("Fitness coach"); else one from its look
+ * ("South Asian woman, late 20s", "Kitty, late 20s").
+ */
+export function displayName(traits: InfluencerTraits, archetypeId: string | null = null): string {
+  const name = traits.name.trim();
+  if (name) return name;
+  const template = archetypes.find((archetype) => archetype.id === archetypeId);
+  if (template) return template.title;
+  const label = (key: TraitKey) => (traits[key] ? traitLabel(key, traits[key]) : "");
+  const who =
+    ANIMAL_SPECIES[traits.character] !== undefined
+      ? label("character")
+      : [label("ethnicity"), label("gender").toLowerCase()].filter(Boolean).join(" ");
+  const title = [who.charAt(0).toUpperCase() + who.slice(1), label("age").toLowerCase()].filter(Boolean).join(", ");
+  return title || "Untitled influencer";
 }
 
 /** Small deterministic hash so the same traits always give the same sample seed. */

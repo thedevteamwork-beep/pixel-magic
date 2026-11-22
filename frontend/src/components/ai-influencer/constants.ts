@@ -72,7 +72,8 @@ export const POLL_INTERVAL_MS = 4000;
 export type TextField = "name" | "extra";
 export type TextValues = Record<TextField, string>;
 export const textFieldRules: FieldRules<TextValues> = {
-  name: [trimmed(isNotEmpty("Give your influencer a name."), isTextLength({ min: 2, max: MAX_NAME_LENGTH }))],
+  // Optional: an influencer without a name is titled from its template or look (displayName).
+  name: [trimmed(isTextLength({ max: MAX_NAME_LENGTH }))],
   extra: [trimmed(isTextLength({ max: MAX_EXTRA_LENGTH }))],
 };
 
