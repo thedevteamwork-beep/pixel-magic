@@ -1,7 +1,8 @@
 import type { ModelSchema } from "../../../types.js";
+import { endImageField } from "../../../videoInputs.js";
 
 // Ported from Pixelbin's klingv3_generate transformation schema.
-// Not ported (one upload field per model, or no fixed range): multi_prompt, multi_prompt_duration, end_image, image_urls.
+// Not ported (no fixed range): multi_prompt, multi_prompt_duration, image_urls (elements). end_image is sent as end_image_url.
 export const schema: ModelSchema = {
   info: {
     name: "klingv3_generate",
@@ -39,6 +40,7 @@ export const schema: ModelSchema = {
         "image/webp",
       ],
     },
+    end_image: endImageField(),
     resolution: {
       type: "string",
       description:

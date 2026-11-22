@@ -90,11 +90,19 @@ describe("validateModelSchema", () => {
     );
   });
 
-  it("rejects two image fields", () => {
+  it("accepts several image fields (a start and an end frame)", () => {
     const s = clone();
-    s.input.image2 = structuredClone(s.input.image);
+    s.input.end_image = structuredClone(s.input.image);
+    expect(() => validateModelSchema("kling21_generate", s)).not.toThrow();
+  });
+
+  it("rejects two video fields", () => {
+    const s = clone();
+    const clip = { ...structuredClone(s.input.image)!, type: "video" as const };
+    s.input.video = clip;
+    s.input.video2 = structuredClone(clip);
     expect(() => validateModelSchema("kling21_generate", s)).toThrow(
-      /at most one image/,
+      /at most one video/,
     );
   });
 

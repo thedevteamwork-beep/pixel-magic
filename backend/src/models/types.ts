@@ -41,16 +41,33 @@ export type FieldSchema =
     }
   | { type: "boolean"; description: string; default: boolean }
   | {
-      type: "image";
+      /** Uploaded files: images, or a video clip (motion control). A job sends upload ids. */
+      type: "image" | "video";
       description: string;
       required: boolean;
       maxItems: number;
       supportedContentTypes: readonly string[];
     };
 
+/** A field that takes uploads. */
+export type UploadFieldSchema = Extract<
+  FieldSchema,
+  { type: "image" | "video" }
+>;
+
+/** One upload field of a model: its name, what it takes and how many. */
+export type UploadRule = {
+  field: string;
+  kind: "image" | "video";
+  min: number;
+  max: number;
+  supportedContentTypes: string[];
+};
+
 /**
- * Everything a model declares about itself. `input` has at most one "image"
- * field; a prompt is just another string field. `metaSchema.ts` checks this.
+ * Everything a model declares about itself. `input` may have several upload
+ * fields (a start image, an end image, reference images, a video clip); a
+ * prompt is just another string field. `metaSchema.ts` checks this.
  */
 export type ModelSchema = {
   info: {
@@ -88,32 +105,35 @@ export type ModelDefinition<O extends z.ZodObject = z.ZodObject> = {
   schema: ModelSchema;
   /** Checks a job's input against every field in `schema.input`. */
   input: z.ZodObject;
-  /** The image field, if any: its name, and how many uploads of which types it takes. */
-  uploads: {
-    field: string | undefined;
-    min: number;
-    max: number;
-    supportedContentTypes: string[];
-  };
+  /** Every upload field, in schema order: its name, kind, and how many uploads of which types it takes. */
+  uploads: UploadRule[];
   /**
-   * The fields a price can depend on: every input but `prompt` and the image.
+   * The fields a price can depend on: every input but `prompt` and the upload fields.
    * Only pricing uses it. `options.parse({})` works unless one is required.
    */
   options: O;
   /**
    * The facts credits are priced on: the options, the unit values and
-   * `image`. A model priced by its input's size also gets `imageSize`.
+   * `image`. `uploadCount` counts every upload, in every field. A model
+   * priced by its input's size also gets `imageSize`, and one priced by its
+   * input clip's length gets `videoSeconds`.
    */
   billingInputs(p: {
     options: z.output<O>;
     uploadCount: number;
     imageSize?: ImageSize;
+    videoSeconds?: number;
   }): BillingFacts;
   /**
    * Priced by the size of its input image (an upscaler's output megapixels).
    * Job creation measures the upload; an estimate is given the size.
    */
   pricedByImageSize: boolean;
+  /**
+   * Priced by the length of its input clip (motion control follows the clip).
+   * Job creation measures the upload; an estimate is given the length.
+   */
+  pricedByVideoLength: boolean;
   /**
    * How many times the tier's price is charged: the number of images a job
    * asks for, for a model priced per image; 1 otherwise. Read from the facts.

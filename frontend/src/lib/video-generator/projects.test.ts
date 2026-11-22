@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { defaultVideoSettings } from "@/components/video-generator/constants";
 import type { ProjectView } from "@/lib/api/types";
-import { sameProjectData, settingsFromProject, videoProjectData, videoProjectTitle } from "./projects";
+import {
+  sameProjectData,
+  settingsFromProject,
+  uploadFieldsFromProject,
+  videoProjectData,
+  videoProjectTitle,
+} from "./projects";
 
 const settings = {
   ...defaultVideoSettings,
@@ -28,7 +34,7 @@ const view = (data: Record<string, unknown>): ProjectView => ({
 
 describe("video projects", () => {
   it("saves the direction and settings, with the start image when there is one", () => {
-    expect(videoProjectData(settings, "up-1")).toEqual({
+    expect(videoProjectData(settings, { image: ["up-1"] })).toEqual({
       prompt: "A paper boat on a rainy street",
       mode: "image",
       model: "kling25_generate",
@@ -49,7 +55,7 @@ describe("video projects", () => {
   });
 
   it("tells when saving would change nothing", () => {
-    const data = videoProjectData(settings, "up-1");
+    const data = videoProjectData(settings, { image: ["up-1"] });
     expect(sameProjectData(view({ ...data }), data)).toBe(true);
     expect(sameProjectData(view({ ...data, count: 1 }), data)).toBe(false);
     expect(sameProjectData(view({ ...data }), videoProjectData(settings))).toBe(false);
@@ -59,5 +65,19 @@ describe("video projects", () => {
     expect(videoProjectTitle("  Waves   at dusk ")).toBe("Waves at dusk");
     expect(videoProjectTitle("")).toBe("Animated image");
     expect(videoProjectTitle("x".repeat(200))).toHaveLength(80);
+  });
+});
+
+describe("the files a video idea keeps", () => {
+  it("saves every upload by field and gives them back for the next render", () => {
+    const fields = { image: ["s"], end_image: ["e"], reference_images: ["a", "b"], video: ["c"] };
+    const data = videoProjectData(settings, fields);
+    expect(data).toMatchObject({
+      startImageUploadId: "s",
+      endImageUploadId: "e",
+      referenceUploadIds: ["a", "b"],
+      clipUploadId: "c",
+    });
+    expect(uploadFieldsFromProject(view({ ...data }))).toEqual(fields);
   });
 });

@@ -111,7 +111,7 @@ export async function captureLastFrame(url: string, name: string): Promise<Frame
 /** Read a local motion clip's length and shape. The object URL is owned by the caller. */
 export async function loadClipFile(file: File): Promise<MotionClip> {
   if (!CLIP_MIME_TYPES.some((type) => type === file.type))
-    throw new FrameError(`${file.name}: choose an MP4, MOV, or WebM clip.`);
+    throw new FrameError(`${file.name}: choose an MP4 or MOV clip.`);
   if (!file.size || file.size > MAX_CLIP_BYTES)
     throw new FrameError(`${file.name}: choose a clip smaller than 100 MB.`);
   const url = URL.createObjectURL(file);

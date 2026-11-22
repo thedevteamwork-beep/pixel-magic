@@ -100,6 +100,18 @@ export class FakeStorage implements StorageClient {
     );
   }
 
+  async readObjectEnd(
+    bucket: string,
+    path: string,
+    maxBytes: number,
+  ): Promise<Buffer | null> {
+    this.enter("readObjectEnd", [bucket, path, maxBytes]);
+    if (!this.objects.has(`${bucket}/${path}`)) return null;
+    return (this.contents.get(`${bucket}/${path}`) ?? Buffer.alloc(0)).subarray(
+      -maxBytes,
+    );
+  }
+
   async copyFromUrl(
     bucket: string,
     path: string,

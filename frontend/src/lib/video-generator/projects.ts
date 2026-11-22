@@ -1,6 +1,7 @@
 import { ApiError, type ApiClient } from "@/lib/api/client";
 import type { ProjectList, ProjectView } from "@/lib/api/types";
 import type { VideoMode, VideoSettings } from "@/types/video-generator";
+import { VIDEO_FIELDS } from "./models";
 
 /** Projects of this type are video ideas. */
 export const VIDEO_PROJECT_TYPE = "video";
@@ -20,8 +21,12 @@ export type VideoProjectData = {
   resolution?: string;
   audio: boolean;
   count: number;
-  /** The start image's upload; the backend returns it signed as the project's `upload`. */
+  /** The start image's (or motion control's character) upload; the backend returns it signed as the project's `upload`. */
   startImageUploadId?: string;
+  /** The other files the idea was made from, so it can be rendered again without uploading them. */
+  endImageUploadId?: string;
+  referenceUploadIds?: string[];
+  clipUploadId?: string;
 };
 
 /** A short name for the project, from its prompt: what the history and the feed show. */
@@ -31,7 +36,15 @@ export function videoProjectTitle(prompt: string): string {
   return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH - 1).trimEnd()}…` : text;
 }
 
-export function videoProjectData(settings: VideoSettings, startImageUploadId?: string): VideoProjectData {
+/** What a project saves: the settings, and the upload ids it was sent, by the model's upload field. */
+export function videoProjectData(
+  settings: VideoSettings,
+  fields: Record<string, readonly string[]> = {},
+): VideoProjectData {
+  const [startImageUploadId] = fields[VIDEO_FIELDS.image] ?? [];
+  const [endImageUploadId] = fields[VIDEO_FIELDS.end] ?? [];
+  const [clipUploadId] = fields[VIDEO_FIELDS.clip] ?? [];
+  const references = fields[VIDEO_FIELDS.references] ?? [];
   return {
     prompt: settings.prompt.trim(),
     mode: settings.mode,
@@ -42,7 +55,21 @@ export function videoProjectData(settings: VideoSettings, startImageUploadId?: s
     audio: settings.audio,
     count: settings.count,
     ...(startImageUploadId ? { startImageUploadId } : {}),
+    ...(endImageUploadId ? { endImageUploadId } : {}),
+    ...(references.length ? { referenceUploadIds: [...references] } : {}),
+    ...(clipUploadId ? { clipUploadId } : {}),
   };
+}
+
+/** The upload ids a project saved, by the model's upload field: a render of it sends them again. */
+export function uploadFieldsFromProject(view: ProjectView): Record<string, string[]> {
+  const data = view.data as Partial<VideoProjectData>;
+  const fields: Record<string, string[]> = {};
+  if (data.startImageUploadId) fields[VIDEO_FIELDS.image] = [data.startImageUploadId];
+  if (data.endImageUploadId) fields[VIDEO_FIELDS.end] = [data.endImageUploadId];
+  if (data.referenceUploadIds?.length) fields[VIDEO_FIELDS.references] = [...data.referenceUploadIds];
+  if (data.clipUploadId) fields[VIDEO_FIELDS.clip] = [data.clipUploadId];
+  return fields;
 }
 
 const MODES: readonly VideoMode[] = ["text", "image", "reference", "motion"];
@@ -68,11 +95,12 @@ export function settingsFromProject(view: ProjectView, base: VideoSettings): Vid
 
 /** Whether saving `next` would change what the project holds (so a render only patches when needed). */
 export function sameProjectData(view: ProjectView, next: VideoProjectData): boolean {
-  const saved = view.data as Partial<VideoProjectData>;
-  return (
-    (Object.keys(next) as (keyof VideoProjectData)[]).every((key) => saved[key] === next[key]) &&
-    (saved.startImageUploadId ?? undefined) === (next.startImageUploadId ?? undefined)
-  );
+  return JSON.stringify(sorted(view.data)) === JSON.stringify(sorted(next));
+}
+
+/** An object's entries in key order, so two with the same values compare equal. */
+function sorted(value: object): [string, unknown][] {
+  return Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
 }
 
 export function createVideoProject(api: ApiClient, data: VideoProjectData): Promise<ProjectView> {

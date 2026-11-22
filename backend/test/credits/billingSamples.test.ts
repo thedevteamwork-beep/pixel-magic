@@ -7,7 +7,7 @@ import { fluxSchnellGenerate as fluxSchnell } from "../../src/models/plugins/flu
 import { kling21Generate as kling21 } from "../../src/models/plugins/kling21/generate/index.js";
 import {
   optionsValidator,
-  uploadRule,
+  uploadRules,
 } from "../../src/models/schemaGenerator.js";
 import type {
   BillingFacts,
@@ -27,7 +27,7 @@ function testModel(input: Record<string, FieldSchema>): ModelDefinition {
     ...fluxSchnell,
     key: "test-model",
     schema,
-    uploads: uploadRule(schema),
+    uploads: uploadRules(schema),
     options: optionsValidator(schema),
     billingInputs: ({ options, uploadCount }) => ({
       ...(options as BillingFacts),

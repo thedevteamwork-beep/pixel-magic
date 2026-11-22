@@ -1,7 +1,8 @@
 import type { ModelSchema } from "../../../types.js";
+import { endImageField } from "../../../videoInputs.js";
 
 // Ported from Pixelbin's veo31Fast_generate transformation schema.
-// Not ported (one upload field per model, or no fixed range): end_image.
+// end_image switches to fal's first-last-frame-to-video endpoint.
 export const schema: ModelSchema = {
   info: {
     name: "veo31Fast_generate",
@@ -40,6 +41,7 @@ export const schema: ModelSchema = {
         "image/webp",
       ],
     },
+    end_image: endImageField(),
     audio: {
       type: "boolean",
       description: "Whether to generate audio for the video or not.",

@@ -7,6 +7,7 @@ import {
 } from "../db/repositories/uploads.repo.js";
 import type { UploadRow } from "../db/rows.js";
 import { AppError } from "../lib/errors.js";
+import { VIDEO_HEADER_BYTES, videoDuration } from "../lib/videoDuration.js";
 import {
   IMAGE_HEADER_BYTES,
   imageSize,
@@ -14,6 +15,18 @@ import {
 } from "../lib/imageSize.js";
 
 const SIGNED_UPLOAD_TTL_MS = 2 * 60 * 60 * 1000;
+
+/** The largest clip motion control takes, in seconds (fal's limit with the video's orientation). */
+export const MAX_VIDEO_SECONDS = 30;
+
+/** The size limit for a file of this type, or null when it can't be uploaded at all. */
+function uploadLimit(config: Deps["config"], mimeType: string): number | null {
+  if (config.UPLOAD_MIME_TYPES.includes(mimeType))
+    return config.UPLOAD_MAX_BYTES;
+  if (config.UPLOAD_VIDEO_MIME_TYPES.includes(mimeType))
+    return config.UPLOAD_VIDEO_MAX_BYTES;
+  return null;
+}
 
 /** The longest image side accepted where size matters (upscaling). */
 export const MAX_IMAGE_SIDE = 16_384;
@@ -31,13 +44,14 @@ export async function createUpload(
   expiresAt: Date;
 }> {
   const { config } = deps;
-  if (!config.UPLOAD_MIME_TYPES.includes(body.mimeType)) {
+  const limit = uploadLimit(config, body.mimeType);
+  if (limit === null) {
     throw new AppError(422, "VALIDATION_FAILED", "Unsupported file type");
   }
   if (
     !Number.isInteger(body.sizeBytes) ||
     body.sizeBytes < 1 ||
-    body.sizeBytes > config.UPLOAD_MAX_BYTES
+    body.sizeBytes > limit
   ) {
     throw new AppError(422, "VALIDATION_FAILED", "File size out of range");
   }
@@ -95,10 +109,9 @@ export async function resolveUploads(
     if (!row) throw fail("not_found");
     const info = await deps.storage.getObjectInfo(row.bucket, row.path);
     if (!info) throw fail("not_uploaded");
-    if (!deps.config.UPLOAD_MIME_TYPES.includes(info.mimeType)) {
-      throw fail("mime_type");
-    }
-    if (info.sizeBytes > deps.config.UPLOAD_MAX_BYTES) throw fail("too_large");
+    const limit = uploadLimit(deps.config, info.mimeType);
+    if (limit === null) throw fail("mime_type");
+    if (info.sizeBytes > limit) throw fail("too_large");
     checked.push({ row, info });
   }
   const now = deps.clock.now();
@@ -144,4 +157,38 @@ export async function measureUpload(
     throw fail("too_large");
   }
   return size;
+}
+
+/**
+ * The length in seconds of a confirmed clip upload, read from its header in
+ * storage (at the start or the end of the file). 422 when it can't be read
+ * (export it as MP4) or is longer than MAX_VIDEO_SECONDS.
+ */
+export async function measureClip(
+  deps: Deps,
+  upload: UploadRow,
+): Promise<number> {
+  const fail = (reason: "unreadable" | "too_long") =>
+    new AppError(422, "UPLOAD_NOT_READY", "Upload is not ready", {
+      uploadId: upload.id,
+      reason,
+    });
+  const start = await deps.storage.readObjectStart(
+    upload.bucket,
+    upload.path,
+    VIDEO_HEADER_BYTES,
+  );
+  let seconds = start && videoDuration(start);
+  if (!seconds) {
+    const end = await deps.storage.readObjectEnd(
+      upload.bucket,
+      upload.path,
+      VIDEO_HEADER_BYTES,
+    );
+    seconds = end && videoDuration(end);
+  }
+  if (!seconds) throw fail("unreadable");
+  // A hair over the limit (a 30.02 s export) still counts as the limit.
+  if (seconds > MAX_VIDEO_SECONDS + 0.5) throw fail("too_long");
+  return Math.min(seconds, MAX_VIDEO_SECONDS);
 }

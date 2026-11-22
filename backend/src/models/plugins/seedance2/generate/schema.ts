@@ -1,7 +1,8 @@
 import type { ModelSchema } from "../../../types.js";
+import { endImageField } from "../../../videoInputs.js";
 
 // Ported from Pixelbin's seedance2_generate transformation schema.
-// Not ported (one upload field per model, or no fixed range), so reference-to-video is not offered: end_image, image_urls, video_urls, audio_urls.
+// end_image is sent as end_image_url. Not ported: image_urls, video_urls, audio_urls (reference-to-video).
 export const schema: ModelSchema = {
   info: {
     name: "seedance2_generate",
@@ -34,6 +35,7 @@ export const schema: ModelSchema = {
         "image/webp",
       ],
     },
+    end_image: endImageField(),
     resolution: {
       type: "string",
       description:

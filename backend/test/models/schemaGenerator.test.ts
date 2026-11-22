@@ -4,7 +4,10 @@ import {
   inputValidator,
   optionsValidator,
   publicInput,
-  uploadRule,
+  optionsIn,
+  uploadCountRange,
+  uploadIdsIn,
+  uploadRules,
 } from "../../src/models/schemaGenerator.js";
 import { schema as flux } from "../../src/models/plugins/fluxSchnell/generate/schema.js";
 import { schema as kling } from "../../src/models/plugins/kling21/generate/schema.js";
@@ -137,19 +140,15 @@ describe("optionsValidator", () => {
   });
 });
 
-describe("uploadRule", () => {
-  it("is 0/0/[] without an image field", () => {
-    expect(uploadRule(flux)).toEqual({
-      field: undefined,
-      min: 0,
-      max: 0,
-      supportedContentTypes: [],
-    });
+describe("uploadRules", () => {
+  it("is empty without an upload field", () => {
+    expect(uploadRules(flux)).toEqual([]);
   });
 
   it("is optional (min 0) for an optional image field", () => {
-    expect(uploadRule(kling)).toEqual({
+    expect(uploadRules(kling)[0]).toEqual({
       field: "image",
+      kind: "image",
       min: 0,
       max: 1,
       supportedContentTypes: [
@@ -171,7 +170,36 @@ describe("uploadRule", () => {
         image: { ...kling.input.image!, required: true },
       },
     };
-    expect(uploadRule(required).min).toBe(1);
+    expect(uploadRules(required)[0]!.min).toBe(1);
+  });
+
+  it("lists every upload field in order, images and a clip, with their totals", () => {
+    const motion = {
+      ...kling,
+      input: {
+        ...kling.input,
+        end_image: { ...kling.input.image!, required: false },
+        video: {
+          type: "video" as const,
+          description: "Clip",
+          required: true,
+          maxItems: 1,
+          supportedContentTypes: ["video/mp4"],
+        },
+      },
+    };
+    const rules = uploadRules(motion);
+    expect(
+      rules.map((rule) => [rule.field, rule.kind, rule.min, rule.max]),
+    ).toEqual([
+      ["image", "image", 0, 1],
+      ["end_image", "image", 0, 1],
+      ["video", "video", 1, 1],
+    ]);
+    expect(uploadCountRange(rules)).toEqual({ min: 1, max: 3 });
+    const input = { prompt: "x", duration: "5", image: ["a"], video: ["c"] };
+    expect(uploadIdsIn(rules, input)).toEqual(["a", "c"]);
+    expect(optionsIn(rules, input)).toEqual({ duration: "5" });
   });
 });
 

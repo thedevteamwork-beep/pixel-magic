@@ -22,6 +22,11 @@ export const video: ProjectTypeDefinition = {
     // The start image (the user's own upload): returned signed as the project's `upload`,
     // and reused by every render, so it is uploaded once.
     startImageUploadId: z.string().uuid().optional(),
+    // The idea's other files (end frame, references, motion clip): kept so it can be rendered again.
+    // Not checked here: a job checks every upload is the user's own when it is created.
+    endImageUploadId: z.string().uuid().optional(),
+    referenceUploadIds: z.array(z.string().uuid()).max(10).optional(),
+    clipUploadId: z.string().uuid().optional(),
   }),
   modelKinds: ["video"],
   uploadField: "startImageUploadId",

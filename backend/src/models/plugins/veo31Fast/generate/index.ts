@@ -8,7 +8,13 @@ export const veo31FastGenerate = defineFalModel({
   plugin: "veo31Fast",
   operation: "generate",
   schema,
-  endpoint: (input) => (input.image ? `${BASE}/image-to-video` : BASE),
+  // A start and an end frame use first-last-frame-to-video; a start frame alone, image-to-video.
+  endpoint: (input) =>
+    input.image && input.end_image
+      ? `${BASE}/first-last-frame-to-video`
+      : input.image
+        ? `${BASE}/image-to-video`
+        : BASE,
   app: "fal-ai/veo3.1",
   payload: (input) => ({
     prompt: input.prompt,
@@ -17,7 +23,11 @@ export const veo31FastGenerate = defineFalModel({
     aspect_ratio: input.aspect_ratio,
     resolution: input.resolution,
     generate_audio: input.audio,
-    ...(input.image ? { image_url: input.image } : {}),
+    ...(input.image && input.end_image
+      ? { first_frame_url: input.image, last_frame_url: input.end_image }
+      : input.image
+        ? { image_url: input.image }
+        : {}),
   }),
   output: "video",
   // As Pixelbin bills it: audio, the resolution and the length in seconds.

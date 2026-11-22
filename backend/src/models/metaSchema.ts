@@ -28,21 +28,16 @@ const booleanField = z.strictObject({
   default: z.boolean(),
 });
 
-const imageField = z.strictObject({
-  type: z.literal("image"),
+const uploadField = z.strictObject({
+  type: z.enum(["image", "video"]),
   description: z.string(),
   required: z.boolean(),
   maxItems: z.number(),
   supportedContentTypes: z.array(z.string()),
 });
 
-// One of the four field shapes, picked by its `type`.
-const field = z.discriminatedUnion("type", [
-  stringField,
-  integerField,
-  booleanField,
-  imageField,
-]);
+// One of the field shapes, picked by its `type`.
+const field = z.union([stringField, integerField, booleanField, uploadField]);
 
 const fieldKey = z.string().regex(/^[a-zA-Z0-9_]+$/);
 
@@ -87,10 +82,10 @@ export function validateModelSchema(key: string, schema: unknown): ModelSchema {
   const parsed = result.data;
 
   // Step 2: rules the shape alone cannot express.
-  // 1. at most one image field
-  const images = Object.values(parsed.input).filter((f) => f.type === "image");
-  if (images.length > 1) {
-    fail("input", "at most one image field is allowed");
+  // 1. a model takes at most one video clip
+  const videos = Object.values(parsed.input).filter((f) => f.type === "video");
+  if (videos.length > 1) {
+    fail("input", "at most one video field is allowed");
   }
   // 2. billing units are not repeated
   if (new Set(parsed.billing.units).size !== parsed.billing.units.length) {

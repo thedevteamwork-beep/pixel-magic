@@ -2,31 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
-import { estimateInput } from "@/lib/video-generator/models";
-import type { VideoModel, VideoSettings } from "@/types/video-generator";
+import { estimateBody } from "@/lib/video-generator/models";
+import type { VideoInputs, VideoModel, VideoSettings } from "@/types/video-generator";
 
 const DEBOUNCE_MS = 250;
 
 /**
- * The credits one video with these settings costs, from the backend's own
- * pricing (what the job will reserve). `null` while the price for the current
- * settings loads, or if it couldn't.
+ * The credits one video with these settings and inputs costs, from the
+ * backend's own pricing (what the job will reserve): the inputs count (an end
+ * frame, references) and motion control is priced on its clip's length.
+ * `null` while the price for the current settings loads, or if it couldn't.
  */
-export function useVideoEstimate(model: VideoModel, settings: VideoSettings): number | null {
-  const input = estimateInput(model, settings);
-  const key = `${model.id}:${JSON.stringify(input)}`;
+export function useVideoEstimate(model: VideoModel, settings: VideoSettings, inputs: VideoInputs): number | null {
+  const key = JSON.stringify(estimateBody(model, settings, inputs));
   const [estimate, setEstimate] = useState<{ key: string; credits: number } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      const { plugin, operation } = model.source;
       api
-        .post<{ creditsPerJob: number }>(
-          `/v1/credits/estimate/${encodeURIComponent(plugin)}/${encodeURIComponent(operation)}`,
-          { input: JSON.parse(key.slice(model.id.length + 1)) },
-          { signal: controller.signal },
-        )
+        .post<{ creditsPerJob: number }>("/v1/credits/estimate", JSON.parse(key), { signal: controller.signal })
         .then((result) => setEstimate({ key, credits: result.creditsPerJob }))
         // A failed estimate only hides the price; creating the job prices it again.
         .catch(() => undefined);
@@ -35,7 +30,7 @@ export function useVideoEstimate(model: VideoModel, settings: VideoSettings): nu
       clearTimeout(timer);
       controller.abort();
     };
-  }, [key, model]);
+  }, [key]);
 
   return estimate?.key === key ? estimate.credits : null;
 }

@@ -18,7 +18,7 @@ import { isSessionEnded, messageForError } from "@/lib/generate/messages";
 import { isActiveJob } from "@/lib/image-generator/results";
 import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
 import { jobToVideoResults } from "@/lib/video-generator/models";
-import { listVideoProjects, settingsFromProject } from "@/lib/video-generator/projects";
+import { listVideoProjects, settingsFromProject, uploadFieldsFromProject } from "@/lib/video-generator/projects";
 import {
   captureLastFrame,
   FrameError,
@@ -52,7 +52,9 @@ import {
   StillRenderingError,
   type RenderRequest,
   type RenderSaved,
+  type RenderUpload,
 } from "./renderVideos";
+import { idsKey, inputsKey, markUploaded, renderUploads, uploadsKey } from "./uploads";
 import { useVideoEstimate } from "./useVideoEstimate";
 import { useVideoModels } from "./useVideoModels";
 import { DirectorPanel } from "../DirectorPanel";
@@ -64,17 +66,10 @@ import styles from "./main.module.css";
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void }; tone?: "success" | "info" };
 /** What a render needs to be retried or rendered again at a higher resolution. */
-type Snapshot = {
-  request: RenderRequest;
-  frameUrl?: string;
-  /** The start frame it used, to note its upload on. */ frameId?: string;
-};
+type Snapshot = { request: RenderRequest; frameUrl?: string };
 
-/** The video idea Generate adds takes to, and the start image it was made from ("" for none). */
-type OpenIdea = { project: ProjectView; startKey: string };
-
-/** Which start image a frame is: its upload once uploaded, else the local frame. */
-const startKeyOf = (frame: FrameImage | null) => (frame ? (frame.uploadId ?? frame.id) : "");
+/** The video idea Generate adds takes to, and which files it was made from (see `uploadsKey`). */
+type OpenIdea = { project: ProjectView; filesKey: string };
 type RowSize = "s" | "m" | "l";
 const rowHeights: Record<RowSize, string> = { s: "190px", m: "280px", l: "400px" };
 const MAX_ITEMS = 60;
@@ -94,12 +89,6 @@ function initialSettings(models: readonly VideoModel[], modelId: string, preset:
     },
     model,
   ).settings;
-}
-
-/** A frame's bytes, to upload: frames are local object URLs or bundled samples. */
-async function frameFile(frame: FrameImage): Promise<File> {
-  const blob = await (await fetch(frame.url)).blob();
-  return new File([blob], frame.name || "start-frame", { type: blob.type || frame.mimeType });
 }
 
 function renderError(error: unknown): string {
@@ -170,7 +159,7 @@ function VideoStudio({
     latest.current = { settings, inputs };
   });
   const model = getVideoModel(models, settings.model);
-  const credits = useVideoEstimate(model, settings);
+  const credits = useVideoEstimate(model, settings, inputs);
 
   const notify = useCallback((text: string, action?: Toast["action"], tone: Toast["tone"] = "info") => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -452,21 +441,21 @@ function VideoStudio({
       setJobs((current) => [job, ...current.filter((entry) => entry.id !== id)]);
       setAnnouncement(`Rendering ${job.count === 1 ? "a video" : `${job.count} videos`}. You can keep working.`);
 
-      // The idea is saved before credits are spent: remember it (and the start image's upload) right away,
+      // The idea is saved before credits are spent: remember it (and every file's upload) right away,
       // so a retry, a 1080p render and the next Generate all continue it without uploading again.
-      const saved = ({ project, startUploadId }: RenderSaved) => {
+      const saved = ({ project, uploadIds }: RenderSaved) => {
         ideas.current.set(project.projectId, project);
-        current = { ...current, request: { ...current.request, project, startUploadId, start: null } };
+        const uploads = Object.fromEntries(
+          Object.entries(current.request.uploads).map(([field, files]) => [
+            field,
+            files.map((file) => ({ key: file.key, uploadId: uploadIds[file.key] ?? file.uploadId })),
+          ]),
+        );
+        current = { ...current, request: { ...current.request, project, uploads } };
         snapshots.current.set(id, current);
         snapshots.current.set(project.projectId, current);
-        if (startUploadId && snapshot.frameId)
-          setInputs((inputs) => {
-            const start = inputs.start;
-            return start && start.id === snapshot.frameId
-              ? { ...inputs, start: { ...start, uploadId: startUploadId } }
-              : inputs;
-          });
-        setOpenIdea({ project, startKey: request.settings.mode === "image" ? (startUploadId ?? "") : "" });
+        setInputs((inputs) => markUploaded(inputs, uploadIds));
+        setOpenIdea({ project, filesKey: uploadsKey(uploads) });
       };
 
       // A job already running (from an earlier visit) is only followed; a new render saves the idea and creates its jobs.
@@ -542,8 +531,13 @@ function VideoStudio({
               model: ideaModel,
               settings,
               prompt: settings.prompt,
-              start: null,
-              startUploadId: project.upload?.uploadId,
+              // The idea's files, already uploaded: a render of it sends them again.
+              uploads: Object.fromEntries(
+                Object.entries(uploadFieldsFromProject(project)).map(([field, ids]) => [
+                  field,
+                  ids.map((uploadId) => ({ key: uploadId, uploadId })),
+                ]),
+              ),
               project,
               poster: project.upload?.url,
               keys: [],
@@ -582,7 +576,7 @@ function VideoStudio({
                   jobModel,
                 ).settings,
                 prompt,
-                start: null,
+                uploads: {},
                 keys: [job.jobId],
               };
           startRender({ request, frameUrl: idea?.frameUrl }, job);
@@ -601,45 +595,48 @@ function VideoStudio({
     }
     const fitted = fitSettingsToModel(settings, model).settings;
     const prompt = fitted.prompt.trim();
-    const { start } = inputs;
-    if (fitted.mode === "text" && !prompt) {
-      setError("Describe your scene in a few words first, or start from an image.");
+    const { start, references, clip } = inputs;
+    const needsPrompt = (message: string) => {
+      setError(message);
       promptRef.current?.focus();
-      return;
-    }
+    };
+    if (fitted.mode === "text" && !prompt)
+      return needsPrompt("Describe your scene in a few words first, or start from an image.");
     if (fitted.mode === "image" && !start) return setInputError("Add a start image to animate.");
+    if (fitted.mode === "reference" && !references.length) return setInputError("Add at least one reference image.");
+    if (fitted.mode === "reference" && !prompt)
+      return needsPrompt("Describe how your references come together, e.g. “@Image1 walks through @Image2…”.");
+    if (fitted.mode === "motion" && !start)
+      return setInputError("Add your character: a photo with the head and body visible.");
+    if (fitted.mode === "motion" && !clip) return setInputError("Add a clip whose movement your character copies.");
     if (signedIn === false && !sample) {
       router.push(`/sign-in?next=${encodeURIComponent(`/video?model=${model.id}`)}`);
       return;
     }
     setError(null);
     setInputError("");
-    const usesStart = fitted.mode === "image" && start ? start : null;
-    // An image already uploaded (a reopened idea's) is reused; a new one is read for upload.
-    let file: File | null = null;
-    if (usesStart && !usesStart.uploadId) {
-      try {
-        file = await frameFile(usesStart);
-      } catch {
-        setInputError("That start image couldn’t be read. Please add it again.");
-        return;
-      }
+    // Files uploaded for an earlier take are reused; new ones are read for upload.
+    let uploads: Record<string, RenderUpload[]>;
+    try {
+      uploads = await renderUploads(model, fitted.mode, inputs);
+    } catch {
+      setInputError("One of your files couldn’t be read. Please add it again.");
+      return;
     }
+    const still = fitted.mode === "reference" ? references[0]?.url : fitted.mode === "text" ? undefined : start?.url;
     startRender({
       request: {
         model,
         settings: fitted,
         prompt,
-        start: file,
-        startUploadId: usesStart?.uploadId,
-        // Same prompt and start image as the open idea: another take of it. Otherwise a new idea.
+        uploads,
+        // Same prompt and files as the open idea: another take of it. Otherwise a new idea.
         project: continuing ? openIdea?.project : undefined,
-        poster: usesStart?.url,
+        poster: still,
         sample,
         keys: newRenderKeys(fitted.count),
       },
-      frameUrl: usesStart?.url,
-      frameId: usesStart?.id,
+      frameUrl: still,
     });
     if (window.matchMedia("(max-width: 900px)").matches) {
       requestAnimationFrame(() =>
@@ -693,21 +690,24 @@ function VideoStudio({
     focusPrompt();
     const idea = ideas.current.get(item.batchId);
     if (!idea) {
-      notify(item.mode === "text" ? "Prompt and settings restored." : "Settings restored. Add the start image again.");
+      notify(item.mode === "text" ? "Prompt and settings restored." : "Settings restored. Add your files again.");
       return;
     }
+    // The next Generate adds to this idea while it sends the same files.
+    setOpenIdea({ project: idea, filesKey: idsKey(uploadFieldsFromProject(idea)) });
     const upload = idea.upload;
-    if (item.mode !== "image" || !upload) {
-      setOpenIdea({ project: idea, startKey: "" });
-      notify("Settings restored. New renders join this video.");
-      return;
-    }
-    // Its start image comes back too, already uploaded: nothing to add, nothing to upload again.
-    loadSampleFrame(upload.url, "Start image")
+    if (item.mode === "text") return notify("Settings restored. New renders join this video.");
+    if (item.mode === "reference" || !upload)
+      return notify("Settings restored. Add the same references to add takes to this video.");
+    // Its start image (or character) comes back too, already uploaded.
+    loadSampleFrame(upload.url, item.mode === "motion" ? "Character" : "Start image")
       .then((frame) => {
         setInputs((current) => ({ ...current, start: track({ ...frame, uploadId: upload.uploadId }) }));
-        setOpenIdea({ project: idea, startKey: upload.uploadId });
-        notify("Settings and start image restored. New renders join this video.");
+        notify(
+          item.mode === "motion"
+            ? "Settings and character restored. Add the clip again to add takes to this video."
+            : "Settings and start image restored. New renders join this video.",
+        );
       })
       .catch(() => notify("Settings restored. Add the start image again."));
   }
@@ -774,7 +774,7 @@ function VideoStudio({
   const continuing = Boolean(
     openIdea &&
     openIdea.project.data.prompt === settings.prompt.trim() &&
-    openIdea.startKey === (settings.mode === "image" ? startKeyOf(inputs.start) : ""),
+    openIdea.filesKey === inputsKey(model, settings.mode, inputs),
   );
   const favorites = items.filter((item) => item.favorite).length;
   const visible = filter === "favorites" ? items.filter((item) => item.favorite) : items;

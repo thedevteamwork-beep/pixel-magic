@@ -20,6 +20,11 @@ type SubmitParams = {
   onUploaded?: (uploadId: string, index: number) => void;
   /** The project the job belongs to (an influencer, a video idea); it then shows among the project's jobs. */
   projectId?: string;
+  /**
+   * Uploads for other upload fields, by field name (a video's `end_image`,
+   * `reference_images` or `video`); already uploaded.
+   */
+  fieldUploads?: Record<string, readonly string[]>;
 };
 
 /** Uploads one file: `POST /v1/uploads` for a signed URL, then the bytes straight to storage. Returns the upload id. */
@@ -53,6 +58,7 @@ export async function submitGeneration(p: SubmitParams): Promise<JobView> {
   // No files: images uploaded earlier (a video idea's start image) are used as they are.
   if (!p.files?.length) uploadIds.push(...(p.uploadIds ?? []).filter((id): id is string => Boolean(id)));
   const input = buildInput(p.model, { prompt: p.prompt, values: p.values, uploadIds });
+  for (const [field, ids] of Object.entries(p.fieldUploads ?? {})) if (ids.length) input[field] = [...ids];
 
   const { plugin, operation } = p.model;
   const path = `/v1/jobs/${encodeURIComponent(plugin)}/${encodeURIComponent(operation)}`;

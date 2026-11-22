@@ -22,6 +22,7 @@ export const kling25Generate = defineFalModel({
           prompt: input.prompt,
           duration: input.duration,
           image_url: input.image,
+          ...(input.end_image ? { tail_image_url: input.end_image } : {}),
         }
       : {
           prompt: input.prompt,

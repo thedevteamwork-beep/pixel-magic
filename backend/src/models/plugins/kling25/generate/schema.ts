@@ -1,7 +1,8 @@
 import type { ModelSchema } from "../../../types.js";
+import { endImageField } from "../../../videoInputs.js";
 
 // Ported from Pixelbin's kling25_generate transformation schema.
-// Not ported (one upload field per model, or no fixed range): end_image.
+// end_image is sent as fal's tail_image_url (image-to-video only).
 export const schema: ModelSchema = {
   info: {
     name: "kling25_generate",
@@ -34,6 +35,7 @@ export const schema: ModelSchema = {
         "image/webp",
       ],
     },
+    end_image: endImageField(),
     resolution: {
       type: "string",
       description:

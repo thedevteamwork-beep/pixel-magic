@@ -60,7 +60,7 @@ describe("upscale models: shared behaviour", () => {
   it.each(MODELS)("%s is an upscaler that needs exactly one image", (model) => {
     expect(model.kind).toBe("upscale");
     expect(model.operation).toBe("upscale");
-    expect(model.uploads).toMatchObject({ field: "image", min: 1, max: 1 });
+    expect(model.uploads).toMatchObject([{ field: "image", min: 1, max: 1 }]);
     expect(model.input.safeParse({ image: [] }).success).toBe(false);
   });
 

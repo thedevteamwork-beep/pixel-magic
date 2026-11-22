@@ -4,7 +4,10 @@ import { SUPPORTED_UNITS } from "../../../credits/units.js";
 import type { Deps } from "../../../deps.js";
 import { AppError } from "../../../lib/errors.js";
 import { getOperation } from "../../../models/registry.js";
-import { MAX_IMAGE_SIDE } from "../../../services/uploads.js";
+import {
+  MAX_IMAGE_SIDE,
+  MAX_VIDEO_SECONDS,
+} from "../../../services/uploads.js";
 import { estimateCredits } from "../../../services/credits/estimate.js";
 import { validate } from "../../middlewares/validate.js";
 
@@ -23,6 +26,8 @@ const estimateBody = z.strictObject({
       height: z.number().int().min(1).max(MAX_IMAGE_SIDE),
     })
     .optional(),
+  // A model priced by its clip's length (motion control) also needs the clip's length, in seconds.
+  videoSeconds: z.number().positive().max(MAX_VIDEO_SECONDS).optional(),
 });
 
 export function creditsRoutes(deps: Deps): Router {
@@ -38,7 +43,10 @@ export function creditsRoutes(deps: Deps): Router {
       const model = getOperation(body.plugin, body.operation);
       if (!model) throw new AppError(404, "NOT_FOUND", "Plugin not found");
       const { creditsPerJob, tier, baseCredits, breakdown, images } =
-        estimateCredits(deps, model, body.input, body.imageSize);
+        estimateCredits(deps, model, body.input, {
+          imageSize: body.imageSize,
+          videoSeconds: body.videoSeconds,
+        });
       res.json({
         model: model.key,
         count: body.count,

@@ -16,11 +16,11 @@ import type { JobErrorCode, JobRow, JobStatus } from "../../db/rows.js";
 import { AppError } from "../../lib/errors.js";
 import { canonicalJson, sha256Hex } from "../../lib/hash.js";
 import { getOperation } from "../../models/registry.js";
-import { uploadIdsIn } from "../../models/schemaGenerator.js";
+import { uploadIdsIn, uploadIdsOf } from "../../models/schemaGenerator.js";
 import { estimateCredits } from "../credits/estimate.js";
 import { DOWNLOAD_URL_TTL_SECONDS, signObjects } from "../signing.js";
 import { assertProjectAcceptsModel } from "../projects.js";
-import { measureUpload, resolveUploads } from "../uploads.js";
+import { measureClip, measureUpload, resolveUploads } from "../uploads.js";
 
 export type JobView = {
   jobId: string;
@@ -97,14 +97,19 @@ export async function createJob(
   const input = model.input.parse(body.input);
   const uploadIds = uploadIdsIn(model.uploads, input);
 
-  // The real file type is only known once the upload is confirmed in storage.
+  // The real file type is only known once the upload is confirmed in storage;
+  // each field takes only its own types (a clip in the video field, images elsewhere).
   const uploads = await resolveUploads(deps, userId, uploadIds);
-  for (const upload of uploads) {
-    if (!model.uploads.supportedContentTypes.includes(upload.mime_type)) {
-      throw new AppError(422, "UPLOAD_NOT_READY", "Upload is not ready", {
-        uploadId: upload.id,
-        reason: "mime_type",
-      });
+  const byId = new Map(uploads.map((upload) => [upload.id, upload]));
+  for (const rule of model.uploads) {
+    for (const id of uploadIdsOf(rule, input)) {
+      const upload = byId.get(id)!;
+      if (!rule.supportedContentTypes.includes(upload.mime_type)) {
+        throw new AppError(422, "UPLOAD_NOT_READY", "Upload is not ready", {
+          uploadId: upload.id,
+          reason: "mime_type",
+        });
+      }
     }
   }
 
@@ -116,18 +121,25 @@ export async function createJob(
       ...(body.projectId ? { projectId: body.projectId } : {}),
     }),
   );
-  // An upscaler is priced by its image's real size, read from storage, never
-  // by what the client says.
-  const imageSize =
-    model.pricedByImageSize && uploads[0]
-      ? await measureUpload(deps, uploads[0])
-      : undefined;
+  // A model priced on its input (an upscaler's image size, motion control's
+  // clip length) is priced on the file in storage, never on what the client says.
+  const firstUpload = (kind: "image" | "video") => {
+    const rule = model.uploads.find((candidate) => candidate.kind === kind);
+    const id = rule && uploadIdsOf(rule, input)[0];
+    return id ? byId.get(id) : undefined;
+  };
+  const image = model.pricedByImageSize ? firstUpload("image") : undefined;
+  const clip = model.pricedByVideoLength ? firstUpload("video") : undefined;
+  const measures = {
+    imageSize: image ? await measureUpload(deps, image) : undefined,
+    videoSeconds: clip ? await measureClip(deps, clip) : undefined,
+  };
   // The same function as POST /v1/credits/estimate, so the two always agree.
   const { creditsPerJob: creditCost } = estimateCredits(
     deps,
     model,
     body.input,
-    imageSize,
+    measures,
   );
 
   const { job, created } = await deps.db.transaction(async (trx) => {

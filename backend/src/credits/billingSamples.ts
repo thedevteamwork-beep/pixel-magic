@@ -4,6 +4,7 @@ import type {
   FieldSchema,
   ModelDefinition,
 } from "../models/types.js";
+import { isUploadField, uploadCountRange } from "../models/schemaGenerator.js";
 
 // `GET /v1/models` shows the cheapest and the dearest job, and startup checks
 // that every job is priced in range, by pricing every job a model can take:
@@ -17,6 +18,9 @@ type OptionValue = string | number | boolean;
  * Input sizes a model priced by image size is checked at: from a small
  * photo to a very large scan, so every size tier is reached.
  */
+/** Clip lengths a model priced by its clip is checked at, from a short clip to the longest. */
+export const SAMPLE_VIDEO_SECONDS: readonly number[] = [1, 5, 10, 20, 30];
+
 export const SAMPLE_IMAGE_SIZES: readonly ImageSize[] = [
   { width: 512, height: 512 },
   { width: 1024, height: 1024 },
@@ -80,16 +84,20 @@ export function billingSamples(model: ModelDefinition): BillingFacts[] {
   // Step 1: the choices for each option, and the upload counts.
   const options: [string, (OptionValue | undefined)[]][] = [];
   for (const [name, field] of Object.entries(model.schema.input)) {
-    if (name === "prompt" || field.type === "image") continue;
+    if (name === "prompt" || isUploadField(field)) continue;
     options.push([name, optionChoices(field)]);
   }
-  const uploadCounts = wholeNumbers(model.uploads.min, model.uploads.max);
+  const range = uploadCountRange(model.uploads);
+  const uploadCounts = wholeNumbers(range.min, range.max);
   const sizes: (ImageSize | undefined)[] = model.pricedByImageSize
     ? [...SAMPLE_IMAGE_SIZES]
     : [undefined];
+  const lengths: (number | undefined)[] = model.pricedByVideoLength
+    ? [...SAMPLE_VIDEO_SECONDS]
+    : [undefined];
 
   // Step 2: count the combinations before building any.
-  let count = uploadCounts.length * sizes.length;
+  let count = uploadCounts.length * sizes.length * lengths.length;
   for (const [, choices] of options) count *= choices.length;
   if (count > MAX_BILLING_SAMPLES) {
     throw new Error(
@@ -111,12 +119,15 @@ export function billingSamples(model: ModelDefinition): BillingFacts[] {
   }
   return uploadCounts.flatMap((uploadCount) =>
     sizes.flatMap((imageSize) =>
-      combos.map((combo) =>
-        model.billingInputs({
-          options: model.options.parse(combo),
-          uploadCount,
-          ...(imageSize ? { imageSize } : {}),
-        }),
+      lengths.flatMap((videoSeconds) =>
+        combos.map((combo) =>
+          model.billingInputs({
+            options: model.options.parse(combo),
+            uploadCount,
+            ...(imageSize ? { imageSize } : {}),
+            ...(videoSeconds ? { videoSeconds } : {}),
+          }),
+        ),
       ),
     ),
   );

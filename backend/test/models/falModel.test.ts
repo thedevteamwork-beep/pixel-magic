@@ -55,7 +55,7 @@ describe("defineFalModel", () => {
       operation: "generate",
       key: "demo_generate",
       kind: "image",
-      uploads: { field: "images", min: 0, max: 3 },
+      uploads: [{ field: "images", kind: "image", min: 0, max: 3 }],
       timeoutMinutes: 10,
     });
     expect(edit.input.parse({ prompt: "a" })).toEqual({

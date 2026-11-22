@@ -4,7 +4,7 @@ import { notifyCreditsChanged } from "@/lib/balance";
 import { pollJob } from "@/lib/generate/pollJob";
 import { submitGeneration, uploadInputFile } from "@/lib/generate/submit";
 import { uploadFile } from "@/lib/generate/uploadFile";
-import { jobToVideoResults, jobValues, VIDEO_FIELDS } from "@/lib/video-generator/models";
+import { jobToVideoResults, jobValues } from "@/lib/video-generator/models";
 import {
   createVideoProject,
   isProjectGone,
@@ -26,15 +26,16 @@ export class StillRenderingError extends Error {
   }
 }
 
+/** One file a render sends: uploaded already (`uploadId`), or to upload (`file`). `key` names it in the studio. */
+export type RenderUpload = { key: string; uploadId?: string; file?: File };
+
 export type RenderRequest = {
   model: VideoModel;
   /** Fitted to the model; `count` videos are made, each its own job. */
   settings: VideoSettings;
   prompt: string;
-  /** The start image to upload, for image to video; not needed when `startUploadId` is set. */
-  start: File | null;
-  /** The start image's upload, once uploaded: every render of the idea reuses it. */
-  startUploadId?: string;
+  /** The files to send, by the model's upload field (`image`, `end_image`, `reference_images`, `video`). */
+  uploads: Record<string, RenderUpload[]>;
   /** The video idea to add these takes to; without one, a new project is made. */
   project?: ProjectView;
   /** Shown on the results until their video loads. */
@@ -45,8 +46,11 @@ export type RenderRequest = {
   keys: string[];
 };
 
-/** What a render saved: the project it is in and the start image's upload, so the next take reuses both. */
-export type RenderSaved = { project: ProjectView; startUploadId?: string };
+/**
+ * What a render saved: the project it is in, and every file's upload by its
+ * studio key, so the next take (or a retry) reuses them instead of uploading again.
+ */
+export type RenderSaved = { project: ProjectView; uploadIds: Record<string, string> };
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -83,8 +87,8 @@ export async function followJob(job: JobView, signal: AbortSignal): Promise<JobV
 }
 
 /** The video idea for this render: the open one, updated only when its settings changed, or a new one. */
-async function saveProject(request: RenderRequest, startUploadId: string | undefined): Promise<ProjectView> {
-  const data = videoProjectData({ ...request.settings, prompt: request.prompt }, startUploadId);
+async function saveProject(request: RenderRequest, fields: Record<string, string[]>): Promise<ProjectView> {
+  const data = videoProjectData({ ...request.settings, prompt: request.prompt }, fields);
   const open = request.project;
   if (!open) return createVideoProject(api, data);
   if (sameProjectData(open, data)) return open;
@@ -134,29 +138,38 @@ export async function renderVideos(
 
   if (request.sample) {
     const project = sampleProject(request);
-    onSaved({ project });
+    onSaved({ project, uploadIds: {} });
     await wait(SAMPLE_RENDER_MS, signal);
-    const input = {
-      ...values,
-      prompt,
-      ...(request.start || request.startUploadId ? { [VIDEO_FIELDS.image]: ["sample"] } : {}),
-    };
+    const sent = Object.fromEntries(
+      Object.entries(request.uploads).map(([field, files]) => [field, files.map((file) => file.key)]),
+    );
     return request.keys.flatMap(() => {
-      const { job, poster: samplePoster } = sampleVideoJob(model.id, input, model.source.credits.min);
+      const { job, poster: samplePoster } = sampleVideoJob(
+        model.id,
+        { ...values, prompt, ...sent },
+        model.source.credits.min,
+      );
       return jobToVideoResults({ ...job, projectId: project.projectId }, { poster: poster ?? samplePoster });
     });
   }
 
-  // 1. The start image, uploaded once: later takes of the idea reuse its upload.
-  let startUploadId = request.startUploadId;
-  if (settings.mode === "image" && !startUploadId && request.start) {
-    startUploadId = await uploadInputFile(api, uploadFile, request.start);
+  // 1. Every file, uploaded once (in order, so a failure keeps the uploads before it): later takes reuse them.
+  const uploadIds: Record<string, string> = {};
+  const fields: Record<string, string[]> = {};
+  for (const [field, files] of Object.entries(request.uploads)) {
+    fields[field] = [];
+    for (const upload of files) {
+      const id = upload.uploadId ?? (upload.file ? await uploadInputFile(api, uploadFile, upload.file) : undefined);
+      if (!id) throw new Error("A file to send is missing. Please add it again.");
+      uploadIds[upload.key] = id;
+      fields[field].push(id);
+    }
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
   }
-  const usesImage = settings.mode === "image" && startUploadId;
 
   // 2. The idea, saved before any credits are spent.
-  const project = await saveProject(request, usesImage ? startUploadId : undefined);
-  onSaved({ project, startUploadId });
+  const project = await saveProject(request, fields);
+  onSaved({ project, uploadIds });
   if (signal.aborted) throw new DOMException("Aborted", "AbortError");
 
   // 3. One job per video, in the project.
@@ -171,7 +184,7 @@ export async function renderVideos(
           prompt,
           values,
           files: [],
-          uploadIds: usesImage ? [startUploadId] : [],
+          fieldUploads: fields,
           idempotencyKey: key,
           projectId: project.projectId,
         }),

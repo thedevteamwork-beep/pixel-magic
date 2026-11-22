@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   inputValidator,
   optionsValidator,
-  uploadRule,
+  uploadRules,
 } from "./schemaGenerator.js";
 import type { ImageSize } from "../lib/imageSize.js";
 import {
@@ -49,7 +49,11 @@ export type FalModelConfig = {
     uploadCount: number;
     /** The input image's size, for a model with `pricedByImageSize`. */
     imageSize?: ImageSize;
+    /** The input clip's length in seconds, for a model with `pricedByVideoLength`. */
+    videoSeconds?: number;
   }) => BillingFacts;
+  /** Priced by the input clip's length (see ModelDefinition). */
+  pricedByVideoLength?: boolean;
   /** Priced by the input image's size (see ModelDefinition). */
   pricedByImageSize?: boolean;
   /**
@@ -135,7 +139,7 @@ export function defineFalModel(config: FalModelConfig): ModelDefinition {
     );
   const submitTo = (input: PredictionInput) =>
     typeof endpoint === "string" ? endpoint : endpoint(input);
-  const uploads = uploadRule(schema);
+  const uploads = uploadRules(schema);
   const billing =
     config.billing ??
     (({ options, uploadCount }) => ({ ...options, image: uploadCount > 0 }));
@@ -150,13 +154,15 @@ export function defineFalModel(config: FalModelConfig): ModelDefinition {
     input: inputValidator(schema),
     uploads,
     options: optionsValidator(schema),
-    billingInputs: ({ options, uploadCount, imageSize }) =>
+    billingInputs: ({ options, uploadCount, imageSize, videoSeconds }) =>
       billing({
         options: options as Record<string, unknown>,
         uploadCount,
         imageSize,
+        videoSeconds,
       }),
     pricedByImageSize: config.pricedByImageSize ?? false,
+    pricedByVideoLength: config.pricedByVideoLength ?? false,
     priceMultiplier: (facts) => {
       if (!config.pricePerImage) return 1;
       const count = Number(facts[config.pricePerImage.countField]);

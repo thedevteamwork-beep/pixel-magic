@@ -10,6 +10,13 @@ import {
 import { optionsIn, uploadIdsIn } from "../../models/schemaGenerator.js";
 import type { BillingFacts, ModelDefinition } from "../../models/types.js";
 
+/**
+ * What a job is measured by, for a model priced on its input: the image's size
+ * (an upscaler) or the clip's length (motion control). Measured from the upload
+ * when a job is created; as the client states it for an estimate.
+ */
+export type JobMeasures = { imageSize?: ImageSize; videoSeconds?: number };
+
 /** Pricing only needs the mapping. */
 type PricingDeps = Pick<Deps, "creditMapping">;
 
@@ -50,14 +57,13 @@ function priceJob(
  * what is reserved. `creditsPerJob` is `baseCredits` plus every breakdown
  * item's credits, rounded up once, times `images` for a model priced per
  * image (several images cost the price of one each). Upload ids are counted, never looked up:
- * a model priced by its input's size is given `imageSize` (measured from the
- * upload when a job is created; as the client states it for an estimate).
+ * a model priced by its input is given `measures` (see JobMeasures).
  */
 export function estimateCredits(
   deps: PricingDeps,
   model: ModelDefinition,
   rawInput: unknown,
-  imageSize?: ImageSize,
+  measures: JobMeasures = {},
 ): {
   creditsPerJob: number;
   tier: string;
@@ -67,6 +73,7 @@ export function estimateCredits(
   images: number;
 } {
   const input = model.input.parse(rawInput);
+  const { imageSize, videoSeconds } = measures;
   if (model.pricedByImageSize && !imageSize) {
     throw new AppError(
       422,
@@ -74,10 +81,18 @@ export function estimateCredits(
       "This model is priced by the image's size: send imageSize",
     );
   }
+  if (model.pricedByVideoLength && !videoSeconds) {
+    throw new AppError(
+      422,
+      "VALIDATION_FAILED",
+      "This model is priced by the clip's length: send videoSeconds",
+    );
+  }
   const facts = model.billingInputs({
     options: optionsIn(model.uploads, input),
     uploadCount: uploadIdsIn(model.uploads, input).length,
     ...(model.pricedByImageSize ? { imageSize } : {}),
+    ...(model.pricedByVideoLength ? { videoSeconds } : {}),
   });
   const { credits, tier, baseCredits, breakdown } = priceJob(
     deps,

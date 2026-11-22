@@ -1,6 +1,6 @@
 import type { FieldSchema, PublicModel } from "@/lib/api/types";
 
-type ImageField = Extract<FieldSchema, { type: "image" }>;
+type ImageField = Extract<FieldSchema, { type: "image" | "video" }>;
 
 const IMAGE_TYPE = "image";
 
@@ -22,7 +22,9 @@ export function imageFieldName(model: PublicModel): string | undefined {
 
 /** Every input except the prompt and the image: the fields shown as options. */
 export function optionFields(model: PublicModel): [string, FieldSchema][] {
-  return Object.entries(model.input).filter(([name, field]) => name !== "prompt" && field.type !== IMAGE_TYPE);
+  return Object.entries(model.input).filter(
+    ([name, field]) => name !== "prompt" && field.type !== IMAGE_TYPE && field.type !== "video",
+  );
 }
 
 /** Each option's default. An optional string without a default is left out. */
