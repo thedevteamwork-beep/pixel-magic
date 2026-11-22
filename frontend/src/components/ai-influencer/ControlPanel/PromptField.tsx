@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import { MAX_EXTRA_LENGTH } from "@/components/ai-influencer/constants";
 import styles from "./main.module.css";
 
-const MAX_HEIGHT = 96;
+const MAX_HEIGHT = 160;
 
 type PromptFieldProps = {
   value: string;
@@ -42,7 +42,7 @@ export function PromptField({ value, error, disabled, onChange, onSubmit, inputR
           inputRef(node);
         }}
         className={styles.promptInput}
-        rows={2}
+        rows={3}
         value={value}
         maxLength={MAX_EXTRA_LENGTH}
         placeholder="Optional: freckles, gold hoop earrings, warm smile…"

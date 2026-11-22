@@ -20,7 +20,6 @@ import {
   POLL_INTERVAL_MS,
   SAMPLE_RENDER_MS,
   textFieldRules,
-  traitGroups,
   USE_SAMPLE_PORTRAITS,
   type TextField,
   type TextValues,
@@ -123,7 +122,6 @@ type Action =
   | { type: "style"; style: StyleReference | null }
   | { type: "view"; view: StageView }
   | { type: "reset" }
-  | { type: "randomize"; picks: Partial<InfluencerTraits> }
   | { type: "start" }
   | { type: "done"; variations: InfluencerVariation[] }
   | { type: "fail"; message: string }
@@ -213,8 +211,6 @@ function reducer(state: State, action: Action): State {
         variations: [],
         selectedId: null,
       };
-    case "randomize":
-      return { ...state, traits: { ...state.traits, ...action.picks }, archetypeId: null };
     case "start":
       return { ...state, status: "generating", error: "", view: "history" };
     case "done":
@@ -324,7 +320,6 @@ type InfluencerContextValue = {
   registerField: (key: TextField, node: HTMLInputElement | HTMLTextAreaElement | null) => void;
   /** Stops waiting for the job. The job itself keeps running on the server. */
   cancel: () => void;
-  randomize: () => void;
   /** Returns an error message, or null when the photo was accepted. */
   attachReference: (file: File) => string | null;
   removeReference: () => void;
@@ -809,16 +804,6 @@ export function InfluencerProvider({
     dispatch({ type: "cancel" });
   }, []);
 
-  const randomize = useCallback(() => {
-    const picks: Partial<InfluencerTraits> = {};
-    // The character type stays as chosen: "Surprise me" shuffles the look, not the species.
-    for (const group of traitGroups)
-      for (const field of group.fields)
-        if (field.key !== "character")
-          picks[field.key] = field.options[Math.floor(Math.random() * field.options.length)].value;
-    dispatch({ type: "randomize", picks });
-  }, []);
-
   const attachReference = useCallback((file: File): string | null => {
     const error = imageFileError(file);
     if (error) return error;
@@ -885,7 +870,6 @@ export function InfluencerProvider({
       generate,
       registerField,
       cancel,
-      randomize,
       attachReference,
       removeReference,
       selectStyle,
@@ -905,7 +889,6 @@ export function InfluencerProvider({
       generate,
       registerField,
       cancel,
-      randomize,
       attachReference,
       removeReference,
       selectStyle,

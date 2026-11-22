@@ -17,10 +17,7 @@ export function InfluencerSkeleton() {
         </div>
         <div className={styles.footer}>
           <Skeleton className={styles.prompt} />
-          <div className={styles.actions}>
-            <Skeleton className={styles.shuffle} />
-            <Skeleton className={styles.generate} />
-          </div>
+          <Skeleton className={styles.generate} />
         </div>
       </div>
       <div className={styles.stage}>
