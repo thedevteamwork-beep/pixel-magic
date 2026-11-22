@@ -114,8 +114,9 @@ function settingsOf(job: JobView) {
 }
 
 /**
- * The video of a completed job; other jobs have none. `batchId` groups the
- * jobs of one Generate; a job from history is its own batch.
+ * The video of a completed job; other jobs have none. Videos are grouped by
+ * their video idea (the job's project), so every take of an idea sits
+ * together; a job outside a project is its own group.
  */
 export function jobToVideoResults(job: JobView, options: { batchId?: string; poster?: string } = {}): VideoResult[] {
   if (job.status !== "completed") return [];
@@ -125,7 +126,7 @@ export function jobToVideoResults(job: JobView, options: { batchId?: string; pos
       ? [
           {
             id: `${job.jobId}:${output.index}`,
-            batchId: options.batchId ?? job.jobId,
+            batchId: options.batchId ?? job.projectId ?? job.jobId,
             jobId: job.jobId,
             url: output.url,
             poster: options.poster,

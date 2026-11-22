@@ -184,6 +184,8 @@
 .footer {
   position: relative;
   display: grid;
+  /* One column no wider than the panel: a long idea title truncates instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 12px 16px max(14px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
@@ -332,4 +334,43 @@
   .generate:hover:enabled::after {
     animation: none;
   }
+}
+
+/* Above Generate: which video idea the next render joins, and a way out. */
+.continuing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.continuing > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continuing strong {
+  color: var(--subtle);
+  font-weight: 500;
+}
+
+.continuing button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--fs-xs);
+}
+
+.continuing button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }

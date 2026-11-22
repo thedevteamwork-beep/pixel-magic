@@ -33,6 +33,8 @@ export type FrameImage = {
   source: "upload" | "sample" | "capture";
   width: number;
   height: number;
+  /** Already uploaded (a reopened video's start image): reused, not uploaded again. */
+  uploadId?: string;
 };
 export type FrameDescriptor = Pick<FrameImage, "id" | "mimeType" | "size">;
 

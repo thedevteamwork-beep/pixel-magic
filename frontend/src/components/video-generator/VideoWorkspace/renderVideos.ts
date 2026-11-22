@@ -1,10 +1,19 @@
 import { api, newIdempotencyKey } from "@/lib/api/client";
-import type { JobView } from "@/lib/api/types";
+import type { JobView, ProjectView } from "@/lib/api/types";
 import { notifyCreditsChanged } from "@/lib/balance";
 import { pollJob } from "@/lib/generate/pollJob";
-import { submitGeneration } from "@/lib/generate/submit";
+import { submitGeneration, uploadInputFile } from "@/lib/generate/submit";
 import { uploadFile } from "@/lib/generate/uploadFile";
 import { jobToVideoResults, jobValues, VIDEO_FIELDS } from "@/lib/video-generator/models";
+import {
+  createVideoProject,
+  isProjectGone,
+  sameProjectData,
+  updateVideoProject,
+  videoProjectData,
+  videoProjectTitle,
+  VIDEO_PROJECT_TYPE,
+} from "@/lib/video-generator/projects";
 import type { VideoModel, VideoResult, VideoSettings } from "@/types/video-generator";
 import { SAMPLE_RENDER_MS, VIDEO_POLL_INTERVAL_MS, VIDEO_WAIT_LIMIT_MS } from "../constants";
 import { sampleVideoJob } from "../fixtures/sampleVideos";
@@ -22,8 +31,12 @@ export type RenderRequest = {
   /** Fitted to the model; `count` videos are made, each its own job. */
   settings: VideoSettings;
   prompt: string;
-  /** The start image, for image to video. */
+  /** The start image to upload, for image to video; not needed when `startUploadId` is set. */
   start: File | null;
+  /** The start image's upload, once uploaded: every render of the idea reuses it. */
+  startUploadId?: string;
+  /** The video idea to add these takes to; without one, a new project is made. */
+  project?: ProjectView;
   /** Shown on the results until their video loads. */
   poster?: string;
   /** Development only: pretend, without the API. */
@@ -31,6 +44,9 @@ export type RenderRequest = {
   /** The ids each job is created with, kept across a retry so it never creates twice. */
   keys: string[];
 };
+
+/** What a render saved: the project it is in and the start image's upload, so the next take reuses both. */
+export type RenderSaved = { project: ProjectView; startUploadId?: string };
 
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -66,30 +82,84 @@ export async function followJob(job: JobView, signal: AbortSignal): Promise<JobV
   }
 }
 
+/** The video idea for this render: the open one, updated only when its settings changed, or a new one. */
+async function saveProject(request: RenderRequest, startUploadId: string | undefined): Promise<ProjectView> {
+  const data = videoProjectData({ ...request.settings, prompt: request.prompt }, startUploadId);
+  const open = request.project;
+  if (!open) return createVideoProject(api, data);
+  if (sameProjectData(open, data)) return open;
+  try {
+    return await updateVideoProject(api, open.projectId, data);
+  } catch (error) {
+    // Deleted meanwhile (on another device, say): this render starts a new idea instead.
+    if (isProjectGone(error)) return createVideoProject(api, data);
+    throw error;
+  }
+}
+
+/** A stand-in project for sample mode, which never calls the API. */
+function sampleProject(request: RenderRequest): ProjectView {
+  const now = new Date().toISOString();
+  return (
+    request.project ?? {
+      projectId: `sample-${crypto.randomUUID()}`,
+      type: VIDEO_PROJECT_TYPE,
+      title: videoProjectTitle(request.prompt),
+      data: videoProjectData({ ...request.settings, prompt: request.prompt }),
+      cover: null,
+      upload: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+  );
+}
+
 /**
- * Makes the videos: uploads the start image once, creates one job per video
- * and waits for all of them. Returns every video that finished; throws only
- * when none did (the first failure). Credits are reserved per job and
- * returned for any that fail.
+ * Makes the videos of one Generate, as the AI influencer does with its portraits:
+ *   1. uploads the start image, once per idea;
+ *   2. saves the idea as a project (the first time) or updates it (when its settings changed);
+ *   3. creates one job per video in the project;
+ *   4. waits for all of them.
+ * `onSaved` hears about step 2 as soon as it is done, so the studio keeps the idea even if a render
+ * then fails. Returns every video that finished; throws only when none did. Credits are reserved
+ * per job and returned for any that fail.
  */
 export async function renderVideos(
   request: RenderRequest,
-  batchId: string,
   signal: AbortSignal,
+  onSaved: (saved: RenderSaved) => void,
 ): Promise<VideoResult[]> {
-  const { model, settings, prompt, start, poster } = request;
+  const { model, settings, prompt, poster } = request;
   const values = jobValues(model, settings);
 
   if (request.sample) {
+    const project = sampleProject(request);
+    onSaved({ project });
     await wait(SAMPLE_RENDER_MS, signal);
-    const input = { ...values, prompt, ...(start ? { [VIDEO_FIELDS.image]: ["sample-upload"] } : {}) };
+    const input = {
+      ...values,
+      prompt,
+      ...(request.start || request.startUploadId ? { [VIDEO_FIELDS.image]: ["sample"] } : {}),
+    };
     return request.keys.flatMap(() => {
       const { job, poster: samplePoster } = sampleVideoJob(model.id, input, model.source.credits.min);
-      return jobToVideoResults(job, { batchId, poster: poster ?? samplePoster });
+      return jobToVideoResults({ ...job, projectId: project.projectId }, { poster: poster ?? samplePoster });
     });
   }
 
-  const uploadIds: (string | undefined)[] = [];
+  // 1. The start image, uploaded once: later takes of the idea reuse its upload.
+  let startUploadId = request.startUploadId;
+  if (settings.mode === "image" && !startUploadId && request.start) {
+    startUploadId = await uploadInputFile(api, uploadFile, request.start);
+  }
+  const usesImage = settings.mode === "image" && startUploadId;
+
+  // 2. The idea, saved before any credits are spent.
+  const project = await saveProject(request, usesImage ? startUploadId : undefined);
+  onSaved({ project, startUploadId });
+  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+  // 3. One job per video, in the project.
   const created: JobView[] = [];
   try {
     for (const key of request.keys) {
@@ -100,13 +170,10 @@ export async function renderVideos(
           model: model.source,
           prompt,
           values,
-          files: start ? [start] : [],
+          files: [],
+          uploadIds: usesImage ? [startUploadId] : [],
           idempotencyKey: key,
-          // The first job uploads the image; the rest reuse it.
-          uploadIds,
-          onUploaded: (uploadId, index) => {
-            uploadIds[index] = uploadId;
-          },
+          projectId: project.projectId,
         }),
       );
     }
@@ -114,10 +181,11 @@ export async function renderVideos(
     if (created.length) notifyCreditsChanged();
   }
 
+  // 4. Wait for every take; show what finished.
   const outcomes = await Promise.allSettled(created.map((job) => followJob(job, signal)));
   notifyCreditsChanged();
   const results = outcomes.flatMap((outcome) =>
-    outcome.status === "fulfilled" ? jobToVideoResults(outcome.value, { batchId, poster }) : [],
+    outcome.status === "fulfilled" ? jobToVideoResults(outcome.value, { poster: poster ?? project.upload?.url }) : [],
   );
   if (!results.length) {
     const failure = outcomes.find((outcome) => outcome.status === "rejected");

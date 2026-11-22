@@ -90,8 +90,9 @@ describe("jobToVideoResults", () => {
     ]);
   });
 
-  it("has nothing for an unfinished job, and is its own batch by default", () => {
+  it("has nothing for an unfinished job, and groups by the job's video idea", () => {
     expect(jobToVideoResults({ ...job, status: "submitted", outputs: [] })).toEqual([]);
     expect(jobToVideoResults(job)[0].batchId).toBe("j1");
+    expect(jobToVideoResults({ ...job, projectId: "p1" })[0].batchId).toBe("p1");
   });
 });

@@ -12,13 +12,20 @@ import {
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import { api, ApiError } from "@/lib/api/client";
-import type { JobList, JobView } from "@/lib/api/types";
+import type { JobList, JobView, ProjectView } from "@/lib/api/types";
 import { useSignedIn } from "@/lib/auth/useSignedIn";
 import { isSessionEnded, messageForError } from "@/lib/generate/messages";
 import { isActiveJob } from "@/lib/image-generator/results";
 import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
 import { jobToVideoResults } from "@/lib/video-generator/models";
-import { captureLastFrame, FrameError, loadClipFile, loadFrameFile } from "@/lib/video-generator/frames";
+import { listVideoProjects, settingsFromProject } from "@/lib/video-generator/projects";
+import {
+  captureLastFrame,
+  FrameError,
+  loadClipFile,
+  loadFrameFile,
+  loadSampleFrame,
+} from "@/lib/video-generator/frames";
 import {
   closestAspectRatio,
   fitSettingsToModel,
@@ -38,7 +45,14 @@ import type {
 } from "@/types/video-generator";
 import { sampleVideoJobs } from "../fixtures/sampleVideos";
 import { VideoSkeleton } from "../VideoSkeleton";
-import { followJob, newRenderKeys, renderVideos, StillRenderingError, type RenderRequest } from "./renderVideos";
+import {
+  followJob,
+  newRenderKeys,
+  renderVideos,
+  StillRenderingError,
+  type RenderRequest,
+  type RenderSaved,
+} from "./renderVideos";
 import { useVideoEstimate } from "./useVideoEstimate";
 import { useVideoModels } from "./useVideoModels";
 import { DirectorPanel } from "../DirectorPanel";
@@ -50,7 +64,17 @@ import styles from "./main.module.css";
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void }; tone?: "success" | "info" };
 /** What a render needs to be retried or rendered again at a higher resolution. */
-type Snapshot = { request: RenderRequest; frameUrl?: string };
+type Snapshot = {
+  request: RenderRequest;
+  frameUrl?: string;
+  /** The start frame it used, to note its upload on. */ frameId?: string;
+};
+
+/** The video idea Generate adds takes to, and the start image it was made from ("" for none). */
+type OpenIdea = { project: ProjectView; startKey: string };
+
+/** Which start image a frame is: its upload once uploaded, else the local frame. */
+const startKeyOf = (frame: FrameImage | null) => (frame ? (frame.uploadId ?? frame.id) : "");
 type RowSize = "s" | "m" | "l";
 const rowHeights: Record<RowSize, string> = { s: "190px", m: "280px", l: "400px" };
 const MAX_ITEMS = 60;
@@ -135,6 +159,9 @@ function VideoStudio({
   const stageRef = useRef<HTMLElement>(null);
   const controllers = useRef(new Map<string, AbortController>());
   const snapshots = useRef(new Map<string, Snapshot>());
+  /** Video ideas (projects) known here, by id: from history and from renders. */
+  const ideas = useRef(new Map<string, ProjectView>());
+  const [openIdea, setOpenIdea] = useState<OpenIdea | null>(null);
   const ownedUrls = useRef(new Set<string>());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Async uploads finish after renders; read the latest settings and inputs, not a stale closure.
@@ -402,6 +429,7 @@ function VideoStudio({
   /** A render in the feed: a live card while it runs, its videos once done. Failures stay as a card with Retry. */
   const startRender = useCallback(
     (snapshot: Snapshot, existing?: JobView) => {
+      let current = snapshot;
       const { request, frameUrl } = snapshot;
       const id = existing ? `job-${existing.jobId}` : `job-${crypto.randomUUID()}`;
       const job: RenderJob = {
@@ -424,13 +452,31 @@ function VideoStudio({
       setJobs((current) => [job, ...current.filter((entry) => entry.id !== id)]);
       setAnnouncement(`Rendering ${job.count === 1 ? "a video" : `${job.count} videos`}. You can keep working.`);
 
-      // A job already running (from an earlier visit) is only followed; a new render creates its jobs.
+      // The idea is saved before credits are spent: remember it (and the start image's upload) right away,
+      // so a retry, a 1080p render and the next Generate all continue it without uploading again.
+      const saved = ({ project, startUploadId }: RenderSaved) => {
+        ideas.current.set(project.projectId, project);
+        current = { ...current, request: { ...current.request, project, startUploadId, start: null } };
+        snapshots.current.set(id, current);
+        snapshots.current.set(project.projectId, current);
+        if (startUploadId && snapshot.frameId)
+          setInputs((inputs) => {
+            const start = inputs.start;
+            return start && start.id === snapshot.frameId
+              ? { ...inputs, start: { ...start, uploadId: startUploadId } }
+              : inputs;
+          });
+        setOpenIdea({ project, startKey: request.settings.mode === "image" ? (startUploadId ?? "") : "" });
+      };
+
+      // A job already running (from an earlier visit) is only followed; a new render saves the idea and creates its jobs.
       const work = existing
-        ? followJob(existing, controller.signal).then((done) => jobToVideoResults(done, { batchId: id }))
-        : renderVideos(request, id, controller.signal);
+        ? followJob(existing, controller.signal).then((done) =>
+            jobToVideoResults(done, { poster: request.project?.upload?.url }),
+          )
+        : renderVideos(request, controller.signal, saved);
       work
         .then((videos) => {
-          snapshots.current.set(id, snapshot);
           setJobs((current) => current.filter((entry) => entry.id !== id));
           setItems((current) => [...videos, ...current].slice(0, MAX_ITEMS));
           setFilter("all");
@@ -474,21 +520,54 @@ function VideoStudio({
     }
     if (!signedIn) return;
     const controller = new AbortController();
-    api
-      .get<JobList>(`/v1/jobs?kind=video&limit=${VIDEO_HISTORY_PAGE_SIZE}`, { signal: controller.signal })
-      .then(({ jobs: history }) => {
+    const { signal } = controller;
+    // The ideas (their settings and start images) and their takes, side by side.
+    Promise.all([
+      listVideoProjects(api, VIDEO_HISTORY_PAGE_SIZE),
+      api.get<JobList>(`/v1/jobs?kind=video&limit=${VIDEO_HISTORY_PAGE_SIZE}`, { signal }),
+    ])
+      .then(([{ projects }, { jobs: history }]) => {
+        if (signal.aborted) return;
+        for (const project of projects) {
+          ideas.current.set(project.projectId, project);
+          // Each idea can be rendered again (in 1080p, say) with its saved settings and start image.
+          const ideaModel = models.find((item) => item.id === project.data.model);
+          if (!ideaModel || snapshots.current.has(project.projectId)) continue;
+          const settings = fitSettingsToModel(
+            settingsFromProject(project, { ...defaultVideoSettings, model: ideaModel.id }),
+            ideaModel,
+          ).settings;
+          snapshots.current.set(project.projectId, {
+            request: {
+              model: ideaModel,
+              settings,
+              prompt: settings.prompt,
+              start: null,
+              startUploadId: project.upload?.uploadId,
+              project,
+              poster: project.upload?.url,
+              keys: [],
+            },
+            frameUrl: project.upload?.url,
+          });
+        }
+        const posterOf = (job: JobView) => (job.projectId ? ideas.current.get(job.projectId)?.upload?.url : undefined);
         setItems((current) => {
           const known = new Set(current.map((item) => item.jobId));
-          const loaded = history.flatMap((job) => (known.has(job.jobId) ? [] : jobToVideoResults(job)));
+          const loaded = history.flatMap((job) =>
+            known.has(job.jobId) ? [] : jobToVideoResults(job, { poster: posterOf(job) }),
+          );
           return [...current, ...loaded].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, MAX_ITEMS);
         });
+        // Takes still rendering from an earlier visit come back as live cards.
         for (const job of history.filter(isActiveJob)) {
           const jobModel = models.find((item) => item.id === job.model);
           if (!jobModel) continue;
+          const idea = job.projectId ? snapshots.current.get(job.projectId) : undefined;
           const prompt = typeof job.input.prompt === "string" ? job.input.prompt : "";
-          startRender(
-            {
-              request: {
+          const request: RenderRequest = idea
+            ? { ...idea.request, keys: [job.jobId] }
+            : {
                 model: jobModel,
                 settings: fitSettingsToModel(
                   {
@@ -505,10 +584,8 @@ function VideoStudio({
                 prompt,
                 start: null,
                 keys: [job.jobId],
-              },
-            },
-            job,
-          );
+              };
+          startRender({ request, frameUrl: idea?.frameUrl }, job);
         }
       })
       // History is a convenience: the studio works without it.
@@ -537,10 +614,12 @@ function VideoStudio({
     }
     setError(null);
     setInputError("");
+    const usesStart = fitted.mode === "image" && start ? start : null;
+    // An image already uploaded (a reopened idea's) is reused; a new one is read for upload.
     let file: File | null = null;
-    if (fitted.mode === "image" && start) {
+    if (usesStart && !usesStart.uploadId) {
       try {
-        file = await frameFile(start);
+        file = await frameFile(usesStart);
       } catch {
         setInputError("That start image couldn’t be read. Please add it again.");
         return;
@@ -552,11 +631,15 @@ function VideoStudio({
         settings: fitted,
         prompt,
         start: file,
-        poster: start?.url,
+        startUploadId: usesStart?.uploadId,
+        // Same prompt and start image as the open idea: another take of it. Otherwise a new idea.
+        project: continuing ? openIdea?.project : undefined,
+        poster: usesStart?.url,
         sample,
         keys: newRenderKeys(fitted.count),
       },
-      frameUrl: fitted.mode === "image" ? start?.url : undefined,
+      frameUrl: usesStart?.url,
+      frameId: usesStart?.id,
     });
     if (window.matchMedia("(max-width: 900px)").matches) {
       requestAnimationFrame(() =>
@@ -589,6 +672,7 @@ function VideoStudio({
       });
   }
 
+  /** Loads a take's prompt and settings, and reopens its idea so the next Generate adds to it. */
   function reuse(item: VideoResult) {
     const { settings: next } = fitSettingsToModel(
       {
@@ -605,13 +689,27 @@ function VideoStudio({
     );
     setSettings(next);
     setError(null);
-    notify(
-      item.mode === "text"
-        ? "Prompt and settings restored."
-        : "Settings restored. Add the start image again before rendering.",
-    );
     revealPanel();
     focusPrompt();
+    const idea = ideas.current.get(item.batchId);
+    if (!idea) {
+      notify(item.mode === "text" ? "Prompt and settings restored." : "Settings restored. Add the start image again.");
+      return;
+    }
+    const upload = idea.upload;
+    if (item.mode !== "image" || !upload) {
+      setOpenIdea({ project: idea, startKey: "" });
+      notify("Settings restored. New renders join this video.");
+      return;
+    }
+    // Its start image comes back too, already uploaded: nothing to add, nothing to upload again.
+    loadSampleFrame(upload.url, "Start image")
+      .then((frame) => {
+        setInputs((current) => ({ ...current, start: track({ ...frame, uploadId: upload.uploadId }) }));
+        setOpenIdea({ project: idea, startKey: upload.uploadId });
+        notify("Settings and start image restored. New renders join this video.");
+      })
+      .catch(() => notify("Settings restored. Add the start image again."));
   }
 
   /** Renders a shot again at 1080p, with the same prompt, settings and start image. */
@@ -672,6 +770,12 @@ function VideoStudio({
   }, []);
 
   const rendering = jobs.filter((job) => job.status === "rendering").length;
+  // Generate adds a take to the open idea while its prompt and start image are unchanged.
+  const continuing = Boolean(
+    openIdea &&
+    openIdea.project.data.prompt === settings.prompt.trim() &&
+    openIdea.startKey === (settings.mode === "image" ? startKeyOf(inputs.start) : ""),
+  );
   const favorites = items.filter((item) => item.favorite).length;
   const visible = filter === "favorites" ? items.filter((item) => item.favorite) : items;
   const empty = items.length === 0 && jobs.length === 0;
@@ -696,6 +800,8 @@ function VideoStudio({
           model={model}
           creditsPerVideo={credits}
           signedIn={sample ? true : signedIn}
+          continuing={continuing && openIdea ? openIdea.project.title : null}
+          onNewIdea={() => setOpenIdea(null)}
           settings={settings}
           inputs={inputs}
           inputBusy={inputBusy}
