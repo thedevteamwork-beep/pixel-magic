@@ -1,170 +1,144 @@
 "use client";
 
-import { ArrowUpRight, Clock, ImageIcon, Images, PersonStanding, Sparkles, Type } from "lucide-react";
-import { useRef, useState } from "react";
+import { Check, ImagePlus, Play, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
 import { landingAssets } from "@/constants/landing-media";
-import { videoInspirations, videoModes } from "@/components/video-generator/constants";
-import type { MediaId } from "@/types/landing";
-import type { VideoInspiration, VideoMode } from "@/types/video-generator";
 import { Media } from "@/ui/Media";
 import styles from "./main.module.css";
 
-function InspirationTile({
-  item,
-  index,
-  autoplay,
-  onSelect,
-}: {
-  item: VideoInspiration;
-  index: number;
-  autoplay: boolean;
-  onSelect: () => void;
-}) {
-  const video = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const asset = landingAssets[item.asset];
-  const play = () => {
-    if (autoplay)
-      video.current
-        ?.play()
-        .then(() => setPlaying(true))
-        .catch(() => {});
-  };
-  const stop = () => {
-    video.current?.pause();
-    setPlaying(false);
-  };
+/** Step 1: a photo drops onto the upload box, with a prompt under it. */
+function IdeaArt() {
   return (
-    <button
-      type="button"
-      className={styles.tile}
-      data-wide={index === 0}
-      data-playing={playing}
-      onClick={onSelect}
-      onPointerEnter={play}
-      onPointerLeave={stop}
-      onFocus={play}
-      onBlur={stop}
-      aria-label={`Use the “${item.title}” shot: ${item.category}, ${item.duration} seconds, ${item.aspectRatio}`}
-    >
-      <Media
-        media={{ kind: "image", src: asset.image, alt: "" }}
-        fill
-        plain
-        eager={index < 2}
-        sizes="(max-width: 700px) 90vw, (max-width: 1200px) 45vw, 30vw"
-        className={styles.media}
-      />
-      {asset.video && (
-        <video
-          ref={video}
-          src={asset.video}
-          muted
-          loop
-          playsInline
-          preload="none"
-          className={styles.media}
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      )}
-      <span className={styles.shade} aria-hidden="true" />
-      <span className={styles.category}>{item.category}</span>
-      <span className={styles.copy}>
-        <strong>{item.title}</strong>
-        <small>
-          <Clock size={11} aria-hidden="true" />
-          {item.duration}s · {item.aspectRatio}
-        </small>
-      </span>
-      <span className={styles.arrow} aria-hidden="true">
-        <ArrowUpRight size={16} />
-      </span>
-    </button>
+    <div className={styles.art} aria-hidden="true">
+      <div className={styles.dropzone}>
+        <ImagePlus size={22} />
+        <span>Add a photo, clip or references</span>
+      </div>
+      <div className={styles.photo}>
+        <Media media={{ kind: "image", src: landingAssets.portrait.image, alt: "" }} fill plain sizes="160px" />
+      </div>
+      <div className={styles.promptLine}>
+        A slow push-in as she turns to the camera
+        <span className={styles.caret} />
+      </div>
+    </div>
   );
 }
 
-const modeArt: Record<VideoMode, { asset: MediaId; icon: typeof Type }> = {
-  image: { asset: "product", icon: ImageIcon },
-  text: { asset: "desert", icon: Type },
-  motion: { asset: "portrait", icon: PersonStanding },
-  reference: { asset: "sneakers", icon: Images },
-};
+/** Step 2: the shot's settings, as the panel shows them. */
+function SetupArt() {
+  return (
+    <div className={styles.art} aria-hidden="true">
+      <div className={styles.settings}>
+        <div className={styles.modelRow}>
+          <span className={styles.glyph}>❋</span>
+          <span>
+            <small>Model</small>
+            <strong>Seedance 2.5</strong>
+          </span>
+          <Check size={15} className={styles.check} />
+        </div>
+        <div className={styles.chipRow}>
+          <span data-on="true">5s</span>
+          <span>10s</span>
+          <span>15s</span>
+        </div>
+        <div className={styles.chipRow}>
+          <span>16:9</span>
+          <span data-on="true">9:16</span>
+          <span>1:1</span>
+          <span>Sound</span>
+        </div>
+        <div className={styles.price}>
+          Generate <span>✦ 150</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-export function VideoWelcome({
-  autoplay,
-  onSelectInspiration,
-  onSelectMode,
-}: {
-  autoplay: boolean;
-  onSelectInspiration: (id: string) => void;
-  onSelectMode: (mode: VideoMode) => void;
-}) {
+/** Step 3: a take playing, with the other takes beside it and the best one kept. */
+function TakesArt({ autoplay }: { autoplay: boolean }) {
+  const { desert, ocean, product } = landingAssets;
+  return (
+    <div className={styles.art} aria-hidden="true">
+      <div className={styles.player}>
+        <Media media={{ kind: "image", src: desert.image, alt: "" }} fill plain sizes="320px" />
+        {autoplay && desert.video && (
+          <video src={desert.video} poster={desert.image} autoPlay muted loop playsInline className={styles.clip} />
+        )}
+        <span className={styles.playBadge}>
+          <Play size={11} fill="currentColor" /> 0:05
+        </span>
+      </div>
+      <div className={styles.takes}>
+        {[desert, ocean, product].map((asset, index) => (
+          <span key={asset.image} className={styles.take} data-best={index === 0}>
+            <Media media={{ kind: "image", src: asset.image, alt: "" }} fill plain sizes="80px" />
+            {index === 0 && (
+              <span className={styles.best}>
+                <Check size={10} strokeWidth={3} /> Best
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Step({ number, title, text, art }: { number: number; title: string; text: string; art: ReactNode }) {
+  return (
+    <li className={styles.step}>
+      {art}
+      <h3>
+        <span className={styles.number}>{number}</span>
+        {title}
+      </h3>
+      <p>{text}</p>
+    </li>
+  );
+}
+
+/**
+ * The studio before the first video: how a video gets made here, in three
+ * steps, with a way to try it straight away.
+ */
+export function VideoWelcome({ autoplay, onTryExample }: { autoplay: boolean; onTryExample: () => void }) {
   return (
     <div className={styles.welcome}>
       <header className={styles.hero}>
-        <p className={styles.eyebrow}>
-          <Sparkles size={12} aria-hidden="true" />
-          Video studio
-        </p>
         <h2>
           Direct your next <em>shot.</em>
         </h2>
-        <p className={styles.lead}>
-          Describe a scene, bring a still to life, copy a movement, or keep your characters consistent. Render a few
-          takes and keep the best.
-        </p>
+        <p>From an idea to a finished clip in three steps. Everything you set is on the left.</p>
       </header>
 
-      <section aria-labelledby="video-modes-title">
-        <div className={styles.sectionHead}>
-          <h3 id="video-modes-title">Choose how to start</h3>
-          <span>Each mode shows the models that support it</span>
-        </div>
-        <div className={styles.modes}>
-          {videoModes.map((mode) => {
-            const { asset, icon: Icon } = modeArt[mode.id];
-            return (
-              <button type="button" key={mode.id} className={styles.mode} onClick={() => onSelectMode(mode.id)}>
-                <Media
-                  media={{ kind: "image", src: landingAssets[asset].image, alt: "" }}
-                  fill
-                  plain
-                  sizes="(max-width: 760px) 45vw, 22vw"
-                  className={styles.media}
-                />
-                <span className={styles.shade} aria-hidden="true" />
-                <span className={styles.modeIcon} aria-hidden="true">
-                  <Icon size={17} />
-                </span>
-                {mode.isNew && <span className={styles.newBadge}>New</span>}
-                <span className={styles.modeCopy}>
-                  <strong>{mode.name}</strong>
-                  <small>{mode.description}</small>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <ol className={styles.steps}>
+        <Step
+          number={1}
+          title="Add your idea"
+          text="Describe the scene, or start from a photo, a movement clip or reference images. Pick how at the top of the panel."
+          art={<IdeaArt />}
+        />
+        <Step
+          number={2}
+          title="Set up the shot"
+          text="Choose a model, then length, shape and sound. The price is always on the Generate button."
+          art={<SetupArt />}
+        />
+        <Step
+          number={3}
+          title="Get your takes"
+          text="Render up to four takes at once and keep the best. Download it, or render it again in 1080p."
+          art={<TakesArt autoplay={autoplay} />}
+        />
+      </ol>
 
-      <section aria-labelledby="video-inspiration-title">
-        <div className={styles.sectionHead}>
-          <h3 id="video-inspiration-title">Start from a shot</h3>
-          <span>Hover to preview · select to load the prompt and settings</span>
-        </div>
-        <div className={styles.grid}>
-          {videoInspirations.map((item, index) => (
-            <InspirationTile
-              key={item.id}
-              item={item}
-              index={index}
-              autoplay={autoplay}
-              onSelect={() => onSelectInspiration(item.id)}
-            />
-          ))}
-        </div>
-      </section>
+      <button type="button" className={styles.example} onClick={onTryExample}>
+        <Sparkles size={14} aria-hidden="true" />
+        Not sure where to start? Try an example idea
+      </button>
     </div>
   );
 }

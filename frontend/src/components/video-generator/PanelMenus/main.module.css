@@ -301,7 +301,15 @@ button.tile:hover .tileChevron {
 
 /* Duration */
 .durationPanel {
-  padding: 12px 14px 14px;
+  padding: 12px 14px;
+}
+/* Label and value on one line, so the panel stays short. */
+.durationHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 .durationLabel {
   margin: 0;
@@ -309,9 +317,9 @@ button.tile:hover .tileChevron {
   font-size: 12px;
 }
 .durationValue {
-  margin: 6px 0 16px;
+  margin: 0;
   font-family: var(--font-display), sans-serif;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -319,8 +327,8 @@ button.tile:hover .tileChevron {
   --inset: 12px;
   --at: calc(var(--inset) + (100% - var(--inset) * 2) * var(--p));
   position: relative;
-  height: 46px;
-  border-radius: 10px;
+  height: 32px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--foreground) 6%, transparent);
 }
 .track:focus-within {
@@ -331,7 +339,7 @@ button.tile:hover .tileChevron {
   position: absolute;
   inset: 0 auto 0 0;
   width: calc(var(--at) + 2px);
-  border-radius: 10px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--foreground) 22%, transparent);
   transition: width 0.12s ease-out;
 }
@@ -340,7 +348,7 @@ button.tile:hover .tileChevron {
   top: 50%;
   left: var(--at);
   width: 4px;
-  height: 26px;
+  height: 18px;
   transform: translate(-50%, -50%);
   border-radius: 3px;
   background: var(--primary);
@@ -372,8 +380,8 @@ button.tile:hover .tileChevron {
 }
 .trackLabels {
   position: relative;
-  height: 22px;
-  margin: 10px 12px 0;
+  height: 18px;
+  margin: 6px 12px 0;
 }
 .trackLabels button {
   position: absolute;
@@ -389,7 +397,7 @@ button.tile:hover .tileChevron {
   color: var(--foreground);
 }
 .durationHint {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
   font-size: 11px;
 }

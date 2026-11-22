@@ -278,10 +278,12 @@ export function DurationTile({
     >
       {() => (
         <div className={styles.durationPanel}>
-          <p className={styles.durationLabel}>Total duration</p>
-          <p className={styles.durationValue} aria-hidden="true">
-            {value}s
-          </p>
+          <div className={styles.durationHead}>
+            <p className={styles.durationLabel}>Total duration</p>
+            <p className={styles.durationValue} aria-hidden="true">
+              {value}s
+            </p>
+          </div>
           <div className={styles.track} style={{ "--p": position(value) } as CSSProperties}>
             <span className={styles.trackFill} aria-hidden="true" />
             {marks.map((mark) => (

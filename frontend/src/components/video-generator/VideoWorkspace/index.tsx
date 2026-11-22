@@ -879,14 +879,7 @@ function VideoStudio({
 
         <div className={styles.content}>
           {empty ? (
-            <VideoWelcome
-              autoplay={motionEnabled}
-              onSelectInspiration={(id) => applyInspiration(id)}
-              onSelectMode={(mode) => {
-                changeMode(mode);
-                revealPanel();
-              }}
-            />
+            <VideoWelcome autoplay={motionEnabled} onTryExample={surprise} />
           ) : filter === "favorites" && !visible.length ? (
             <div className={styles.emptyFavorites}>
               <Heart size={26} strokeWidth={1.4} aria-hidden="true" />
