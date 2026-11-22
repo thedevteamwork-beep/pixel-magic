@@ -58,6 +58,31 @@ export type ImageResult = {
   favorite: boolean;
 };
 
+/**
+ * One press of Generate, followed from start to finish. Several can run at
+ * once; each keeps its own card until its images are seen.
+ */
+export type ImageRun = {
+  /** Local id; the job id arrives once the job is created. */
+  id: string;
+  jobId: string | null;
+  /** The user's brief, for the run's card. */
+  prompt: string;
+  modelName: string;
+  /** How many images it makes. */
+  count: number;
+  /** e.g. "3:4", so its loader has the shape of the images on the way. */
+  ratio: string;
+  startedAt: number;
+  status: "running" | "done" | "failed";
+  /** What went wrong, in plain words, when it failed. */
+  error: string | null;
+  /** The studio still has what it needs to try it again (a run resumed after a reload doesn't). */
+  canRetry: boolean;
+  /** A finished run the user has looked at; it leaves the strip and stays in History. */
+  seen: boolean;
+};
+
 /** What a generated image can become next. */
 export type NextStep = "animate" | "upscale" | "edit";
 

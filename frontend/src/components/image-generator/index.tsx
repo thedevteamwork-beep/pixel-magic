@@ -1,12 +1,23 @@
 "use client";
 
-import { ArrowDownLeft, AtSign, ImagePlus, Info, LoaderCircle, Plus, RotateCcw, Sparkles, X } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  AtSign,
+  ImagePlus,
+  Info,
+  LoaderCircle,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { REFERENCE_MIME_TYPES } from "@/constants/image-generator";
-import { ApiError } from "@/lib/api/client";
 import { useSignedIn } from "@/lib/auth/useSignedIn";
-import { isSessionEnded, messageForError } from "@/lib/generate/messages";
+import { isSessionEnded } from "@/lib/generate/messages";
 import { handoffPaths, sendImage } from "@/lib/handoff/image";
 import { useIncomingImage } from "@/lib/handoff/useIncomingImage";
 import { resultAsFile } from "@/lib/image-generator/download";
@@ -19,6 +30,7 @@ import {
   type CreativeGuidance,
 } from "@/lib/image-generator/guidance";
 import { resolveOptions, shapeOf, shapeOption } from "@/lib/image-generator/models";
+import { generationError, runningCount, stripRuns } from "@/lib/image-generator/runs";
 import type { ImageOptionValue, ImageResult, ImageSettings, NextStep, ReferenceImage } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
@@ -27,6 +39,7 @@ import {
   defaultImageSettings,
   imageInspirations,
   lightingOptions,
+  MAX_IMAGE_RUNS,
   paletteOptions,
   resultNextSteps,
 } from "./constants";
@@ -35,12 +48,12 @@ import { DockSettings } from "./DockSettings";
 import { ImageResults } from "./ImageResults";
 import { ReferenceUploader, type ReferenceUploadHandle } from "./ReferenceUploader";
 import { useCreditEstimate } from "./useCreditEstimate";
-import { StillRunningError, useImageJobs } from "./useImageJobs";
+import { useImageJobs, type RunEvents } from "./useImageJobs";
 import { useImageModels } from "./useImageModels";
 import { useLibraryPrefs } from "./useLibraryPrefs";
 import styles from "./main.module.css";
 
-type Feedback = { text: string; action?: { label: string; run: () => void } };
+type Feedback = { text: string; action?: { label: string; run: () => void; icon?: LucideIcon } };
 type Draft = { settings: ImageSettings; guidance: CreativeGuidance };
 
 /** The composer survives the trip to sign in and back; references can't, they are local files. */
@@ -52,14 +65,17 @@ function fitPromptHeight(prompt: HTMLTextAreaElement | null) {
   prompt.style.height = `${Math.min(prompt.scrollHeight, 104)}px`;
 }
 
-function generationError(error: unknown): string {
-  if (error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS") {
-    return "You don’t have enough credits for this. Add credits on the Pricing page, or create fewer images.";
-  }
-  return messageForError(error);
+/** A prompt short enough for a toast. */
+function shortPrompt(prompt: string): string {
+  const text = prompt.trim() || "Untitled";
+  return text.length > 40 ? `${text.slice(0, 38).trimEnd()}…` : text;
 }
 
 /** Only the plain option values a result was made with, ready to put back in the composer. */
+function FeedbackIcon({ icon: Icon = RotateCcw }: { icon?: LucideIcon }) {
+  return <Icon size={13} aria-hidden="true" />;
+}
+
 function optionValues(input: Record<string, unknown>): Record<string, ImageOptionValue> {
   return Object.fromEntries(
     Object.entries(input).filter(
@@ -95,7 +111,6 @@ export function ImageWorkspace({
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [generationKey, setGenerationKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [requestError, setRequestError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -122,7 +137,47 @@ export function ImageWorkspace({
 
   const { models, error: modelsError, retry: retryModels } = useImageModels();
   const signedIn = useSignedIn();
-  const jobs = useImageJobs(models, signedIn, sample);
+  const runEvents: RunEvents = {
+    onDone: (run, created, onCanvas) => {
+      const ready = `${created.length === 1 ? "Your image is" : `${created.length} images are`} ready`;
+      if (onCanvas) {
+        setAnnouncement(`${ready}.`);
+        if (window.matchMedia("(max-width: 780px)").matches) {
+          requestAnimationFrame(() =>
+            resultsRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }),
+          );
+        }
+        return;
+      }
+      // An earlier run never takes over the canvas; the user chooses when to look.
+      notify(`${ready}: “${shortPrompt(run.prompt)}”`, {
+        label: "View",
+        icon: ArrowUpRight,
+        run: () => {
+          jobs.view(run.id);
+          setWorkspaceView("canvas");
+        },
+      });
+    },
+    onFailed: (run, caught, onCanvas) => {
+      if (isSessionEnded(caught)) {
+        goToSignIn();
+        return;
+      }
+      const message = generationError(caught);
+      setAnnouncement(onCanvas ? message : "");
+      if (onCanvas) return;
+      notify(
+        `“${shortPrompt(run.prompt)}” didn’t come through. ${message}`,
+        run.canRetry ? { label: "Retry", run: () => jobs.retry(run.id) } : undefined,
+      );
+    },
+    onStillRunning: () => {
+      setAnnouncement("");
+      notify("This is taking longer than usual. Your image will appear in History when it’s ready.");
+    },
+  };
+  const jobs = useImageJobs(models, signedIn, sample, runEvents);
   const { favorites, hidden, toggleFavorite, hide, unhide } = useLibraryPrefs();
   // An unknown or missing model key (an old link, say) means the default model, else the first.
   const model =
@@ -158,7 +213,9 @@ export function ImageWorkspace({
       .filter((item) => !hiddenIds.has(item.id))
       .map((item) => (favoriteIds.has(item.id) ? { ...item, favorite: true } : item));
   }, [jobs.results, hidden, favorites]);
-  const pending = jobs.render !== null;
+  const running = runningCount(jobs.runs);
+  const atRunLimit = running >= MAX_IMAGE_RUNS;
+  const strip = workspaceView === "canvas" ? stripRuns(jobs.runs, jobs.viewing) : [];
 
   // An image sent here ("Edit" in another studio) waits for the models, then becomes a reference.
   const incoming = useRef<File | null>(null);
@@ -278,7 +335,6 @@ export function ImageWorkspace({
   function updateSettings(patch: Partial<ImageSettings>) {
     setSettings((current) => ({ ...current, ...patch }));
     setError(null);
-    setRequestError(null);
   }
 
   /** A picked size also becomes the preferred shape, so it carries over to another model. */
@@ -289,7 +345,6 @@ export function ImageWorkspace({
       ...(field === model?.shape?.field ? { ratio: shapeOption(String(value)).ratio } : {}),
     }));
     setError(null);
-    setRequestError(null);
   }
 
   function goToSignIn() {
@@ -313,7 +368,6 @@ export function ImageWorkspace({
     );
     pendingReferenceRole.current = "subject";
     setError(null);
-    setRequestError(null);
   }
 
   function uploadReference(role: "subject" | "style" = "subject") {
@@ -326,7 +380,6 @@ export function ImageWorkspace({
   function changeGuidance(patch: Partial<CreativeGuidance>) {
     setGuidance((current) => ({ ...current, ...patch }));
     setError(null);
-    setRequestError(null);
   }
 
   function changeReferenceRole(id: string, role: "subject" | "style") {
@@ -385,7 +438,6 @@ export function ImageWorkspace({
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (document.activeElement instanceof Element && document.activeElement.closest("dialog")) return;
-    if (pending) return;
     if (!model) {
       setError(modelsError ? "The image models couldn’t load. Retry, then generate." : "Loading image models…");
       return;
@@ -420,34 +472,15 @@ export function ImageWorkspace({
       goToSignIn();
       return;
     }
+    if (atRunLimit) {
+      setError(`You can make ${MAX_IMAGE_RUNS} at once. Generate again as soon as one finishes.`);
+      return;
+    }
     setGenerationKey((current) => current + 1);
     setWorkspaceView("canvas");
     setError(null);
-    setRequestError(null);
     setAnnouncement(`Creating with ${model.name}.`);
-    try {
-      const created = await jobs.generate({ model, prompt, options, files: references.map((item) => item.file) });
-      setAnnouncement(`${created.length === 1 ? "Your image is" : `${created.length} images are`} ready.`);
-      if (window.matchMedia("(max-width: 780px)").matches) {
-        requestAnimationFrame(() =>
-          resultsRef.current?.scrollIntoView({ block: "start", behavior: motionEnabled ? "smooth" : "instant" }),
-        );
-      }
-    } catch (caught) {
-      // Leaving the page stops waiting; the job finishes and appears in history.
-      if (caught instanceof Error && caught.name === "AbortError") return;
-      if (caught instanceof StillRunningError) {
-        setAnnouncement("");
-        notify("This is taking longer than usual. Your image will appear in History when it’s ready.");
-        return;
-      }
-      if (isSessionEnded(caught)) {
-        goToSignIn();
-        return;
-      }
-      setRequestError(generationError(caught));
-      setAnnouncement("");
-    }
+    jobs.generate({ model, prompt, options, files: references.map((item) => item.file) });
   }
 
   /** Loads a result's prompt, model and settings into the composer. */
@@ -611,7 +644,12 @@ export function ImageWorkspace({
       id="main-content"
       tabIndex={-1}
       data-creative-open={creativeOpen && !compactPanel}
-      style={{ "--image-dock-height": `${dockHeight}px` } as CSSProperties}
+      style={
+        {
+          "--image-dock-height": `${dockHeight}px`,
+          "--image-runs-height": strip.length ? "72px" : "0px",
+        } as CSSProperties
+      }
     >
       <h1 className={styles.srOnly}>Pixel Magic image studio</h1>
       <div className={styles.mainColumn}>
@@ -626,22 +664,22 @@ export function ImageWorkspace({
             creativeOpen={creativeOpen}
             creativeCount={creativeCount}
             items={items}
-            pending={pending}
-            pendingCount={jobs.render?.count ?? 1}
-            pendingModel={jobs.render?.modelName}
-            pendingRatio={jobs.render?.ratio}
+            runs={jobs.runs}
+            strip={strip}
+            viewingRunId={jobs.viewing}
+            onViewRun={jobs.view}
+            onRetryRun={jobs.retry}
+            onDismissRun={jobs.dismiss}
             generationKey={generationKey}
             models={models ?? undefined}
             onReuse={reuse}
-            onRerun={pending ? undefined : rerun}
+            onRerun={atRunLimit ? undefined : rerun}
             nextSteps={nextSteps}
             onNextStep={continueWith}
             onReference={maxReferences > 0 ? addResultAsReference : undefined}
             onFavorite={toggleFavorite}
             onDelete={deleteItems}
             onSelectInspiration={applyInspiration}
-            error={requestError}
-            onRetry={() => formRef.current?.requestSubmit()}
           />
         </section>
 
@@ -813,33 +851,42 @@ export function ImageWorkspace({
                 <button
                   type="submit"
                   className={styles.generate}
-                  disabled={pending || !model}
+                  disabled={atRunLimit || !model}
+                  aria-describedby={atRunLimit ? "image-run-limit" : undefined}
                   title={model ? `Uses ${priceLabel}` : undefined}
                   aria-label={
-                    pending
-                      ? "Creating your images"
-                      : signedIn === false
+                    atRunLimit
+                      ? `${MAX_IMAGE_RUNS} generations running`
+                      : signedIn === false && !sample
                         ? "Sign in to generate"
-                        : `Generate, ${credits === null ? "price loading" : priceLabel}`
+                        : `${running ? "Generate another" : "Generate"}, ${credits === null ? "price loading" : priceLabel}`
                   }
                 >
                   <span className={styles.generateLabel}>
-                    {pending ? (
+                    {atRunLimit ? (
                       <>
                         <LoaderCircle size={16} className={styles.spinner} aria-hidden="true" />
-                        Creating…
+                        {MAX_IMAGE_RUNS} creating
                       </>
-                    ) : signedIn === false ? (
+                    ) : signedIn === false && !sample ? (
                       "Sign in to generate"
+                    ) : running ? (
+                      "Generate another"
                     ) : (
                       "Generate"
                     )}
                   </span>
-                  {!pending && model && (
-                    <span className={styles.generatePrice}>
-                      <Sparkles size={12} aria-hidden="true" />
-                      {priceLabel}
+                  {atRunLimit ? (
+                    <span className={styles.generatePrice} id="image-run-limit">
+                      One will finish soon
                     </span>
+                  ) : (
+                    model && (
+                      <span className={styles.generatePrice}>
+                        <Sparkles size={12} aria-hidden="true" />
+                        {priceLabel}
+                      </span>
+                    )
                   )}
                 </button>
               </div>
@@ -962,7 +1009,7 @@ export function ImageWorkspace({
                 setFeedback(null);
               }}
             >
-              <RotateCcw size={13} aria-hidden="true" /> {feedback.action.label}
+              <FeedbackIcon icon={feedback.action.icon} /> {feedback.action.label}
             </button>
           )}
           <button type="button" onClick={() => setFeedback(null)} aria-label="Dismiss notification">

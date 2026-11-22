@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUpRight,
   Check,
+  CircleAlert,
   CheckCheck,
   CircleHelp,
   Heart,
@@ -12,6 +13,7 @@ import {
   LayoutGrid,
   List,
   LoaderCircle,
+  RotateCcw,
   Search,
   SearchX,
   SlidersHorizontal,
@@ -34,22 +36,33 @@ import { imageInspirations, imageTemplateArtwork, REMOTE_IMAGE } from "./constan
 import { downloadResult } from "@/lib/image-generator/download";
 import { parseImageGuidance } from "@/lib/image-generator/guidance";
 import { landingAssets } from "@/constants/landing-media";
-import type { ImageResult, InspirationItem, NextStep, NextStepOption, StudioModel } from "@/types/image-generator";
+import type {
+  ImageResult,
+  ImageRun,
+  InspirationItem,
+  NextStep,
+  NextStepOption,
+  StudioModel,
+} from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { ImageWelcome } from "./ImageWelcome";
 import { ResultStage } from "./ResultStage";
+import { RunStrip } from "./RunStrip";
 import { cssAspectRatio } from "@/helpers/studio";
 import { GenerationLoader } from "@/ui/GenerationLoader";
 import styles from "./main.module.css";
 
 export type ImageResultsProps = {
   items: readonly ImageResult[];
-  pending: boolean;
-  pendingCount: number;
-  /** The model making the pending images. */
-  pendingModel?: string;
-  /** The pending images' shape (e.g. "3:4"), so their loaders match the images on the way. */
-  pendingRatio?: string;
+  /** Every generation of this visit that still matters, newest first. */
+  runs?: readonly ImageRun[];
+  /** The run cards under the canvas; empty when only one run matters. */
+  strip?: readonly ImageRun[];
+  /** The run on the canvas; with none, the canvas shows the newest image. */
+  viewingRunId?: string | null;
+  onViewRun?: (id: string | null) => void;
+  onRetryRun?: (id: string) => void;
+  onDismissRun?: (id: string) => void;
   generationKey?: number;
   variant?: "library" | "canvas";
   modelName?: string;
@@ -72,8 +85,6 @@ export type ImageResultsProps = {
   onFavorite: (id: string) => void;
   onDelete: (ids: readonly string[]) => void;
   onSelectInspiration: (id: string) => void;
-  error?: string | null;
-  onRetry?: () => void;
 };
 
 type LibraryTab = "all" | "favorites";
@@ -210,8 +221,9 @@ function ResultCard({
   );
 }
 
-function CanvasPending({ count, model, ratio }: { count: number; model?: string; ratio?: string }) {
-  const images = Math.max(1, count);
+function CanvasPending({ run }: { run: ImageRun }) {
+  const images = Math.max(1, run.count);
+  const { modelName: model, ratio } = run;
   return (
     <div className={styles.canvasPending} role="status">
       <div
@@ -226,17 +238,42 @@ function CanvasPending({ count, model, ratio }: { count: number; model?: string;
         Creating {images === 1 ? "your image" : `${images} images`}
         {model ? ` with ${model}` : ""}.
       </p>
-      <span>Usually ready in a few seconds. It will also be saved to your history.</span>
+      <span>Usually ready in a few seconds, and saved to your History. You can start another one meanwhile.</span>
+    </div>
+  );
+}
+
+function CanvasFailed({ run, onRetry, onDismiss }: { run: ImageRun; onRetry?: () => void; onDismiss?: () => void }) {
+  return (
+    <div className={`${styles.canvasPending} ${styles.canvasFailed}`} role="alert">
+      <CircleAlert size={30} strokeWidth={1.5} aria-hidden="true" />
+      <h3>This one didn’t come through.</h3>
+      <p>“{run.prompt}”</p>
+      <span>{run.error ?? "Please try again."}</span>
+      <div className={styles.canvasFailedActions}>
+        {run.canRetry && onRetry && (
+          <button type="button" onClick={onRetry}>
+            <RotateCcw size={14} aria-hidden="true" /> Retry
+          </button>
+        )}
+        {onDismiss && (
+          <button type="button" onClick={onDismiss}>
+            <X size={14} aria-hidden="true" /> Dismiss
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 export function ImageResults({
   items,
-  pending,
-  pendingCount,
-  pendingModel,
-  pendingRatio,
+  runs = [],
+  strip = [],
+  viewingRunId = null,
+  onViewRun = () => undefined,
+  onRetryRun,
+  onDismissRun,
   generationKey = 0,
   variant = "library",
   modelName: selectedModelName,
@@ -255,8 +292,6 @@ export function ImageResults({
   onFavorite,
   onDelete,
   onSelectInspiration,
-  error,
-  onRetry,
 }: ImageResultsProps) {
   const [localView, setLocalView] = useState<"canvas" | "history">("canvas");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -278,7 +313,17 @@ export function ImageResults({
   const searchQuery = query.trim().toLocaleLowerCase();
   const favorites = items.filter((item) => item.favorite).length;
   const preview = items.find((item) => item.id === previewId) ?? null;
-  const active = items.find((item) => item.id === activeId) ?? items[0] ?? null;
+  const running = runs.filter((run) => run.status === "running");
+  const pending = running.length > 0;
+  const viewingRun = runs.find((run) => run.id === viewingRunId) ?? null;
+  const picked = items.find((item) => item.id === activeId);
+  // A finished run on the canvas shows its own images; otherwise the image picked, else the newest.
+  const active =
+    viewingRun?.status === "done"
+      ? picked?.jobId === viewingRun.jobId
+        ? picked
+        : (items.find((item) => item.jobId === viewingRun.jobId) ?? items[0] ?? null)
+      : (picked ?? items[0] ?? null);
   // The canvas shows one generation; older ones are in History.
   const variations = active ? items.filter((item) => item.jobId === active.jobId) : [];
   const selected = items.filter((item) => selectedIds.has(item.id));
@@ -522,20 +567,6 @@ export function ImageResults({
         </>
       )}
 
-      {error && (
-        <div className={styles.imageResultsError} role="alert">
-          <div>
-            <strong>That preview didn’t come through.</strong>
-            <p>{error}</p>
-          </div>
-          {onRetry && (
-            <button type="button" onClick={onRetry} disabled={pending}>
-              Try again <Undo2 size={13} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      )}
-
       {showLibraryControls && selecting && (
         <div className={styles.selectionBar}>
           <button type="button" className={styles.selectAll} onClick={toggleVisible} disabled={!filtered.length}>
@@ -570,8 +601,14 @@ export function ImageResults({
       >
         {showCreativeCanvas ? (
           <div className={styles.creativeCanvas}>
-            {pending ? (
-              <CanvasPending count={pendingCount} model={pendingModel} ratio={pendingRatio} />
+            {viewingRun?.status === "running" ? (
+              <CanvasPending run={viewingRun} />
+            ) : viewingRun?.status === "failed" ? (
+              <CanvasFailed
+                run={viewingRun}
+                onRetry={onRetryRun && (() => onRetryRun(viewingRun.id))}
+                onDismiss={onDismissRun && (() => onDismissRun(viewingRun.id))}
+              />
             ) : active ? (
               <ResultStage
                 active={active}
@@ -590,6 +627,18 @@ export function ImageResults({
                 modelName={selectedModelName}
                 onSelectInspiration={selectInspiration}
                 onExplore={() => setInspirationOpen(true)}
+              />
+            )}
+            {strip.length > 0 && (
+              <RunStrip
+                runs={strip}
+                viewingId={viewingRunId}
+                items={items}
+                onView={(id) => {
+                  setActiveId(null);
+                  onViewRun(id);
+                }}
+                onDismiss={(id) => onDismissRun?.(id)}
               />
             )}
           </div>
@@ -628,23 +677,23 @@ export function ImageResults({
           <>
             {(pending || filtered.length > 0) && (
               <div className={`${styles.resultGrid} ${layout === "list" ? styles.resultList : ""}`}>
-                {pending &&
-                  tab === "all" &&
-                  Array.from({ length: Math.min(4, Math.max(1, pendingCount)) }, (_, index) => (
-                    <div className={styles.pendingCard} key={`pending-${index}`} role="status">
-                      <div
-                        className={styles.pendingFrame}
-                        style={{ aspectRatio: cssAspectRatio(pendingRatio ?? "3:4") }}
-                      >
-                        <GenerationLoader />
+                {tab === "all" &&
+                  running.flatMap((run) =>
+                    Array.from({ length: Math.min(4, Math.max(1, run.count)) }, (_, index) => (
+                      <div className={styles.pendingCard} key={`${run.id}-${index}`} role="status">
+                        <div className={styles.pendingFrame} style={{ aspectRatio: cssAspectRatio(run.ratio) }}>
+                          <GenerationLoader />
+                        </div>
+                        <span>
+                          <LoaderCircle size={13} className={styles.imageResultsSpinner} aria-hidden="true" />
+                          Creating {run.count > 1 ? `image ${index + 1}` : "image"}
+                        </span>
+                        <small title={run.prompt}>
+                          {run.modelName} · {run.prompt}
+                        </small>
                       </div>
-                      <span>
-                        <LoaderCircle size={13} className={styles.imageResultsSpinner} aria-hidden="true" />
-                        Creating image {index + 1}
-                      </span>
-                      <small>{pendingModel ? `With ${pendingModel}` : "With your selected settings"}</small>
-                    </div>
-                  ))}
+                    )),
+                  )}
                 {filtered.map((item) => (
                   <ResultCard
                     key={item.id}
@@ -653,6 +702,8 @@ export function ImageResults({
                     selected={selectedIds.has(item.id)}
                     onSelect={() => toggleSelected(item.id)}
                     onPreview={() => {
+                      // The picked image becomes the canvas's, rather than a run's.
+                      onViewRun(null);
                       setActiveId(item.id);
                       setPreviewId(item.id);
                     }}

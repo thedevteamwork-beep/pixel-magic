@@ -173,7 +173,10 @@ export const resultNextSteps: readonly NextStepOption[] = [
 ];
 
 /** How long sample mode (`/image?sample=1`, development only) pretends a generation takes. */
-export const SAMPLE_RENDER_MS = 2_500;
+export const SAMPLE_RENDER_MS = 6_000;
+
+/** Generations one person can have running at once; the backend's MAX_ACTIVE_JOBS_PER_USER. */
+export const MAX_IMAGE_RUNS = 4;
 
 export const HISTORY_PAGE_SIZE = 30;
 
