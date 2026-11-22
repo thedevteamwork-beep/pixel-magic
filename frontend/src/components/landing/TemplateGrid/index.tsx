@@ -11,6 +11,7 @@ type TemplateGridProps = {
   horizontal?: boolean;
   viewportId?: string;
   viewportRef?: RefObject<HTMLDivElement | null>;
+  showTitles?: boolean;
 };
 
 export function TemplateGrid(props: TemplateGridProps) {

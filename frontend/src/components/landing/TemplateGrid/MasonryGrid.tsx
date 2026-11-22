@@ -41,6 +41,7 @@ type MasonryGridProps = {
   horizontal?: boolean;
   viewportId?: string;
   viewportRef?: RefObject<HTMLDivElement | null>;
+  showTitles?: boolean;
 };
 
 export function MasonryGrid({
@@ -50,6 +51,7 @@ export function MasonryGrid({
   horizontal = false,
   viewportId,
   viewportRef,
+  showTitles = false,
 }: MasonryGridProps) {
   const counts = horizontal ? [6] : [4, 3, 2];
   const layouts = counts.map((count) => ({ count, ...getLayout(items.length, count) }));
@@ -79,7 +81,7 @@ export function MasonryGrid({
 
             return (
               <div className={styles.item} style={style} key={item.id} role="listitem">
-                <TemplateCard item={item} onPreview={onPreview} />
+                <TemplateCard item={item} onPreview={onPreview} showTitle={showTitles} />
               </div>
             );
           })}

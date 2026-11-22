@@ -78,6 +78,7 @@ export function LandingMedia({
           loading: priority ? "eager" : "lazy",
           fetchPriority: priority ? "high" : undefined,
           className: styles.image,
+          style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
         }}
       />
       {media.video && behavior !== "still" && (shouldPlay || playing) && (

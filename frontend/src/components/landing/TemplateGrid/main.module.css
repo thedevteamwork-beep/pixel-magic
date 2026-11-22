@@ -4,6 +4,14 @@
   --column-width: calc((100cqw - (var(--column-count) - 1) * var(--masonry-gap)) / var(--column-count));
   container-type: inline-size;
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.viewport {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .canvas {
@@ -205,6 +213,24 @@
   opacity: 1;
 }
 
+.card[data-show-title="true"] :is(.shade, .copy, .previewIcon) {
+  opacity: 1;
+}
+
+.card[data-show-title="true"] .description {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 220ms,
+    opacity 220ms;
+}
+
+.card[data-show-title="true"]:is(:hover, :focus-visible) .description {
+  max-height: 4em;
+  opacity: 1;
+}
+
 .card:is(:hover, :focus-visible) .copy {
   transform: translateY(0);
 }
@@ -324,6 +350,24 @@
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.tryTemplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  border-radius: 999px;
+  padding: 9px 13px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tryTemplate:hover {
+  filter: brightness(1.08);
 }
 
 .navigation {

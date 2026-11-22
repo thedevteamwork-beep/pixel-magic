@@ -9,9 +9,10 @@ import styles from "./main.module.css";
 type TemplateCardProps = {
   item: TemplateItem;
   onPreview: (item: TemplateItem) => void;
+  showTitle?: boolean;
 };
 
-export function TemplateCard({ item, onPreview }: TemplateCardProps) {
+export function TemplateCard({ item, onPreview, showTitle = false }: TemplateCardProps) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const video = item.mediaType === "video";
@@ -28,6 +29,7 @@ export function TemplateCard({ item, onPreview }: TemplateCardProps) {
       aria-label={`Preview ${item.title}, ${item.model} ${item.mediaType} template`}
       aria-haspopup="dialog"
       data-template-id={item.id}
+      data-show-title={showTitle || undefined}
     >
       <LandingMedia
         asset={item.asset}

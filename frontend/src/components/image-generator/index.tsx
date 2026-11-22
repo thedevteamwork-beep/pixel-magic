@@ -72,10 +72,14 @@ function optionValues(input: Record<string, unknown>): Record<string, ImageOptio
 export function ImageWorkspace({
   initialModel,
   initialPreset,
+  initialPrompt,
+  initialReferences = [],
   sample = false,
 }: {
   initialModel: string | null;
   initialPreset: string | null;
+  initialPrompt?: string | null;
+  initialReferences?: readonly string[];
   /** Development only: sample results, and Generate only pretends. */
   sample?: boolean;
 }) {
@@ -85,7 +89,7 @@ export function ImageWorkspace({
   const [settings, setSettings] = useState<ImageSettings>({
     ...defaultImageSettings,
     model: initialModel,
-    prompt: preset?.prompt ?? "",
+    prompt: initialPrompt ?? preset?.prompt ?? "",
     ratio: preset?.aspectRatio ?? defaultImageSettings.ratio,
   });
   const [references, setReferences] = useState<ReferenceImage[]>([]);
@@ -107,6 +111,7 @@ export function ImageWorkspace({
   const urlsRef = useRef(new Set<string>());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const uploadRef = useRef<ReferenceUploadHandle>(null);
+  const templateReferenceLoaded = useRef(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -129,6 +134,22 @@ export function ImageWorkspace({
     [model, settings.options, settings.ratio],
   );
   const maxReferences = model?.references?.max ?? 0;
+  useEffect(() => {
+    if (!initialReferences.length || maxReferences === 0 || templateReferenceLoaded.current) return;
+    templateReferenceLoaded.current = true;
+    const controller = new AbortController();
+    void Promise.all(
+      initialReferences.slice(0, maxReferences).map(async (reference, index) => {
+        const response = await fetch(reference, { signal: controller.signal });
+        if (!response.ok) throw new Error("Template reference unavailable");
+        const blob = await response.blob();
+        return new File([blob], `template-reference-${index + 1}.jpg`, { type: blob.type || "image/jpeg" });
+      }),
+    )
+      .then((files) => uploadRef.current?.addFiles(files))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [initialReferences, maxReferences]);
   const credits = useCreditEstimate(model, options, Math.min(references.length, maxReferences));
   const items = useMemo(() => {
     const hiddenIds = new Set(hidden);

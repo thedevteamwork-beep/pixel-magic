@@ -14,7 +14,7 @@ export function Stage() {
   const tabs: StageTab[] = [
     { id: "explore", label: "Explore", icon: Compass },
     { id: "templates", label: "Templates", icon: LayoutGrid },
-    { id: "history", label: "History", icon: History, count: state.projects.length },
+    { id: "history", label: "My Generations", icon: History, count: state.projects.length },
   ];
 
   return (

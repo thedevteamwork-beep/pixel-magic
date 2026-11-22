@@ -26,7 +26,7 @@ import travelTemplate from "@/assets/images/ai-influencer/templates/travel.jpg";
 import beautyTemplate from "@/assets/images/ai-influencer/templates/beauty.jpg";
 import streetwearTemplate from "@/assets/images/ai-influencer/templates/streetwear.jpg";
 import luxuryTemplate from "@/assets/images/ai-influencer/templates/luxury.jpg";
-import kittyTemplate from "@/assets/images/ai-influencer/templates/kitty.jpg";
+import kittyTemplate from "@/assets/images/ai-influencer/templates/kitty-realistic.jpg";
 import puppyTemplate from "@/assets/images/ai-influencer/templates/puppy.jpg";
 import froggyTemplate from "@/assets/images/ai-influencer/templates/froggy.jpg";
 import hamsterTemplate from "@/assets/images/ai-influencer/templates/hamster.jpg";
