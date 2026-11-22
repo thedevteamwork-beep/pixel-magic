@@ -64,17 +64,10 @@
 }
 
 .prompt {
-  height: 52px;
+  height: 108px;
   border-radius: 10px;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 12px;
-}
-
-.shuffle,
 .generate {
   height: 52px;
   border-radius: 12px;

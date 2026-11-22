@@ -21,7 +21,7 @@ export default function ImagePage({ searchParams }: { searchParams: ImageSearchP
 }
 
 async function WorkspaceFromQuery({ searchParams }: { searchParams: ImageSearchParams }) {
-  const { model, preset, sample } = await searchParams;
+  const { model, preset, sample, prompt, reference } = await searchParams;
   // Models come from the API at runtime: an unknown `?model=` falls back to the default image model there.
   const initialModel = typeof model === "string" ? model : null;
   const initialPreset = imageInspirations.find((item) => item.id === preset)?.id ?? null;
@@ -32,6 +32,10 @@ async function WorkspaceFromQuery({ searchParams }: { searchParams: ImageSearchP
       key={`${initialModel ?? ""}:${initialPreset ?? ""}:${sampleMode}`}
       initialModel={initialModel}
       initialPreset={initialPreset}
+      initialPrompt={typeof prompt === "string" ? prompt.slice(0, 2000) : null}
+      initialReferences={(Array.isArray(reference) ? reference : reference ? [reference] : []).filter(
+        (item): item is string => typeof item === "string" && item.startsWith("/_next/static/media/"),
+      )}
       sample={sampleMode}
     />
   );

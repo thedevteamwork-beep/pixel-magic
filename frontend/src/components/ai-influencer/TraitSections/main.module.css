@@ -186,6 +186,13 @@
   font-weight: 500;
 }
 
+.textField label small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+}
+
 .textField input,
 .textField textarea {
   width: 100%;

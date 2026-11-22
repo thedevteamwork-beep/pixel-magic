@@ -146,9 +146,16 @@ describe("helpers", () => {
   it("falls back to the raw value for unknown options", () => {
     expect(traitLabel("gender", "unknown")).toBe("unknown");
   });
-  it("names unnamed influencers", () => {
-    expect(displayName(defaultTraits)).toBe("Untitled influencer");
-    expect(displayName({ ...defaultTraits, name: " Mira " })).toBe("Mira");
+  it("uses the name the user typed", () => {
+    expect(displayName({ ...defaultTraits, name: " Mira " }, "fitness")).toBe("Mira");
+  });
+  it("names an unnamed influencer after its template", () => {
+    expect(displayName(defaultTraits, "fitness")).toBe("Fitness coach");
+  });
+  it("names an unnamed influencer from its look", () => {
+    expect(displayName(defaultTraits)).toBe("Woman, late 20s");
+    expect(displayName({ ...defaultTraits, ethnicity: "south-asian" })).toBe("South Asian woman, late 20s");
+    expect(displayName({ ...defaultTraits, character: "kitty" })).toBe("Kitty, late 20s");
   });
   it("hashes deterministically", () => {
     expect(seedFrom("a")).toBe(seedFrom("a"));

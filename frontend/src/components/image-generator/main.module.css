@@ -2,7 +2,12 @@
   --image-panel-width: 320px;
   --image-dock-bottom: 24px;
   /* The viewport less the header, the composer and the canvas's own spacing (toolbar 44 + 14, paddings 22 + 8 + 16 + 24). */
-  --image-canvas-height: max(260px, calc(100dvh - var(--header-height) - var(--image-dock-height) - 128px));
+  /* The run cards under the canvas, when there are any (set by the studio). */
+  --image-runs-height: 0px;
+  --image-canvas-height: max(
+    260px,
+    calc(100dvh - var(--header-height) - var(--image-dock-height) - 128px - var(--image-runs-height))
+  );
   position: relative;
   isolation: isolate;
   display: grid;
@@ -480,7 +485,8 @@
   position: fixed;
   z-index: 60;
   left: 50%;
-  bottom: calc(var(--image-dock-height) + var(--image-dock-bottom) + 16px);
+  /* Above the composer, and above the run cards when they show. */
+  bottom: calc(var(--image-dock-height) + var(--image-dock-bottom) + 16px + var(--image-runs-height));
   display: flex;
   align-items: center;
   gap: 15px;
@@ -733,6 +739,10 @@
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+
+  .runOpen {
+    transition: none;
   }
 }
 
@@ -1890,7 +1900,7 @@
 /* The loader in the shape of the images on the way (--frame-ratio, e.g. "3 / 4"), as tall as the stage allows
    and never wider than it, keeping the shape either way. */
 .canvasPendingFrame {
-  width: min(100%, min(52vh, 420px) * (var(--frame-ratio)));
+  width: min(100%, min(52vh, 420px, var(--image-canvas-height, 600px) - 250px) * (var(--frame-ratio)));
   aspect-ratio: var(--frame-ratio);
   margin-bottom: 25px;
   overflow: hidden;
@@ -1919,11 +1929,165 @@
 }
 
 .canvasPending > span {
-  max-width: 270px;
+  max-width: 340px;
   margin-top: 10px;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.8;
+}
+
+.canvasFailed {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: var(--surface);
+}
+
+.canvasFailed > svg {
+  margin-bottom: 18px;
+  color: var(--danger);
+}
+
+.canvasFailedActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.canvasFailedActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.canvasFailedActions button:first-child {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.canvasFailedActions button:first-child:hover {
+  background: var(--primary-hover);
+}
+
+/* ---------- Run cards: several generations at once ---------- */
+
+.runStrip {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0 0 4px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.runCard {
+  position: relative;
+  flex: none;
+  width: 200px;
+}
+
+.runOpen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 56px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.runOpen:hover {
+  border-color: var(--border-strong);
+}
+
+.runCard[aria-current="true"] .runOpen {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.runThumb {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--primary);
+}
+
+.runCard[data-status="failed"] .runThumb {
+  color: var(--danger);
+}
+
+.runCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.runCopy strong {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.runCopy small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.runCard[data-status="failed"] .runCopy small {
+  color: var(--danger);
+}
+
+.runNew {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.runDismiss {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+
+.runDismiss:hover {
+  color: var(--foreground);
 }
 
 .inspirationModal {
@@ -2685,7 +2849,10 @@
 
 .pendingCard > small {
   max-width: 170px;
+  overflow: hidden;
   color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 11px;
   line-height: 1.6;
 }

@@ -11,6 +11,8 @@ type TemplateGridProps = {
   horizontal?: boolean;
   viewportId?: string;
   viewportRef?: RefObject<HTMLDivElement | null>;
+  /** Cards take each image's own shape, so no image is cropped. */
+  fullImages?: boolean;
 };
 
 export function TemplateGrid(props: TemplateGridProps) {

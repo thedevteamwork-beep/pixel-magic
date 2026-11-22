@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Film, ImageIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Film, ImageIcon, Sparkles } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { landingAssets } from "@/constants/landing-media";
 import type { TemplateItem } from "@/types/landing";
@@ -73,6 +73,14 @@ export function TemplatePreview({ item, items, onClose, onSelect }: TemplatePrev
                 {item.model} <span aria-hidden="true">/</span> {item.tag}
               </span>
               <p>{item.description}</p>
+              {item.prompt && (
+                <a
+                  className={styles.tryTemplate}
+                  href={`/image?model=gpt2_generate&prompt=${encodeURIComponent(item.prompt)}${item.referenceAssets?.map((reference) => `&reference=${encodeURIComponent(landingAssets[reference].image)}`).join("") ?? ""}`}
+                >
+                  <Sparkles size={15} aria-hidden="true" /> Try this template
+                </a>
+              )}
             </div>
             {items.length > 1 && (
               <div className={styles.navigation} aria-label="Browse collection previews">

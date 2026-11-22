@@ -11,7 +11,8 @@ import styles from "./main.module.css";
 
 export function ResultView() {
   const { state, dispatch, aspectRatio, reuseInputs } = useInfluencer();
-  const { traits, variations, selectedId, status, projectId } = state;
+  const { traits, variations, selectedId, status, projectId, archetypeId } = state;
+  const title = displayName(traits, archetypeId);
   const busy = status === "generating";
   const selected = variations.find((item) => item.id === selectedId) ?? null;
   const userPrompt = selected?.userPrompt ?? traits.extra.trim();
@@ -28,19 +29,19 @@ export function ResultView() {
   return (
     <div className={styles.result}>
       <ResultToolbar
-        name={displayName(traits)}
+        name={title}
         summary={summary}
         saved={projectId !== null}
         onReuse={canReuse ? reuseInputs : undefined}
-        onDownload={selected && !busy ? () => void downloadPortrait(displayName(traits), selected.url) : undefined}
+        onDownload={selected && !busy ? () => void downloadPortrait(title, selected.url) : undefined}
       />
-      <ResultCanvas selected={selected} busy={busy} name={displayName(traits)} aspectRatio={aspectRatio} />
+      <ResultCanvas selected={selected} busy={busy} name={title} aspectRatio={aspectRatio} />
       {state.error && <ErrorBanner message={state.error} onDismiss={() => dispatch({ type: "dismissError" })} />}
       {/* What the user wrote for the portrait on show (a sample influencer opened from History keeps it in its saved
           notes). Hidden while the next one is being made, and when they wrote nothing. */}
       {selected && !busy && userPrompt && <PromptDetails prompt={userPrompt} />}
       <span className={styles.srOnly} aria-live="polite">
-        {selected && !busy ? `${displayName(traits)}'s portrait is ready.` : ""}
+        {selected && !busy ? `${title}'s portrait is ready.` : ""}
       </span>
     </div>
   );
