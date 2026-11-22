@@ -10,7 +10,8 @@ type Placement = { column: number; height: number; gaps: number };
 // space and CSS can switch column counts without moving or duplicating the DOM.
 const cardRatios = [9 / 16, 4 / 3, 16 / 9, 16 / 9, 16 / 9, 16 / 9, 16 / 9, 4 / 3];
 
-function getLayout(length: number, columnCount: number) {
+function getLayout(items: readonly TemplateItem[], columnCount: number) {
+  const length = items.length;
   const columns = Array.from({ length: columnCount }, () => ({ height: 0, items: 0 }));
   const placements: Placement[] = [];
 
@@ -20,7 +21,7 @@ function getLayout(length: number, columnCount: number) {
     const previous = columns[column];
 
     placements.push({ column, height: previous.height, gaps: previous.items });
-    previous.height += 1 / (cardRatios[index] ?? 16 / 9);
+    previous.height += 1 / (items[index].aspectRatio ?? cardRatios[index] ?? 16 / 9);
     previous.items += 1;
   }
 
@@ -54,7 +55,7 @@ export function MasonryGrid({
   showTitles = false,
 }: MasonryGridProps) {
   const counts = horizontal ? [6] : [4, 3, 2];
-  const layouts = counts.map((count) => ({ count, ...getLayout(items.length, count) }));
+  const layouts = counts.map((count) => ({ count, ...getLayout(items, count) }));
   const canvasStyle: MasonryStyle = {};
 
   for (const layout of layouts) canvasStyle[`--height-${layout.count}`] = layout.height;
@@ -71,7 +72,7 @@ export function MasonryGrid({
       >
         <div className={styles.canvas} style={canvasStyle} role="list" aria-label={label}>
           {items.map((item, index) => {
-            const style: MasonryStyle = { aspectRatio: cardRatios[index] ?? 16 / 9 };
+            const style: MasonryStyle = { aspectRatio: item.aspectRatio ?? cardRatios[index] ?? 16 / 9 };
 
             for (const { count, placements } of layouts) {
               const { column, height, gaps } = placements[index];

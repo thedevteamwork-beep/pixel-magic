@@ -1,4 +1,4 @@
-export type MediaId = "desert" | "portrait" | "product" | "ocean" | "flowers" | "architecture" | "sneakers" | "templateGhibli" | "templateGhibliDuo" | "templateGhibliSky" | "templateManRef" | "templateWomanRef" | "templateJaipur" | "templateProductHero" | "templateProductRef" | "templateFashionAfterdark" | "templateFashionResort" | "templateFashionCrimson" | "templateFashionChrome" | "templateMakeupSoftglam" | "templateRooftopAfterglow" | "templateAfterdarkRef" | "templateResortRef" | "templateCrimsonRef" | "templateChromeRef" | "templateMakeupBlackRef" | "templateChestupEditorial" | "templatePlusSize" | "templateGhibliSaree" | "templateCollectibleFigure" | "templateBridalEditorial" | "templateSwimwearCampaign";
+export type MediaId = "desert" | "portrait" | "product" | "ocean" | "flowers" | "architecture" | "sneakers" | "templateGhibli" | "templateGhibliDuo" | "templateGhibliSky" | "templateManRef" | "templateWomanRef" | "templateJaipur" | "templateProductHero" | "templateProductRef" | "templateFashionAfterdark" | "templateFashionResort" | "templateFashionCrimson" | "templateFashionChrome" | "templateMakeupSoftglam" | "templateRooftopAfterglow" | "templateAfterdarkRef" | "templateResortRef" | "templateCrimsonRef" | "templateChromeRef" | "templateMakeupBlackRef" | "templateChestupEditorial" | "templatePlusSize" | "templateGhibliSaree" | "templateCollectibleFigure" | "templateBridalEditorial" | "templateSwimwearCampaign" | "templateGtaViceCity" | "templateLoudDrop" | "templateOctopusPortrait" | "templateCeramicsCampaign" | "templateCheesePullEditorial" | "templateCatReference" | "templatePetRoyal" | "templateSneakerLaunch" | "templateTokyoSnowglobe" | "templateBasketballManga" | "templateIcelandHighlands" | "templateQuietPark" | "templateKoreanMiniSuper" | "templateTechCouture";
 
 export type TemplateCategory = "all" | "video" | "image" | "marketing" | "portraits";
 
@@ -26,6 +26,7 @@ export type TemplateItem = {
   tag: string;
   filter?: string;
   prompt?: string;
+  aspectRatio?: number;
 };
 
 export type LandingModel = {
