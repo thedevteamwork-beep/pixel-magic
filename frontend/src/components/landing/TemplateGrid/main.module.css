@@ -213,24 +213,6 @@
   opacity: 1;
 }
 
-.card[data-show-title="true"] :is(.shade, .copy, .previewIcon) {
-  opacity: 1;
-}
-
-.card[data-show-title="true"] .description {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition:
-    max-height 220ms,
-    opacity 220ms;
-}
-
-.card[data-show-title="true"]:is(:hover, :focus-visible) .description {
-  max-height: 4em;
-  opacity: 1;
-}
-
 .card:is(:hover, :focus-visible) .copy {
   transform: translateY(0);
 }

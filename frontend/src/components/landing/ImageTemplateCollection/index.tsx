@@ -19,11 +19,7 @@ export function ImageTemplateCollection() {
           <p className="section-description">Your next cover, campaign, or completely unexpected idea.</p>
         </div>
       </div>
-      <TemplateGrid
-        items={imageTemplates}
-        label="GPT Image 2 templates"
-        showTitles
-      />
+      <TemplateGrid items={imageTemplates} label="GPT Image 2 templates" fullImages />
       <p className={styles.note}>Choose a starting point, then make it your own.</p>
     </section>
   );

@@ -9,6 +9,8 @@ export type TemplateFilters = {
 
 export type LandingAsset = {
   image: string;
+  /** The image's width ÷ height. */
+  aspectRatio: number;
   video?: string;
   alt: string;
   objectPosition?: string;
