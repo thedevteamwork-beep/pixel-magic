@@ -14,6 +14,26 @@ export const templateModels: readonly LandingModel[] = [
 
 export const discoveryTemplates: readonly TemplateItem[] = [
   {
+    id: "firefly-promise",
+    title: "Firefly promise",
+    asset: "fairyWorldFilm",
+    referenceAssets: ["fairyWorldReference"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video", "portraits"],
+    description: "A quiet twilight moment with a fairy and her fox companion.",
+    tag: "Fantasy film",
+    prompt: `A breathtaking magical animated film scene in an enchanted forest at blue-golden twilight. A little blonde fairy-like girl in a blue dress sits on a flower-covered mossy cliff ledge high above a glowing hidden forest, with the small fox resting close beside her. Beneath them, tiny warm-lit windows glow from miniature hidden homes in the rocks, while flowers, vines, and soft ferns frame the ledge. The girl gently moves her feet over the edge, breathing softly, her hair and dress touched by a light breeze. The fox lies beside her, blinking slowly, then gradually leans closer and gently places its head near her shoulder and arm in a tender, trusting way.
+
+As the magical moment deepens, more and more golden fireflies gather and begin swirling in soft spirals around the girl and the fox. The deep blue-green light in the forest below pulses gently, as if the whole forest is breathing with living magic. Tiny glowing particles rise from the hidden forest depths, and a few luminous petals drift slowly through the foreground, passing close in front of the camera lens. The girl slowly closes her eyes for a moment and smiles softly, as if she can truly feel the magic surrounding her. Flowers sway, vines move gently, hidden windows flicker warmly, and the whole world becomes dreamier, brighter, and more alive without ever feeling chaotic.
+
+Camera movement:
+Begin with a wide cinematic reveal from slightly below the cliff, showing the full ledge, glowing hidden windows, and vast magical forest beyond. Then slowly rise and float closer in a soft elegant arc. Continue with a gentle romantic orbit around the girl and fox while the spiraling fireflies gather around them. Let glowing petals drift across the foreground for depth. Push in slowly toward a tender medium shot as the fox rests its head near her and she closes her eyes and smiles. End with a delicate drifting pullback that reveals the cliff again, now surrounded by swirling fireflies and softly pulsing forest light.
+
+Motion style:
+High-quality animated fantasy film, romantic flowing camera, no static pose, soft natural breathing, gentle leg movement, subtle emotional acting, fox leaning closer naturally, soft ear and tail motion, fireflies spiraling in motion, glowing petals drifting across the lens, flowers and vines swaying, dreamy magical atmosphere, emotional cinematic storytelling.`,
+  },
+  {
     id: "juliette-yoyo-freestyle",
     title: "Crimson freestyle",
     asset: "julietteYoYoFilm",

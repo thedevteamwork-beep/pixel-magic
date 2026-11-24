@@ -144,6 +144,17 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     aspectRatio: 3 / 2,
     alt: "Sequential cinematic keyframe reference for Juliette's yo-yo performance",
   },
+  fairyWorldFilm: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
+    aspectRatio: 3 / 2,
+    video: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/fairy-world/video.mp4?updatedAt=1795537646348",
+    alt: "A fairy-like girl and a small fox share a quiet moment above an enchanted forest",
+  },
+  fairyWorldReference: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
+    aspectRatio: 3 / 2,
+    alt: "Fairy girl and fox character reference in an enchanted forest",
+  },
   flowers: { ...bundled(flowersPoster), alt: "Soft pink roses photographed in close detail" },
   architecture: { ...bundled(architecturePoster), alt: "Sculptural concrete architecture with geometric lines" },
   sneakers: {
