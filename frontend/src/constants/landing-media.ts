@@ -106,6 +106,17 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     aspectRatio: 3 / 2,
     alt: "Old Trafford stadium reference sheet",
   },
+  aureliaEscapeFilm: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
+    aspectRatio: 3 / 2,
+    video: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/vintage-scene/video.mp4?updatedAt=1795534338222",
+    alt: "Aurelia senses danger in a candlelit medieval room and reaches for her sword",
+  },
+  aureliaEscapeReference: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
+    aspectRatio: 3 / 2,
+    alt: "Aurelia character reference",
+  },
   flowers: { ...bundled(flowersPoster), alt: "Soft pink roses photographed in close detail" },
   architecture: { ...bundled(architecturePoster), alt: "Sculptural concrete architecture with geometric lines" },
   sneakers: {

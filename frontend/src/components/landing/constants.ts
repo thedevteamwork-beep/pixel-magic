@@ -14,6 +14,18 @@ export const templateModels: readonly LandingModel[] = [
 
 export const discoveryTemplates: readonly TemplateItem[] = [
   {
+    id: "aurelias-escape",
+    title: "Aurelia’s escape",
+    asset: "aureliaEscapeFilm",
+    referenceAssets: ["aureliaEscapeReference"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video", "portraits"],
+    description: "A candlelit embrace turns into a fight for survival.",
+    tag: "Fantasy film",
+    prompt: `Use @q7G7OlKiKeD0DyvByx5s as Aurelia: maintain her exact face, wet dark hair, athletic warrior build, leather armor, realistic textures, and intense expression.\n\nA cinematic medieval interior scene at night. Aurelia and an original male companion stand close beside a wooden bed in a softly lit candle room. The mood begins calm and intimate, with gentle closeness and emotional tension. As they embrace, the man subtly shifts his posture, revealing hidden hostile intent. Aurelia senses something wrong through reflection and body tension. Her expression shifts from calm to alert. In a sudden movement, she pulls away just in time, avoiding a concealed attack motion. She quickly reaches to the bedside and grabs her short sword, stepping back into a guarded defensive stance. The atmosphere becomes tense and dramatic, with flickering candlelight, moving shadows, and strong cinematic contrast. Realistic motion, emotional acting, high-end fantasy realism, original non-copyrighted characters, no franchise elements.`,
+  },
+  {
     id: "paper-world-fashion-film",
     title: "Paper world",
     asset: "paperWorldFashionFilm",
