@@ -14,6 +14,62 @@ export const templateModels: readonly LandingModel[] = [
 
 export const discoveryTemplates: readonly TemplateItem[] = [
   {
+    id: "juliette-yoyo-freestyle",
+    title: "Crimson freestyle",
+    asset: "julietteYoYoFilm",
+    referenceAssets: ["julietteCharacterReference", "julietteKeyframes"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video", "portraits"],
+    description: "A high-speed yo-yo performance lights up an abandoned hall.",
+    tag: "Anime action",
+    prompt: `Use @image2 as the exact sequential cinematic keyframe reference. Treat every panel as an independent animated shot with continuous motion flow between scenes. Use @image1 as character reference for Juliette, yo-yo freestyler in chaotic modern streetwear: deep crimson red oversized hoodie, cropped black bomber jacket with red accents and "JULIETTE" lettering on back, loose black cargo pants with chains and belt accents, chunky black-and-red sneakers, chains, layered choker and necklaces, finger tape, rings and bracelets, wild voluminous dark burgundy-red curly hair cascading down with explosive motion, hazel-green eyes with a smirking menacing expression. Height 149cm — tiny frame, overwhelming energy. No text, no label, no watermark, no logo.
+
+15s hyper-dynamic yo-yo freestyle performance inside a giant abandoned industrial hall with graffiti, crimson and red neon lights, hanging cables, broken concrete, dust, and underground street atmosphere. Tiny playful girl with overwhelming energy performing impossibly stylish high-speed yo-yo tricks perfectly synced to aggressive electronic music. The yo-yo stays visible in every shot, creating glowing deep red string trails, orbital spirals, looping circles, finger binds, horizontal whips, neck tricks, off-axis tricks, sleeper tricks, and chaotic around-the-world combos. Continuous flawless combo flow, exaggerated anime physics, impossible airtime, hyper-fast footwork, and god-tier precision. Use aggressive shonen sakuga cinematography: whip pans, fisheye distortion, orbit camera movement, dutch angles, extreme low-angle hero shots, top-down rhythm shots, foreground yo-yo occlusion, rapid push-ins, and dramatic perspective exaggeration. Add speed lines, motion smears, crimson ink splash impacts, debris bursts, shockwaves, floor cracks, flying dust, and rhythmic motion blur. Build intensity toward a final slow-motion climax where Juliette launches the yo-yo into a massive spinning crimson orbital vortex before violently snapping it back into her hand, causing explosive environmental destruction and shockwaves. Style: modern painterly anime illustration, raw sakuga storyboard energy, stylized realism, visible rough brush strokes, semi-realistic anatomy, clean cinematic lighting, messy aggressive manga linework, monochrome sketch rendering with deep red and crimson accents.`,
+  },
+  {
+    id: "forest-guardian",
+    title: "Forest guardian",
+    asset: "forestRescueFilm",
+    referenceAssets: ["forestRescueReference"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video"],
+    description: "A quick-thinking monkey guides a curious baby to safety.",
+    tag: "Adventure film",
+    prompt: `A sequence of ultra-fast cinematic shots set in a lush tropical forest, captured on a 35mm lens, using tight close-ups to medium-close framing only, no wide shots, aggressive handheld motion, whip pans, snap zooms, immersive proximity, physically accurate motion and grounded interaction, rendered in high-end 3D cinematic style, natural skin tones, soft warm lighting balanced with green jungle tones (not overly yellow), subtle film grain, soft highlight bloom, volumetric light rays passing through dense foliage, emotional visual storytelling, no dialogue.
+
+--- EVENT 1: FALL / SLIP (HIGH HOOK) ---
+(1) Extreme close-up of a baby girl's small bare foot pressing into soft damp soil. Dirt slightly collapses and shifts near the edge of a small forest drop; particles fall downward as the camera shakes subtly.
+(2) Tight handheld whip pan revealing the baby girl crawling curiously toward the unstable edge, hands pressing into loose soil and roots, with shallow depth of field isolating her movement.
+(3) Extreme close-up of her hand losing grip as the soil breaks apart. Dirt and pebbles fall into the drop, with brief micro slow motion emphasizing the danger.
+(4) Snap zoom to her face: eyes widening, lips parting, confusion turning into fear as soft filtered light hits her cheeks.
+(5) Aggressive whip pan upward as a small monkey suddenly drops into frame from above, fast motion blur, branches shaking.
+(6) Extreme close-up as the monkey firmly grabs the baby's clothing; fabric stretches under tension and dirt particles float mid-air.
+(7) Macro detail of the monkey pulling with effort as the baby slides slightly backward, friction with the soil visible and leaves sticking to her skin.
+(8) Tight handheld tracking as the baby is pulled safely back onto stable ground; movement steadies slightly as tension releases.
+
+--- EVENT 2: SNAKE THREAT (TENSION ESCALATION) ---
+(9) Whip pan to a close-up of a small snake slithering slowly through leaves toward the baby's hand, subtle hissing implied, shallow depth of field.
+(10) Close-up of the baby reaching curiously toward the snake, fingers extended and unaware of danger.
+(11) Sudden fast motion as the monkey jumps into frame from the side, with aggressive movement and a camera that struggles to follow.
+(12) Extreme close-up as the monkey slaps the ground and pushes the snake away with a quick, sharp motion. Leaves scatter and the snake recoils rapidly.
+(13) Tight shot of the startled baby pulling her hand back slightly, blinking and breathing unevenly.
+
+--- EVENT 3: WATER / SLIP (FLOW + FINAL SAVE) ---
+(14) Whip pan to ground level: the baby crawls near a small flowing stream, water shimmering with soft reflections over wet, slippery rocks.
+(15) Extreme close-up of the baby's hand slipping on a wet stone, water splashing slightly as she begins to lose balance.
+(16) Medium-tight handheld tracking as the baby slides toward the edge of the shallow stream, body tilting forward.
+(17) Fast entry as the monkey grabs her arm just before she falls into the water, with strong physical contact and a slight splash.
+(18) Macro close-up of water droplets on skin, dirt mixing with moisture, realistic texture.
+(19) Tension release as both characters reach safe ground; the baby sits unsteadily, breathing softly and blinking.
+
+--- FINAL EMOTIONAL BEAT ---
+(20) Alternating tight close-ups of the baby and monkey looking at each other, the monkey tilting its head gently with a protective expression.
+(21) Extreme close-up as the baby slowly reaches out and touches the monkey's fur, her fingers sinking slightly into its soft texture.
+(22) Final cinematic slow push-in framing both characters in soft jungle light, floating particles and balanced green-warm grading as tension gives way to peace. No dialogue; cinematic finish.`,
+  },
+  {
     id: "aurelias-escape",
     title: "Aurelia’s escape",
     asset: "aureliaEscapeFilm",

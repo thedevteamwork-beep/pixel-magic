@@ -117,6 +117,33 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     aspectRatio: 3 / 2,
     alt: "Aurelia character reference",
   },
+  forestRescueFilm: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
+    aspectRatio: 3 / 2,
+    video: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/forest-view/video.mp4?updatedAt=1795535126560",
+    alt: "A monkey protects a baby in a lush tropical forest",
+  },
+  forestRescueReference: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
+    aspectRatio: 3 / 2,
+    alt: "Tropical forest rescue scene reference",
+  },
+  julietteYoYoFilm: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
+    aspectRatio: 3 / 2,
+    video: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/anime-girl/video.mp4?updatedAt=1795536483166",
+    alt: "Juliette performs high-speed yo-yo tricks in a crimson-lit industrial hall",
+  },
+  julietteCharacterReference: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
+    aspectRatio: 3 / 2,
+    alt: "Juliette character reference",
+  },
+  julietteKeyframes: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/anime-girl/ref2.png?updatedAt=1795536683489",
+    aspectRatio: 3 / 2,
+    alt: "Sequential cinematic keyframe reference for Juliette's yo-yo performance",
+  },
   flowers: { ...bundled(flowersPoster), alt: "Soft pink roses photographed in close detail" },
   architecture: { ...bundled(architecturePoster), alt: "Sculptural concrete architecture with geometric lines" },
   sneakers: {
