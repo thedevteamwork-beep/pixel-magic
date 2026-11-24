@@ -51,25 +51,35 @@ export function LandingMedia({
   const containerRef = useRef<HTMLSpanElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [readyAsset, setReadyAsset] = useState<TemplateMediaId>();
+  const ready = readyAsset === asset;
+  const hasClip = !!media.video && behavior !== "still";
   const shouldPlay =
-    !!media.video && motionEnabled && visible && (behavior === "ambient" || (behavior === "hover" && active));
+    hasClip && motionEnabled && visible && (behavior === "ambient" || (behavior === "hover" && active));
 
   useEffect(() => {
     const element = containerRef.current;
-    if (!element || !media.video || behavior === "still") return;
-    return observeVisibility(element, setVisible);
-  }, [media.video, behavior]);
+    if (!element || !hasClip) return;
+    return observeVisibility(element, (isVisible) => {
+      setVisible(isVisible);
+      if (isVisible) setMounted(true);
+    });
+  }, [hasClip]);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     if (shouldPlay) void video.play().catch(() => {});
-    else video.pause();
-  }, [shouldPlay, asset]);
+    else {
+      video.pause();
+      // Back to the first frame, so the card rests on the same picture each time.
+      if (video.currentTime > 0.2) video.currentTime = 0.1;
+    }
+  }, [shouldPlay, asset, ready]);
 
   return (
     <span ref={containerRef} className={`${styles.media} ${className}`} style={filter ? { filter } : undefined}>
-      {media.image ? (
+      {media.image && (
         <Media
           media={{ kind: "image", src: media.image, alt: alt ?? media.alt }}
           fill
@@ -82,8 +92,9 @@ export function LandingMedia({
             style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
           }}
         />
-      ) : (
-        // No still image: show the clip's first frame and play it on hover.
+      )}
+      {/* The clip loads once the card is near the screen. Its first frame replaces the still; hover plays it. */}
+      {hasClip && mounted && (
         <video
           key={asset}
           ref={videoRef}
@@ -92,25 +103,11 @@ export function LandingMedia({
           loop
           playsInline
           preload="metadata"
-          role="img"
-          aria-label={alt ?? media.alt}
-          className={styles.image}
-        />
-      )}
-      {media.image && media.video && behavior !== "still" && (shouldPlay || playing) && (
-        <video
-          key={asset}
-          ref={videoRef}
-          src={media.video}
-          muted
-          loop
-          playsInline
-          preload="none"
           aria-hidden="true"
           tabIndex={-1}
-          className={`${styles.video} ${shouldPlay && playing ? styles.visible : ""}`}
-          onPlaying={() => setPlaying(true)}
-          onError={() => setPlaying(false)}
+          className={`${styles.video} ${ready ? styles.visible : ""}`}
+          onLoadedData={() => setReadyAsset(asset)}
+          onError={() => setReadyAsset(undefined)}
         />
       )}
     </span>
