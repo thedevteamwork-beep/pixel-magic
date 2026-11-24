@@ -40,7 +40,6 @@ export function TemplateCard({ item, onPreview }: TemplateCardProps) {
       />
       <span className={styles.shade} aria-hidden="true" />
       <span className={styles.meta} aria-hidden="true">
-        <span className={styles.pill}>{item.model}</span>
         <span className={styles.pill}>
           {video ? <Play size={11} /> : <Sparkles size={11} />}
           {item.tag}

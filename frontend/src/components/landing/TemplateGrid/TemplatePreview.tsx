@@ -73,11 +73,16 @@ export function TemplatePreview({ item, items, onClose, onSelect }: TemplatePrev
                 {item.model} <span aria-hidden="true">/</span> {item.tag}
               </span>
               <p>{item.description}</p>
-              {item.prompt && (
+              {item.prompt && item.mediaType === "image" && (
                 <a
                   className={styles.tryTemplate}
                   href={`/image?model=gpt2_generate&prompt=${encodeURIComponent(item.prompt)}${item.referenceAssets?.map((reference) => `&reference=${encodeURIComponent(landingAssets[reference].image)}`).join("") ?? ""}`}
                 >
+                  <Sparkles size={15} aria-hidden="true" /> Try this template
+                </a>
+              )}
+              {item.prompt && item.mediaType === "video" && (
+                <a className={styles.tryTemplate} href={`/video?template=${encodeURIComponent(item.id)}`}>
                   <Sparkles size={15} aria-hidden="true" /> Try this template
                 </a>
               )}

@@ -14,6 +14,66 @@ export const templateModels: readonly LandingModel[] = [
 
 export const discoveryTemplates: readonly TemplateItem[] = [
   {
+    id: "paper-world-fashion-film",
+    title: "Paper world",
+    asset: "paperWorldFashionFilm",
+    referenceAssets: ["paperWorldFashionReference"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video", "portraits"],
+    description: "A fashion chase pauses between the street and the page.",
+    tag: "Fashion film",
+    prompt: `26-second premium cinematic fashion TVC, realistic live action, luxury commercial film style, elegant European city, cool blue-gray palette, wet cobblestones, anamorphic lens, shallow depth of field, refined motion blur, sophisticated editorial pacing. Main character: Use the uploaded reference image as the identity and appearance reference for the protagonist. The young man’s face, hairstyle, body proportions, age appearance, and overall identity should match the uploaded image consistently throughout the entire film. Do not redesign or replace the person. Preserve the realism and natural characteristics of the uploaded person. Pursuers: one Black man and one red-haired white man, both wearing black suits, black ties and dark sunglasses. Poster woman: elegant long-haired woman wearing a dusty pink long-sleeve knit top and dark high-waisted denim pants.
+
+[00:00-00:02] Open with a high aerial top-down view of a classic European metro entrance in cold morning light. The camera smoothly descends as the young man walks up the stairs, then transitions into a low-angle moving portrait. He scans the street and shifts from calm to alert. Smooth, controlled luxury-commercial cinematography.
+
+[00:02-00:04] Track sideways through a crowded street beside the young man. Pedestrians pass close to the lens, creating soft foreground wipes and elegant motion blur. Reveal the two suited men moving through the crowd. Alternate between the young man noticing them, their sunglasses, polished shoes and controlled pursuit.
+
+[00:04-00:07] The young man begins running. Use short premium TVC shots: over-the-shoulder tracking, low close-up of sneakers on wet pavement, side tracking through narrow streets, quick shots of the pursuers and a wide shot showing the distance between them. He collides gently with a passerby. At impact, enter elegant bullet time. The whole environment slows almost to a freeze. Papers, fabric, droplets, shopping items and small debris burst outward and remain suspended in the air. Surrounding pedestrians are frozen in expressive mid-reactions: widened eyes, open mouths, raised brows, half-turned heads, lifted hands, recoiling shoulders, a scarf caught mid-swing, a shopping bag pulled taut, hair and coat hems suspended in motion. One passerby looks shocked with lips parted, another is frozen mid-step, another twists backward in surprise while staring at the collision. The camera performs a smooth cinematic orbit around the frozen moment, emphasizing the suspended expressions, halted movement and dimensional stillness of the street. Only the young man continues moving at near-normal speed, breathing, looking forward and pushing through the nearly frozen scene.
+
+[00:07-00:12] Follow the young man through the suspended street with a floating Steadicam movement. The bullet-time environment remains dense and visibly frozen: pedestrians paused mid-step, mid-turn and mid-gesture; faces hold shocked or confused expressions; raised hands, fluttering coats, loose hair, umbrellas, paper corners and droplets remain suspended in place. Emphasize the contrast between the moving young man and the frozen world around him. He passes close to people locked in startled expressions, someone bending slightly backward in surprise, someone frozen while reaching out, another person staring with widened eyes. Papers and tiny debris drift almost imperceptibly. He turns into a quiet side street and sees a giant static fashion poster on an old stone wall. Slowly dolly out to reveal the full poster. The woman stands on the viewer’s left, leaving early empty full-body space on the viewer’s right. The poster remains completely still and flat.
+
+[00:12-00:14] Continue following him through the frozen street. He turns into a quiet side street and sees a giant static fashion poster on an old stone wall. Slowly dolly out to reveal the full poster. The woman stands on the viewer’s left, leaving a clearly empty full-body space on the viewer’s right. The poster remains completely still and flat.
+
+[00:14-00:18] The street remains in continuous bullet time. In a wide three-quarter shot, the young man runs and makes a clean full-body leap directly toward the empty right side of the poster, not toward the woman. Do not show him touching the wall. A suspended sheet of paper passes close to the camera, creating a natural foreground wipe and seamless match cut. No portal, glow or magical effects. Reveal the same poster composition: the woman remains on the left, and the young man is now a full-size static printed model standing beside her on the right. Both are full body, equal adult scale, aligned on the same ground baseline, with similarly sized heads, a small gap and no overlap. His lighting, perspective and printed texture perfectly match the poster.
+
+[00:18-00:22] The two suited men run into the frozen street and stop in front of the poster. They split toward opposite sides of the frame: one searches the left side while the other searches the right, checking behind pedestrians and around the wall. Use alternating close-ups of their puzzled expressions, slow head turns and sunglasses reflecting the poster. They look back at each other in disbelief, clearly shocked that the young man has disappeared. The young man and woman remain completely static inside the poster, standing side by side at equal scale. The pursuers fail to recognize him, then continue searching and walk out through opposite edges of the frame. Bullet time remains active, with pedestrians, papers and droplets still suspended.
+
+[00:22-00:26] Hold briefly on the empty frozen street after the pursuers leave, then cut to a clean frontal shot of the poster. After a short pause, the young man becomes three-dimensional from his printed position on the right. He reaches toward the woman on the left and they make one coordinated full-body jump forward out of the poster together. They retain the same adult scale while crossing the image plane and regain natural depth, lighting and physical volume without portals or magical effects. Normal time resumes only when both are fully outside. Suspended objects fall and pedestrians continue their interrupted movements. The young man and woman land naturally, walk together toward the side of the frame and exit. Hold briefly on the now-empty poster, then fade to black.
+
+Important direction: Bullet time continues from the collision until both characters fully exit the poster. The poster woman remains on the left. The young man enters the empty right side and appears beside her at the same adult scale. The poster remains completely static while they are inside it. Use framing, foreground wipes and match cuts instead of fantasy effects. Negative prompt: storyboard, comic panels, slideshow, fantasy portal, glowing magic, superhero effects, cheap CGI, violent collision, miniature man, child-sized man, man overlapping woman, man standing in front of woman, incorrect scale, mismatched head sizes, different ground baselines, moving poster characters, early end of bullet time, inconsistent faces, changing outfits, distorted anatomy.
+
+Audio direction: Premium cinematic fashion-commercial sound design. Begin with restrained European city ambience, distant traffic, metro rumble, footsteps and soft fabric movement. Build subtle tension with minimal electronic pulses and elegant orchestral textures during the pursuit. At the collision, audio drops into deep muffled bullet-time: stretched impacts, slowed breathing, suspended droplets, distant low-frequency ambience and isolated floating-object sounds. Keep the soundscape sparse, immersive and refined. When the pursuers search the street, use muted footsteps, subtle suit movement and restrained tension. As the young man and woman jump out of the poster, introduce a smooth rising sound transition. The instant both fully enter the real world, restore full-speed city ambience, falling papers, footsteps and natural street sound. End with a soft cinematic musical resolve. No dialogue, no vocals, no loud action-movie drums, no comedic sound effects, no magical chimes, no aggressive trailer music.`,
+  },
+  {
+    id: "manchester-derby-volley",
+    title: "Derby winner",
+    asset: "manchesterDerbyFilm",
+    referenceAssets: ["manchesterDerbyCharacter", "manchesterDerbyBall", "manchesterDerbyStadium"],
+    mediaType: "video",
+    model: "Seedance 2.5",
+    categories: ["video", "portraits", "marketing"],
+    description: "A last-gasp volley turns Old Trafford red.",
+    tag: "Sports film",
+    prompt: `15-second cinematic football commercial, 4K ultra-HD realism, premium sports-ad aesthetic, teal-and-red cinematic color grade, anamorphic lens flares, stable image, no flicker, blur, ghosting, or distortion. Use reference image 1 as the exact identity and appearance reference for Sultan, a young Lebanese-Mediterranean male footballer with thick messy dark hair, smooth light olive skin, soft sharp jawline, dark brown eyes, youthful handsome face, and lean athletic build. Preserve his face, hair, skin tone, and proportions consistently in every shot. He wears the Manchester United home kit, number 10, “SULTAN” on the back, and black-and-red Nike Mercurial boots. Use reference image 2 for the official match ball: white panels, dark geometric star pattern, subtle red accents. Use reference image 3 for Old Trafford’s architecture and atmosphere: a packed 75,000-person crowd at dusk, fully illuminated floodlights, and rain mist in the air. The stadium reference is the first-frame visual direction. Manchester United versus Manchester City derby.
+
+Shot 1 (0:00–0:02): Massive drone plunge over Old Trafford during the derby. Floodlights cut through the deep-blue dusk sky; red crowd flares glow in the stands. Dive rapidly to pitch level and speed-ramp to 40% at grass height. Cinematic anamorphic flares. Deafening stadium roar and echoing chants. Hard cut.
+
+Shot 2 (0:02–0:04): Sultan traps a powerful driven cross on his chest while sprinting between Manchester City defenders in sky-blue kits. Low-angle 35mm Steadicam follows tightly from behind. “SULTAN 10” is visible across his back as he accelerates. Speed-ramp into full sprint. Wet boots scrape turf, heavy breathing, crowd anticipation. Hard cut.
+
+Shot 3 (0:04–0:06): Extreme ankle-level close-up as Sultan plants his boot in wet grass and draws his right foot back for a volley. Macro detail: turf, water droplets and dirt burst upward in slow motion. Decelerate to 30% during the foot plant. Metal studs dig into turf. Violent whip pan upward.
+
+Shot 4 (0:06–0:09): Sultan launches into a full-air volley and strikes the reference match ball with explosive power. His body is fully extended, left arm balancing in the air, jersey folds moving naturally. Low-angle 24mm hero shot; Manchester City defenders freeze behind him under the floodlights. Decelerate to 20% exactly at contact. Thunderous boot impact. Flash frame to white as a signature transition.
+
+Shot 5 (0:09–0:11): Resolve from the white flash. The reference ball rockets through the air at 15% speed, trailing spinning turf particles. A 200mm telephoto lens tracks it toward the top corner. The Manchester City goalkeeper dives full stretch but is too late. The ball smashes into the top corner and the net erupts backward. Net snap, stadium explosion, commentators screaming.
+
+Shot 6 (0:11–0:13): Sultan drops to his knees and slides across wet turf in front of the Stretford End. Arms spread wide, head tilted back, eyes closed, mouth open in pure euphoria. “SULTAN 10” is clearly visible on his back. Steadicam orbits left; warm floodlights rim his silhouette. Decelerate to 50%. 75,000 fans roar in unison; Manchester United chants dominate.
+
+Shot 7 (0:13–0:15): Massive wide crane shot rises as Manchester United teammates rush to celebrate with Sultan. Old Trafford erupts in red crowd chaos: waving scarves, flashing cameras, stadium lights reflecting on wet grass. Ascend above the pitch to reveal the full stadium scale and derby victory. Crowd sustains echoing chants. Cinematic stadium ambience only; no music, no subtitles. Lock off the final frame.
+
+Maintain exact facial consistency with reference image 1. Preserve hairstyle, facial structure, skin tone, youthful appearance, and natural proportions. Realistic football movement, wet-turf interaction, jersey fabric, and authentic stadium lighting.`,
+  },
+  {
     id: "neon",
     title: "Neon muse",
     asset: "portrait",
@@ -607,7 +667,7 @@ function variations(items: readonly TemplateItem[], names: readonly string[]): T
 
 const imageCollectionOpeningOrder = [
   "image-gta-vice-city",
-  "image-jaipur-portrait",
+  "image-satin-neckline",
   "image-ceramics-campaign",
   "image-ghibli-portrait",
   "image-cheese-pull-editorial",
@@ -624,6 +684,9 @@ const imageCollectionOpeningOrder = [
   "image-quiet-park",
   "image-korean-mini-super",
   "image-tech-couture-elevator",
+  "image-ghibli-sky-journey",
+  "image-soft-glam",
+  "image-jaipur-portrait",
 ];
 
 export const imageTemplates: readonly TemplateItem[] = [...imageCollection].sort((a, b) => {

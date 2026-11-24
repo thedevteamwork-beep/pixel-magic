@@ -8,10 +8,15 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
-    // Retained for reusable legacy widgets; the landing page uses local media.
+    // Remote media used by reusable legacy widgets and ImageKit templates.
     remotePatterns: [
       new URL("https://static.higgsfield.ai/**"),
       new URL("https://static-public-media.higgsfield.ai/**"),
+      {
+        protocol: "https",
+        hostname: "ik.imagekit.io",
+        pathname: "/5orhh0msk/Templates/Videos/**",
+      },
     ],
   },
   turbopack: {

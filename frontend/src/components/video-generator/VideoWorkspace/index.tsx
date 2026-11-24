@@ -75,17 +75,29 @@ const rowHeights: Record<RowSize, string> = { s: "190px", m: "280px", l: "400px"
 const MAX_ITEMS = 60;
 const emptyInputs: VideoInputs = { start: null, end: null, references: [], clip: null };
 
-function initialSettings(models: readonly VideoModel[], modelId: string, preset: string | null): VideoSettings {
+function initialSettings(
+  models: readonly VideoModel[],
+  modelId: string,
+  preset: string | null,
+  prompt?: string,
+  hasReferences = false,
+): VideoSettings {
   const inspiration = videoInspirations.find((item) => item.id === preset);
   const model = getVideoModel(models, modelId);
   const base: VideoSettings = { ...defaultVideoSettings, model: model.id };
-  if (!inspiration) return fitSettingsToModel(base, model).settings;
+  if (!inspiration)
+    return fitSettingsToModel(
+      { ...base, ...(prompt ? { prompt } : {}), ...(hasReferences ? { mode: "reference" as const } : {}) },
+      model,
+    ).settings;
   return fitSettingsToModel(
     {
       ...base,
       prompt: inspiration.prompt,
       aspectRatio: inspiration.aspectRatio,
       duration: inspiration.duration,
+      ...(prompt ? { prompt } : {}),
+      ...(hasReferences ? { mode: "reference" as const } : {}),
     },
     model,
   ).settings;
@@ -101,6 +113,8 @@ function renderError(error: unknown): string {
 type VideoWorkspaceProps = {
   initialModel: string;
   initialPreset: string | null;
+  initialPrompt?: string;
+  initialReferenceUrls?: readonly string[];
   /** Development only: sample videos, and Generate only pretends. */
   sample?: boolean;
 };
@@ -124,13 +138,17 @@ export function VideoWorkspace(props: VideoWorkspaceProps) {
 function VideoStudio({
   initialModel,
   initialPreset,
+  initialPrompt,
+  initialReferenceUrls,
   sample = false,
   models,
 }: VideoWorkspaceProps & { models: readonly VideoModel[] }) {
   const router = useRouter();
   const signedIn = useSignedIn();
   const { motionEnabled } = useLandingMotion();
-  const [settings, setSettings] = useState<VideoSettings>(() => initialSettings(models, initialModel, initialPreset));
+  const [settings, setSettings] = useState<VideoSettings>(() =>
+    initialSettings(models, initialModel, initialPreset, initialPrompt, Boolean(initialReferenceUrls?.length)),
+  );
   const [inputs, setInputs] = useState<VideoInputs>(emptyInputs);
   const [inputBusy, setInputBusy] = useState<InputTarget | null>(null);
   const [inputError, setInputError] = useState("");
@@ -239,6 +257,31 @@ function VideoStudio({
     if (item.url.startsWith("blob:")) ownedUrls.current.add(item.url);
     return item;
   }
+
+  useEffect(() => {
+    if (!initialReferenceUrls?.length) return;
+    const controller = new AbortController();
+    void Promise.all(
+      initialReferenceUrls.map(async (url) => {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error("A template reference image could not be loaded.");
+        const blob = await response.blob();
+        const name = url.split("/").pop() || "reference.png";
+        const file = new File([blob], name, { type: blob.type || "image/png" });
+        const reference = await loadFrameFile(file);
+        ownedUrls.current.add(reference.url);
+        return reference;
+      }),
+    )
+      .then((references) => {
+        setInputs((current) => (current.references.length ? current : { ...current, references }));
+      })
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted)
+          setInputError(caught instanceof Error ? caught.message : "Reference image could not be loaded.");
+      });
+    return () => controller.abort();
+  }, [initialReferenceUrls]);
 
   /** The first image sets the shape of the shot, with a one-tap undo. */
   function matchShape(frame: FrameImage) {

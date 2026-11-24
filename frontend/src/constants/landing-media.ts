@@ -75,6 +75,37 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     video: `${base}/ocean.mp4`,
     alt: "An aerial view of turquoise ocean waves meeting the shore",
   },
+  paperWorldFashionFilm: {
+    ...bundled(architecturePoster),
+    video: "/assets/templates/video/paper-world-fashion-film.mp4",
+    alt: "A cinematic fashion chase through a rain-soaked European city",
+  },
+  paperWorldFashionReference: {
+    image: "/assets/templates/video/paper-world-fashion-reference.png",
+    aspectRatio: 1086 / 1448,
+    alt: "Identity reference image for the Paper world fashion film protagonist",
+  },
+  manchesterDerbyFilm: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
+    aspectRatio: 3 / 2,
+    video: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/manchester-derby/video.mp4?updatedAt=1795531258451",
+    alt: "A cinematic Manchester derby volley beneath Old Trafford floodlights",
+  },
+  manchesterDerbyCharacter: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/manchester-derby/ref1.png?updatedAt=1795531280817",
+    aspectRatio: 3 / 2,
+    alt: "Sultan, Manchester United number 10, character and kit reference sheet",
+  },
+  manchesterDerbyBall: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/manchester-derby/ref2.png?updatedAt=1795531291860",
+    aspectRatio: 3 / 2,
+    alt: "Official match ball design reference",
+  },
+  manchesterDerbyStadium: {
+    image: "https://ik.imagekit.io/5orhh0msk/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
+    aspectRatio: 3 / 2,
+    alt: "Old Trafford stadium reference sheet",
+  },
   flowers: { ...bundled(flowersPoster), alt: "Soft pink roses photographed in close detail" },
   architecture: { ...bundled(architecturePoster), alt: "Sculptural concrete architecture with geometric lines" },
   sneakers: {
