@@ -2,8 +2,8 @@
 
 import { Media } from "@/ui/Media";
 import { useEffect, useRef, useState } from "react";
-import { landingAssets } from "@/constants/landing-media";
-import type { MediaId } from "@/types/landing";
+import { templateAsset } from "@/constants/landing-media";
+import type { TemplateMediaId } from "@/types/landing";
 import { useLandingMotion } from "../LandingProvider";
 import styles from "./main.module.css";
 
@@ -26,7 +26,7 @@ function observeVisibility(element: Element, callback: VisibilityCallback) {
 }
 
 type LandingMediaProps = {
-  asset: MediaId;
+  asset: TemplateMediaId;
   alt?: string;
   behavior?: "ambient" | "hover" | "still";
   active?: boolean;
@@ -46,7 +46,7 @@ export function LandingMedia({
   sizes = "(max-width: 600px) 50vw, 25vw",
   filter,
 }: LandingMediaProps) {
-  const media = landingAssets[asset];
+  const media = templateAsset(asset);
   const { motionEnabled } = useLandingMotion();
   const containerRef = useRef<HTMLSpanElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -69,19 +69,35 @@ export function LandingMedia({
 
   return (
     <span ref={containerRef} className={`${styles.media} ${className}`} style={filter ? { filter } : undefined}>
-      <Media
-        media={{ kind: "image", src: media.image, alt: alt ?? media.alt }}
-        fill
-        sizes={sizes}
-        plain
-        imageProps={{
-          loading: priority ? "eager" : "lazy",
-          fetchPriority: priority ? "high" : undefined,
-          className: styles.image,
-          style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
-        }}
-      />
-      {media.video && behavior !== "still" && (shouldPlay || playing) && (
+      {media.image ? (
+        <Media
+          media={{ kind: "image", src: media.image, alt: alt ?? media.alt }}
+          fill
+          sizes={sizes}
+          plain
+          imageProps={{
+            loading: priority ? "eager" : "lazy",
+            fetchPriority: priority ? "high" : undefined,
+            className: styles.image,
+            style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
+          }}
+        />
+      ) : (
+        // No still image: show the clip's first frame and play it on hover.
+        <video
+          key={asset}
+          ref={videoRef}
+          src={`${media.video}#t=0.1`}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          role="img"
+          aria-label={alt ?? media.alt}
+          className={styles.image}
+        />
+      )}
+      {media.image && media.video && behavior !== "still" && (shouldPlay || playing) && (
         <video
           key={asset}
           ref={videoRef}

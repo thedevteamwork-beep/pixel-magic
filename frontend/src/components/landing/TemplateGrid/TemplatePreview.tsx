@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight, Film, ImageIcon, Sparkles } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { landingAssets } from "@/constants/landing-media";
+import { landingAssets, templateAsset } from "@/constants/landing-media";
 import type { TemplateItem } from "@/types/landing";
 import { LandingMedia } from "../LandingMedia";
 import { useLandingMotion } from "../LandingProvider";
@@ -20,7 +20,7 @@ export function TemplatePreview({ item, items, onClose, onSelect }: TemplatePrev
   const { motionEnabled } = useLandingMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
   const index = item ? items.findIndex((candidate) => candidate.id === item.id) : -1;
-  const asset = item ? landingAssets[item.asset] : null;
+  const asset = item ? templateAsset(item.asset) : null;
 
   useEffect(() => {
     if (!motionEnabled) videoRef.current?.pause();
