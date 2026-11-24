@@ -30,12 +30,16 @@ import {
   type CreativeGuidance,
 } from "@/lib/image-generator/guidance";
 import { resolveOptions, shapeOf, shapeOption } from "@/lib/image-generator/models";
+import { urlsAsFiles } from "@/lib/image-generator/templateFiles";
+import { landingAssets } from "@/constants/landing-media";
+import type { TemplateItem } from "@/types/landing";
 import { generationError, runningCount, stripRuns } from "@/lib/image-generator/runs";
 import type { ImageOptionValue, ImageResult, ImageSettings, NextStep, ReferenceImage } from "@/types/image-generator";
 import { Modal } from "@/ui/Modal";
 import { useLandingMotion } from "@/components/landing/LandingProvider";
 import {
   DEFAULT_IMAGE_MODEL,
+  TEMPLATE_IMAGE_MODEL,
   defaultImageSettings,
   imageInspirations,
   lightingOptions,
@@ -127,6 +131,7 @@ export function ImageWorkspace({
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const uploadRef = useRef<ReferenceUploadHandle>(null);
   const templateReferenceLoaded = useRef(false);
+  const templateLoad = useRef<AbortController | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -193,14 +198,7 @@ export function ImageWorkspace({
     if (!initialReferences.length || maxReferences === 0 || templateReferenceLoaded.current) return;
     templateReferenceLoaded.current = true;
     const controller = new AbortController();
-    void Promise.all(
-      initialReferences.slice(0, maxReferences).map(async (reference, index) => {
-        const response = await fetch(reference, { signal: controller.signal });
-        if (!response.ok) throw new Error("Template reference unavailable");
-        const blob = await response.blob();
-        return new File([blob], `template-reference-${index + 1}.jpg`, { type: blob.type || "image/jpeg" });
-      }),
-    )
+    urlsAsFiles(initialReferences.slice(0, maxReferences), controller.signal, "template-reference")
       .then((files) => uploadRef.current?.addFiles(files))
       .catch(() => undefined);
     return () => controller.abort();
@@ -433,6 +431,40 @@ export function ImageWorkspace({
     setWorkspaceView("canvas");
     focusPrompt();
     notify(`“${inspiration.title}” is your new starting point.`);
+  }
+
+  /**
+   * A GPT Image 2 template: its prompt, with GPT Image 2 selected. Its sample
+   * photos become the references, unless the user already added their own,
+   * which the template then uses instead.
+   */
+  function applyTemplate(template: TemplateItem) {
+    if (!template.prompt) return;
+    const target = models?.find((candidate) => candidate.key === TEMPLATE_IMAGE_MODEL);
+    updateSettings({ prompt: template.prompt, model: target?.key ?? TEMPLATE_IMAGE_MODEL });
+    setWorkspaceView("canvas");
+    focusPrompt();
+    const samples = (template.referenceAssets ?? []).map((id) => landingAssets[id].image);
+    if (!samples.length) {
+      notify(`“${template.title}” is ready. Generate it, or change the prompt first.`);
+      return;
+    }
+    if (references.length) {
+      notify(`“${template.title}” is ready and will use your photo.`);
+      return;
+    }
+    templateLoad.current?.abort();
+    const controller = new AbortController();
+    templateLoad.current = controller;
+    localRequests.current.add(controller);
+    urlsAsFiles(samples.slice(0, target?.references?.max ?? samples.length), controller.signal, "template-sample")
+      .then((files) => uploadRef.current?.addFiles(files))
+      .then(() => notify(`“${template.title}” is ready. Swap the sample photo for your own, then generate.`))
+      .catch(() => {
+        if (!controller.signal.aborted)
+          notify("The template’s sample photo couldn’t load. Add your own photo instead.");
+      })
+      .finally(() => localRequests.current.delete(controller));
   }
 
   async function generate(event: FormEvent<HTMLFormElement>) {
@@ -680,6 +712,7 @@ export function ImageWorkspace({
             onFavorite={toggleFavorite}
             onDelete={deleteItems}
             onSelectInspiration={applyInspiration}
+            onSelectTemplate={applyTemplate}
           />
         </section>
 

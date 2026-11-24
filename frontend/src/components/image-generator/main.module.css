@@ -3450,6 +3450,12 @@
   margin-bottom: 32px;
 }
 
+.heading p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
 .heading h2 {
   margin: 0;
   color: var(--foreground);
@@ -3488,7 +3494,8 @@
   position: relative;
   display: block;
   min-width: 0;
-  height: 210px;
+  /* Shrinks as the prompt bar grows (a long template prompt, references), so the studio stays one screen. */
+  height: clamp(120px, calc(var(--image-canvas-height, 600px) - 140px), 210px);
   overflow: hidden;
   isolation: isolate;
   padding: 0;
@@ -3524,17 +3531,42 @@
   );
 }
 
-.category {
+.templateTag {
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 19px;
+  top: 12px;
+  left: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--media-ink) 55%, transparent);
+  color: var(--on-media-muted);
+  font-size: var(--fs-2xs);
+  backdrop-filter: blur(8px);
+}
+
+.templateCopy {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  display: grid;
+  gap: 5px;
+}
+
+.templateCopy strong {
   color: var(--on-media);
   font-family: var(--font-display), sans-serif;
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 500;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
   line-height: 1.2;
+}
+
+.templateCopy small {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--on-media-muted);
+  font-size: var(--fs-xs);
 }
 
 .templateArrow {
@@ -3584,17 +3616,17 @@
     height: 180px;
     border-radius: 10px;
   }
-  .category {
+  .templateCopy {
     left: 12px;
     right: 12px;
-    bottom: 15px;
-    font-size: 16px;
+    bottom: 12px;
   }
+  .templateCopy strong {
+    font-size: var(--fs-lg);
+  }
+  /* The tag needs the room; the whole card is the button anyway. */
   .templateArrow {
-    top: 12px;
-    right: 12px;
-    width: 15px;
-    height: 15px;
+    display: none;
   }
 }
 

@@ -136,6 +136,20 @@ export const modelPresentation: Readonly<Record<string, ModelPresentation>> = {
 /** The model the studio opens on: it offers every option (quality, resolution, references, count). */
 export const DEFAULT_IMAGE_MODEL = "gpt2_generate";
 
+/**
+ * The GPT Image 2 templates on the welcome screen, by id from
+ * `@/constants/image-templates`: one from a portrait, one personal keepsake,
+ * one product shot and one from words alone, so each kind of start is shown.
+ */
+export const welcomeTemplates: readonly { id: string; startsFrom: "photo" | "product" | "prompt" }[] = [
+  { id: "image-ghibli-portrait", startsFrom: "photo" },
+  { id: "image-collectible-figure", startsFrom: "photo" },
+  { id: "image-sneaker-launch", startsFrom: "product" },
+  { id: "image-tokyo-snowglobe", startsFrom: "prompt" },
+];
+/** Templates are written for GPT Image 2, so choosing one selects it. */
+export const TEMPLATE_IMAGE_MODEL = "gpt2_generate";
+
 export const defaultImageSettings: Readonly<ImageSettings> = {
   model: null,
   prompt: "",

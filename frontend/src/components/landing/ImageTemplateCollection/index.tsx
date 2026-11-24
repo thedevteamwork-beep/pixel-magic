@@ -1,6 +1,6 @@
 "use client";
 
-import { imageTemplates } from "@/components/landing/constants";
+import { imageTemplates } from "@/constants/image-templates";
 import { TemplateGrid } from "../TemplateGrid";
 import styles from "./main.module.css";
 

@@ -49,6 +49,7 @@ import { ImageWelcome } from "./ImageWelcome";
 import { ResultStage } from "./ResultStage";
 import { RunStrip } from "./RunStrip";
 import { cssAspectRatio } from "@/helpers/studio";
+import type { TemplateItem } from "@/types/landing";
 import { GenerationLoader } from "@/ui/GenerationLoader";
 import styles from "./main.module.css";
 
@@ -85,6 +86,8 @@ export type ImageResultsProps = {
   onFavorite: (id: string) => void;
   onDelete: (ids: readonly string[]) => void;
   onSelectInspiration: (id: string) => void;
+  /** A GPT Image 2 template from the welcome screen. */
+  onSelectTemplate: (template: TemplateItem) => void;
 };
 
 type LibraryTab = "all" | "favorites";
@@ -292,6 +295,7 @@ export function ImageResults({
   onFavorite,
   onDelete,
   onSelectInspiration,
+  onSelectTemplate,
 }: ImageResultsProps) {
   const [localView, setLocalView] = useState<"canvas" | "history">("canvas");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -625,7 +629,7 @@ export function ImageResults({
             ) : (
               <ImageWelcome
                 modelName={selectedModelName}
-                onSelectInspiration={selectInspiration}
+                onSelectTemplate={onSelectTemplate}
                 onExplore={() => setInspirationOpen(true)}
               />
             )}
