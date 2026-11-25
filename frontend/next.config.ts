@@ -14,8 +14,8 @@ const nextConfig: NextConfig = {
       new URL("https://static-public-media.higgsfield.ai/**"),
       {
         protocol: "https",
-        hostname: "ik.imagekit.io",
-        pathname: "/5orhh0msk/Templates/Videos/**",
+        hostname: "cdn.pixelbin.io",
+        pathname: "/v2/dummy-cloudname/original/input1/**",
       },
     ],
   },
