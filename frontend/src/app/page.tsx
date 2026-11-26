@@ -1,28 +1,31 @@
-import { CollectionBanners } from "@/components/landing/CollectionBanners";
+import { BeforeAfterShowcase } from "@/components/landing/BeforeAfterShowcase";
 import { CollectionShortcuts } from "@/components/landing/CollectionShortcuts";
+import { CommunityShowcase } from "@/components/landing/CommunityShowcase";
 import { ExploreBanner } from "@/components/landing/ExploreBanner";
 import { HeroShowcase } from "@/components/landing/HeroShowcase";
-import { ImageTemplateCollection } from "@/components/landing/ImageTemplateCollection";
-import { ModelDirectory } from "@/components/landing/ModelDirectory";
-import { MarketingCollection, SeedanceCollection } from "@/components/landing/StudioCollection";
+import { InfluencerShowcase } from "@/components/landing/InfluencerShowcase";
+import { MarketingShowcase } from "@/components/landing/MarketingShowcase";
+import { ModelMarquee } from "@/components/landing/ModelMarquee";
+import { StudioCarousel } from "@/components/landing/StudioCarousel";
 import { DiscoveryGallery } from "@/components/landing/TemplateDiscovery";
-import { ToolCarousel } from "@/components/landing/ToolCarousel";
-import { templateModels } from "@/components/landing/constants";
 
-/** Static page composition; client boundaries are limited to interactions. */
+/**
+ * The home page, top to bottom. Each section is its own component in `components/landing/`, with its words and
+ * pictures in `components/landing/constants.ts`: reorder, remove or swap a section here.
+ */
 export default function Home() {
   return (
     <main id="main-content" className="page-container" tabIndex={-1}>
       <div id="top" aria-hidden="true" />
-      <ToolCarousel />
+      <StudioCarousel />
       <HeroShowcase />
       <CollectionShortcuts />
       <DiscoveryGallery />
-      <MarketingCollection />
-      <CollectionBanners />
-      <SeedanceCollection />
-      <ImageTemplateCollection />
-      <ModelDirectory models={templateModels} />
+      <BeforeAfterShowcase />
+      <MarketingShowcase />
+      <InfluencerShowcase />
+      <ModelMarquee />
+      <CommunityShowcase />
       <ExploreBanner />
     </main>
   );

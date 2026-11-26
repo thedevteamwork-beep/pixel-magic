@@ -1,203 +1,119 @@
 "use client";
 
-import { ArrowUpRight, Pause, Play, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { landingAssets } from "@/constants/landing-media";
-import type { MediaId } from "@/types/landing";
-import { LandingMedia } from "../LandingMedia";
-import { useLandingMotion } from "../LandingProvider";
-import { Modal } from "@/ui/Modal";
+import { Sparkles } from "lucide-react";
+import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { heroChapters, heroCopy, reelScenes } from "@/components/landing/constants";
+import { useAutoAdvance } from "@/lib/landing/useAutoAdvance";
+import { ActionPill } from "../ActionPill";
+import { useLandingMotion, useTemplateFilters } from "../LandingProvider";
+import { ChapterTabs } from "./ChapterTabs";
+import { HeroBackdrop } from "./HeroBackdrop";
+import { ReelDialog } from "./ReelDialog";
 import styles from "./main.module.css";
 
-const chapters = [
-  {
-    id: "cinema",
-    label: "Cinema",
-    asset: "desert",
-    title: "Make something",
-    emphasis: "worth stopping for.",
-    description:
-      "Films with a feeling. Images with a point of view. Discover something that makes you want to make something.",
-    target: "#templates",
-    caption: "A little perspective changes everything.",
-  },
-  {
-    id: "imagery",
-    label: "Imagery",
-    asset: "flowers",
-    title: "Some ideas deserve",
-    emphasis: "to be seen.",
-    description:
-      "Expressive portraits, unexpected objects, and a whole different point of view. Find your next visual obsession.",
-    target: "#gpt-image-2",
-    caption: "The everyday, seen a little differently.",
-  },
-  {
-    id: "campaigns",
-    label: "Campaigns",
-    asset: "product",
-    title: "Turn a product",
-    emphasis: "into a feeling.",
-    description:
-      "Discover campaign looks with a little more character. Your next creative direction is waiting in the collection.",
-    target: "#marketing",
-    caption: "Made to make an impression.",
-  },
-] as const satisfies readonly {
-  id: string;
-  label: string;
-  asset: MediaId;
-  title: string;
-  emphasis: string;
-  description: string;
-  target: string;
-  caption: string;
-}[];
-
-const reelScenes = [
-  { asset: "desert", label: "Open roads" },
-  { asset: "ocean", label: "Ocean reverie" },
-  { asset: "portrait", label: "After hours" },
-  { asset: "product", label: "Objects of desire" },
-] as const;
-
-type ReelAsset = (typeof reelScenes)[number]["asset"];
-
+/**
+ * The featured banner. Its chapters switch the film behind and the headline every few seconds, pausing while the
+ * pointer rests on it. The film drifts a little with the pointer, under a soft glow that follows it.
+ */
 export function HeroShowcase() {
-  const [chapterIndex, setChapterIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
   const [reelOpen, setReelOpen] = useState(false);
-  const [reelAsset, setReelAsset] = useState<ReelAsset>("desert");
-  const reelRef = useRef<HTMLVideoElement>(null);
+  const [reelIndex, setReelIndex] = useState(0);
   const { motionEnabled } = useLandingMotion();
-  const chapter = chapters[chapterIndex];
-  const hasVideo = Boolean(landingAssets[chapter.asset].video);
+  const { setFilters } = useTemplateFilters();
+  const chapters = useAutoAdvance(heroChapters.length, heroCopy.chapterMs, motionEnabled && !reelOpen);
+  const chapter = heroChapters[chapters.index];
 
-  useEffect(() => {
-    if (!motionEnabled) reelRef.current?.pause();
-  }, [motionEnabled]);
+  function follow(event: PointerEvent<HTMLElement>) {
+    const hero = heroRef.current;
+    if (!hero || event.pointerType !== "mouse") return;
+    const bounds = hero.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width;
+    const y = (event.clientY - bounds.top) / bounds.height;
+    hero.style.setProperty("--spot-x", `${x * 100}%`);
+    hero.style.setProperty("--spot-y", `${y * 100}%`);
+    if (motionEnabled) {
+      hero.style.setProperty("--drift-x", `${(0.5 - x) * 18}px`);
+      hero.style.setProperty("--drift-y", `${(0.5 - y) * 12}px`);
+    }
+  }
+
+  function settle() {
+    heroRef.current?.style.setProperty("--drift-x", "0px");
+    heroRef.current?.style.setProperty("--drift-y", "0px");
+    chapters.release();
+  }
 
   function openReel() {
-    const matchingScene = reelScenes.find((scene) => scene.asset === chapter.asset);
-    setReelAsset(matchingScene?.asset ?? "desert");
+    const match = reelScenes.findIndex((scene) => scene.asset === chapter.backdrop.asset);
+    setReelIndex(match === -1 ? 0 : match);
     setReelOpen(true);
   }
 
   return (
     <>
-      <section className={styles.hero} aria-labelledby="hero-title" id="showcase">
-        <div className={styles.backdrop}>
-          <LandingMedia
-            key={chapter.asset}
-            asset={chapter.asset}
-            behavior={paused || reelOpen ? "still" : "ambient"}
-            priority
-            sizes="(min-width: 1660px) 1580px, 100vw"
-          />
-        </div>
+      <section
+        ref={heroRef}
+        className={styles.hero}
+        id="showcase"
+        aria-labelledby="hero-title"
+        style={{ "--chapter-ms": `${heroCopy.chapterMs}ms` } as CSSProperties}
+        onPointerEnter={(event) => event.pointerType === "mouse" && chapters.hold()}
+        onPointerMove={follow}
+        onPointerLeave={settle}
+      >
+        <HeroBackdrop chapters={heroChapters} activeIndex={chapters.index} paused={reelOpen} />
+        <span className={styles.spotlight} aria-hidden="true" />
 
-        <div className={styles.topline}>
-          <span className={styles.signature}>
-            <Sparkles size={14} aria-hidden="true" />
-            Pixel Magic / The original edit
-          </span>
-          <span className={styles.edition}>Curated · Vol. 01</span>
-        </div>
+        <div className={styles.inner}>
+          <div className={styles.topline}>
+            <span className={styles.signature}>
+              <Sparkles size={13} aria-hidden="true" />
+              {heroCopy.signature}
+            </span>
+            <span className={styles.edition}>{heroCopy.edition}</span>
+          </div>
 
-        <div className={styles.copy}>
-          <h1 id="hero-title" className={styles.title}>
-            {chapter.title}
-            <br />
-            <em>{chapter.emphasis}</em>
+          {/* Keyed by chapter, so each headline rises in line by line. */}
+          <h1 id="hero-title" className={styles.title} key={chapter.id}>
+            <span className={styles.line}>
+              <span>{chapter.heading.title}</span>
+            </span>
+            <span className={styles.line}>
+              <em>{chapter.heading.accent}</em>
+            </span>
           </h1>
           <p className={styles.description}>{chapter.description}</p>
-          <div className={styles.actions}>
-            <a className="button-primary" href={chapter.target}>
-              Explore the collection
-              <ArrowUpRight size={17} aria-hidden="true" />
-            </a>
-            <button className={styles.reelTrigger} type="button" onClick={openReel}>
-              <Play size={15} aria-hidden="true" />
-              Watch the reel
-            </button>
-          </div>
-        </div>
 
-        <div className={styles.bottomline}>
-          <div className={styles.chapters} role="group" aria-label="Showcase chapters">
-            {chapters.map((item, index) => (
-              <button
-                type="button"
-                key={item.id}
-                aria-pressed={index === chapterIndex}
-                onClick={() => {
-                  setChapterIndex(index);
-                  setPaused(false);
-                }}
-              >
-                <span className={styles.chapterNumber} aria-hidden="true">
-                  0{index + 1}
-                </span>
-                {item.label}
-              </button>
-            ))}
+          <div className={styles.actions}>
+            <ActionPill href="#templates" onClick={() => setFilters(chapter.filters)}>
+              Explore the collection
+            </ActionPill>
+            <ActionPill variant="glass" onClick={openReel}>
+              Watch the reel
+            </ActionPill>
           </div>
-          <div className={styles.filmControls}>
-            <span className={styles.caption}>{chapter.caption}</span>
-            {hasVideo && (
-              <button
-                className={styles.pause}
-                type="button"
-                aria-label={paused || !motionEnabled ? "Play featured film" : "Pause featured film"}
-                aria-pressed={paused}
-                disabled={!motionEnabled}
-                title={!motionEnabled ? "Motion previews are paused" : undefined}
-                onClick={() => setPaused((value) => !value)}
-              >
-                {paused || !motionEnabled ? (
-                  <Play size={15} aria-hidden="true" />
-                ) : (
-                  <Pause size={15} aria-hidden="true" />
-                )}
-              </button>
-            )}
+
+          <div className={styles.bottom}>
+            <ChapterTabs
+              chapters={heroChapters}
+              activeIndex={chapters.index}
+              runKey={chapters.runKey}
+              running={chapters.running}
+              onSelect={chapters.go}
+            />
+            <span className={styles.caption}>{heroCopy.caption}</span>
           </div>
         </div>
       </section>
 
-      <Modal open={reelOpen} onClose={() => setReelOpen(false)} title="Pixel Magic / The showreel">
-        {reelOpen && (
-          <>
-            <video
-              key={reelAsset}
-              ref={reelRef}
-              className={styles.reelPlayer}
-              src={landingAssets[reelAsset].video}
-              poster={landingAssets[reelAsset].image}
-              controls
-              autoPlay={motionEnabled}
-              muted
-              playsInline
-              loop
-              preload="metadata"
-              aria-label={`${reelScenes.find((scene) => scene.asset === reelAsset)?.label} showcase film`}
-            />
-            <div className={styles.reelScenes} role="group" aria-label="Showreel scenes">
-              {reelScenes.map((scene, index) => (
-                <button
-                  key={scene.asset}
-                  type="button"
-                  aria-pressed={reelAsset === scene.asset}
-                  onClick={() => setReelAsset(scene.asset)}
-                >
-                  <span aria-hidden="true">0{index + 1}</span>
-                  {scene.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </Modal>
+      <ReelDialog
+        open={reelOpen}
+        sceneIndex={reelIndex}
+        autoPlay={motionEnabled}
+        onSelect={setReelIndex}
+        onClose={() => setReelOpen(false)}
+      />
     </>
   );
 }

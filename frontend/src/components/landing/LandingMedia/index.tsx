@@ -34,6 +34,8 @@ type LandingMediaProps = {
   className?: string;
   sizes?: string;
   filter?: string;
+  /** Which part of the image stays in view when the box crops it; overrides the asset's own. */
+  objectPosition?: string;
 };
 
 export function LandingMedia({
@@ -45,6 +47,7 @@ export function LandingMedia({
   className = "",
   sizes = "(max-width: 600px) 50vw, 25vw",
   filter,
+  objectPosition,
 }: LandingMediaProps) {
   const media = templateAsset(asset);
   const { motionEnabled } = useLandingMotion();
@@ -54,6 +57,7 @@ export function LandingMedia({
   const [mounted, setMounted] = useState(false);
   const [readyAsset, setReadyAsset] = useState<TemplateMediaId>();
   const ready = readyAsset === asset;
+  const position = objectPosition ?? media.objectPosition;
   const hasClip = !!media.video && behavior !== "still";
   const shouldPlay =
     hasClip && motionEnabled && visible && (behavior === "ambient" || (behavior === "hover" && active));
@@ -89,7 +93,7 @@ export function LandingMedia({
             loading: priority ? "eager" : "lazy",
             fetchPriority: priority ? "high" : undefined,
             className: styles.image,
-            style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
+            style: position ? { objectPosition: position } : undefined,
           }}
         />
       )}
@@ -106,6 +110,7 @@ export function LandingMedia({
           aria-hidden="true"
           tabIndex={-1}
           className={`${styles.video} ${ready ? styles.visible : ""}`}
+          style={position ? { objectPosition: position } : undefined}
           onLoadedData={() => setReadyAsset(asset)}
           onError={() => setReadyAsset(undefined)}
         />

@@ -1,0 +1,50 @@
+.box {
+  position: relative;
+}
+
+.box[data-expanded="false"] {
+  max-height: var(--fade-max);
+  overflow: hidden;
+}
+
+.box[data-expanded="false"]::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 380px;
+  content: "";
+  background: linear-gradient(
+    to top,
+    var(--background) 22%,
+    color-mix(in srgb, var(--background) 82%, transparent) 52%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.cta {
+  display: flex;
+  position: absolute;
+  right: 0;
+  bottom: 60px;
+  left: 0;
+  z-index: 3;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.cta p {
+  margin: 0;
+  color: var(--subtle);
+  font-size: var(--fs-base);
+}
+
+@media (max-width: 720px) {
+  .box[data-expanded="false"] {
+    max-height: calc(var(--fade-max) * 0.78);
+  }
+}

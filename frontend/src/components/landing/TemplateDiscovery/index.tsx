@@ -1,116 +1,73 @@
 "use client";
 
-import { ArrowDown, ArrowUpRight, ChevronDown, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 import { useMemo, useState } from "react";
-import { discoveryTemplates, templateModels } from "@/components/landing/constants";
-import type { TemplateCategory } from "@/types/landing";
+import { allTemplates, discoveryTemplates, templateSection, templateTabs } from "@/components/landing/constants";
+import { ActionPill } from "../ActionPill";
+import { FadeEnding } from "../FadeEnding";
 import { useTemplateFilters } from "../LandingProvider";
+import { PillTabs } from "../PillTabs";
+import { SectionIntro } from "../SectionIntro";
 import { TemplateGrid } from "../TemplateGrid";
 import styles from "./main.module.css";
 
-const categories: readonly { key: TemplateCategory; label: string }[] = [
-  { key: "all", label: "For you" },
-  { key: "video", label: "Video" },
-  { key: "image", label: "Image" },
-  { key: "marketing", label: "Ads" },
-  { key: "portraits", label: "Portraits" },
-];
+const videoTemplates = discoveryTemplates.filter((item) => item.mediaType === "video");
 
+/** The video template gallery: tabs, then a masonry grid that fades out under "Explore all templates". */
 export function DiscoveryGallery() {
   const { filters, setFilters } = useTemplateFilters();
   const [expanded, setExpanded] = useState(false);
+  // Links elsewhere may ask for "video" or "image"; anything that isn't a tab here shows every video.
+  const category = templateTabs.some((tab) => tab.key === filters.category) ? filters.category : "all";
   const filtered = useMemo(
     () =>
-      discoveryTemplates.filter(
+      videoTemplates.filter(
         (item) =>
-          (filters.category === "all" || item.categories.includes(filters.category)) &&
+          (category === "all" || item.categories.includes(category)) &&
           (filters.model === "all" || item.model === filters.model),
       ),
-    [filters.category, filters.model],
+    [category, filters.model],
   );
-  const shown = expanded ? filtered : filtered.slice(0, 10);
-
-  function showAll() {
-    setFilters({ category: "all", model: "all" });
-    setExpanded(true);
-  }
+  const collapsed = !expanded && filtered.length > templateSection.previewCount;
+  const shown = collapsed ? filtered.slice(0, templateSection.previewCount) : filtered;
 
   return (
     <section className={`landing-section ${styles.section}`} id="templates" aria-labelledby="templates-heading">
-      <div className={styles.heading}>
-        <div>
-          <p className="section-eyebrow">Trending video templates</p>
-          <h2 className="section-title" id="templates-heading">
-            Start with a spark.
-          </h2>
-          <p className="section-description">A look you love. Your face, your product, your story.</p>
-        </div>
-        <button className={styles.textButton} type="button" onClick={showAll}>
-          Explore all templates <ArrowUpRight size={16} />
-        </button>
-      </div>
-
-      <div className={styles.filters}>
-        <div className={styles.categories} role="group" aria-label="Template category">
-          {categories.map(({ key, label }) => (
-            <button
-              type="button"
-              key={key}
-              aria-pressed={filters.category === key}
-              onClick={() => {
-                setFilters({ ...filters, category: key });
-                setExpanded(false);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className={styles.modelFilter}>
-          <span className={styles.srOnly}>Filter templates by model</span>
-          <select
-            value={filters.model}
-            onChange={(event) => {
-              setFilters({ ...filters, model: event.target.value });
-              setExpanded(false);
-            }}
-          >
-            <option value="all">All models</option>
-            {templateModels.map((model) => (
-              <option key={model.name} value={model.name}>
-                {model.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} aria-hidden="true" />
-        </label>
+      <SectionIntro
+        eyebrow={templateSection.eyebrow}
+        heading={templateSection.heading}
+        description={templateSection.description}
+        headingId="templates-heading"
+      />
+      <div className={styles.toolbar}>
+        <PillTabs
+          label="Video template category"
+          options={templateTabs}
+          value={category}
+          onChange={(category) => {
+            setFilters({ category, model: "all" });
+            setExpanded(false);
+          }}
+        />
       </div>
 
       {shown.length ? (
-        <TemplateGrid items={shown} label="Discover template previews" />
+        <FadeEnding
+          expanded={!collapsed}
+          maxHeight={1180}
+          note={templateSection.fadeNote}
+          action={<ActionPill onClick={() => setExpanded(true)}>Explore all templates</ActionPill>}
+        >
+          <TemplateGrid items={shown} label="Video template previews" />
+        </FadeEnding>
       ) : (
         <div className={styles.empty}>
           <SearchX size={28} aria-hidden="true" />
           <h3>A different direction?</h3>
-          <p>There are no looks in this combination yet. Explore another model or the full collection.</p>
-          <button className="button-secondary" type="button" onClick={showAll}>
-            Show all templates <ArrowUpRight size={15} />
-          </button>
+          <p>There are no looks in this combination yet. Try another category or the full collection.</p>
+          <ActionPill onClick={() => setFilters(allTemplates)}>Show all templates</ActionPill>
         </div>
       )}
-
-      <div className={styles.footer}>
-        <p className={styles.count} aria-live="polite" aria-atomic="true">
-          {shown.length === filtered.length
-            ? `${filtered.length} curated ${filtered.length === 1 ? "look" : "looks"}`
-            : `${shown.length} of ${filtered.length} curated looks`}
-        </p>
-        {!expanded && filtered.length > shown.length && (
-          <button className={styles.textButton} type="button" onClick={() => setExpanded(true)}>
-            Keep exploring <ArrowDown size={14} />
-          </button>
-        )}
-      </div>
     </section>
   );
 }

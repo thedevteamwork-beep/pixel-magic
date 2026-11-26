@@ -1,0 +1,110 @@
+.section {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  align-items: center;
+  gap: 56px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 30px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px 12px 12px;
+  border: 0;
+  border-radius: var(--radius-panel);
+  color: var(--foreground);
+  text-align: left;
+  background: none;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.item:hover {
+  background: var(--surface);
+}
+
+.item[aria-pressed="true"] {
+  background: var(--surface-raised);
+}
+
+.thumb {
+  display: block;
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+}
+
+.itemText b {
+  display: block;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.itemText small {
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+.bar {
+  display: block;
+  flex: none;
+  width: 34px;
+  height: 3px;
+  margin-left: auto;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--gray-800);
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: fill var(--pair-ms, 5s) linear forwards paused;
+}
+
+.bar i[data-running="true"] {
+  animation-play-state: running;
+}
+
+.stage {
+  position: relative;
+  aspect-ratio: 5 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+}
+
+@keyframes fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 1100px) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar i {
+    animation: none;
+  }
+}

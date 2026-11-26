@@ -1,0 +1,23 @@
+.slides {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+.slide {
+  display: block;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.slide[data-active="true"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    transition: none;
+  }
+}

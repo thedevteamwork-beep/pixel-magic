@@ -1,23 +1,20 @@
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { finalSection, mosaicAssets } from "@/components/landing/constants";
+import { AccentHeading } from "../AccentHeading";
+import { ActionPill } from "../ActionPill";
+import { Mosaic } from "./Mosaic";
 import styles from "./main.module.css";
 
+/** The closing banner: one last invitation, over a slowly drifting wall of results. */
 export function ExploreBanner() {
   return (
-    <section className={`landing-section ${styles.finalBanner}`} aria-labelledby="explore-title">
-      <div>
-        <p className={styles.finalEyebrow}>
-          <Sparkles size={14} aria-hidden="true" /> A little idea. A whole lot of possibility.
-        </p>
-        <h2 id="explore-title">
-          Your next “how did you make that?”
-          <br />
-          <em>starts right here.</em>
-        </h2>
-        <p>Find something that sparks something.</p>
+    <section className={`landing-section ${styles.banner}`} aria-labelledby="explore-title">
+      <Mosaic assets={mosaicAssets} />
+      <div className={styles.content}>
+        <p className="section-eyebrow">{finalSection.eyebrow}</p>
+        <AccentHeading heading={finalSection.heading} id="explore-title" className={styles.title} />
+        <p className={styles.description}>{finalSection.description}</p>
+        <ActionPill href={finalSection.cta.href}>{finalSection.cta.label}</ActionPill>
       </div>
-      <a href="#templates">
-        Explore the templates <ArrowUpRight size={19} aria-hidden="true" />
-      </a>
     </section>
   );
 }

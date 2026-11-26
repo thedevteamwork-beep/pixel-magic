@@ -116,69 +116,74 @@ export const defaultVideoSettings: Readonly<VideoSettings> = {
 
 export const videoInspirations: readonly VideoInspiration[] = [
   {
-    id: "desert-drive",
-    title: "Somewhere in between",
-    category: "Cinematic",
-    asset: "desert",
-    aspectRatio: "21:9",
+    id: "firefly-promise",
+    title: "Firefly promise",
+    category: "Fantasy",
+    asset: "fairyWorldFilm",
+    aspectRatio: "9:16",
     duration: 10,
     prompt:
-      "A vintage car crossing terracotta-orange desert dunes at golden hour, a long trail of dust catching the low sun, violet mountains on the horizon. A slow crane shot rises above the scene, cinematic and quiet.",
+      "A little girl and a red fox sit together on a mossy ledge in an enchanted forest at night. Fireflies drift up around them, glowing mushrooms light the roots, and the camera slowly pushes in. Warm, magical light.",
   },
   {
-    id: "ocean-aerial",
-    title: "A little out of office",
-    category: "Travel",
-    asset: "ocean",
+    id: "titan-rises",
+    title: "The titan rises",
+    category: "Sci-fi",
+    asset: "mechaWarFilm",
+    aspectRatio: "9:16",
+    duration: 10,
+    prompt:
+      "A towering battle mech rises from a smoking crater on a violet alien battlefield. Its reactor vents glow orange and its arm cannons unfold as a swarm of creatures charges through green mist. Epic low-angle shot.",
+  },
+  {
+    id: "derby-winner",
+    title: "Derby winner",
+    category: "Sport",
+    asset: "manchesterDerbyFilm",
     aspectRatio: "16:9",
     duration: 5,
     prompt:
-      "A fast, low FPV drone flight over turquoise waves rolling onto a sunlit shoreline, white foam patterns, crystal-clear water, bright natural light.",
+      "A striker volleys the winning goal in a packed night stadium. Floodlights flare, the crowd erupts, and a slow-motion tracking shot follows the ball into the net.",
   },
   {
-    id: "neon-portrait",
-    title: "After the last light",
-    category: "Portrait",
-    asset: "portrait",
-    aspectRatio: "9:16",
+    id: "rainy-city-vlog",
+    title: "Rainy city vlog",
+    category: "Vlog",
+    asset: "cityVlogFilm",
+    aspectRatio: "16:9",
     duration: 5,
     prompt:
-      "An adult woman with curly dark hair slowly turns toward the camera and smiles as the camera gently pushes in, magenta and cyan neon light washing across her face, deep purple background.",
+      "A young woman walks down a rain-soaked city street while texting, reflections shimmering on the wet pavement. Handheld, vlog-style tracking shot with soft overcast light.",
   },
   {
-    id: "perfume-turn",
-    title: "Objects of affection",
+    id: "glow-mask",
+    title: "Glow mask",
     category: "Product",
-    asset: "product",
-    aspectRatio: "1:1",
+    asset: "maskTiktokFilm",
+    aspectRatio: "9:16",
     duration: 5,
     prompt:
-      "The camera orbits a sculptural glass perfume bottle with amber fragrance on a travertine pedestal, soft olive-leaf shadows drifting across a beige plaster wall, light catching the glass.",
+      "In a bright vanity bathroom, a woman holds up a glowing red LED face mask and smiles at the camera. Soft beauty lighting, social-media style close-up.",
   },
   {
-    id: "tide-loop",
-    title: "The slow hours",
-    category: "Ambient",
-    asset: "ocean",
-    aspectRatio: "9:16",
-    duration: 10,
-    prompt:
-      "Gentle waves washing over smooth sand in a seamless, calm loop from a locked-off camera, soft afternoon light, peaceful and meditative.",
-  },
-  {
-    id: "dune-reveal",
-    title: "Edge of the map",
-    category: "Landscape",
-    asset: "desert",
+    id: "candlelight",
+    title: "By candlelight",
+    category: "Cinematic",
+    asset: "aureliaEscapeFilm",
     aspectRatio: "16:9",
     duration: 10,
     prompt:
-      "A lone figure standing on a dune ridge at sunset; the camera pulls back to reveal an endless sea of sand under a peach sky.",
+      "Two lovers embrace by candlelight in a stone chamber. The mood turns tense as she senses danger and steps back, hand on her sword. Flickering shadows, slow dolly-in, high-end fantasy realism.",
   },
 ];
 
 /** Sample clips available to the preview; keyed by media id so posters stay in sync. */
-export const videoSampleAssets: readonly MediaId[] = ["desert", "ocean", "portrait", "product"];
+export const videoSampleAssets: readonly MediaId[] = [
+  "fairyWorldFilm",
+  "mechaWarFilm",
+  "manchesterDerbyFilm",
+  "maskTiktokFilm",
+];
 
 export const VIDEO_POLL_INTERVAL_MS = 5_000;
 /** Past this the studio stops waiting on a render; it still finishes and appears in the feed later. */

@@ -86,83 +86,104 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     alt: "Identity reference image for the Paper world fashion film protagonist",
   },
   manchesterDerbyFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
     aspectRatio: 3 / 2,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/video.mp4?updatedAt=1795531258451",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/video.mp4?updatedAt=1795531258451",
     alt: "A cinematic Manchester derby volley beneath Old Trafford floodlights",
   },
   manchesterDerbyCharacter: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref1.png?updatedAt=1795531280817",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref1.png?updatedAt=1795531280817",
     aspectRatio: 3 / 2,
     alt: "Sultan, Manchester United number 10, character and kit reference sheet",
   },
   manchesterDerbyBall: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref2.png?updatedAt=1795531291860",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref2.png?updatedAt=1795531291860",
     aspectRatio: 3 / 2,
     alt: "Official match ball design reference",
   },
   manchesterDerbyStadium: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/manchester-derby/ref3.png?updatedAt=1795531305851",
     aspectRatio: 3 / 2,
     alt: "Old Trafford stadium reference sheet",
   },
   aureliaEscapeFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
     aspectRatio: 3 / 2,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/video.mp4?updatedAt=1795534338222",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/video.mp4?updatedAt=1795534338222",
     alt: "Aurelia senses danger in a candlelit medieval room and reaches for her sword",
   },
   aureliaEscapeReference: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/ref1.png?updatedAt=1795534390287",
     aspectRatio: 3 / 2,
     alt: "Aurelia character reference",
   },
   forestRescueFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
     aspectRatio: 3 / 2,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/video.mp4?updatedAt=1795535126560",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/video.mp4?updatedAt=1795535126560",
     alt: "A monkey protects a baby in a lush tropical forest",
   },
   forestRescueReference: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/forest-view/ref1.png?updatedAt=1795535197063",
     aspectRatio: 3 / 2,
     alt: "Tropical forest rescue scene reference",
   },
   julietteYoYoFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
     aspectRatio: 3 / 2,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/video.mp4?updatedAt=1795536483166",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/video.mp4?updatedAt=1795536483166",
     alt: "Juliette performs high-speed yo-yo tricks in a crimson-lit industrial hall",
   },
   julietteCharacterReference: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref1.png?updatedAt=1795536619184",
     aspectRatio: 3 / 2,
     alt: "Juliette character reference",
   },
   julietteKeyframes: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref2.png?updatedAt=1795536683489",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/anime-girl/ref2.png?updatedAt=1795536683489",
     aspectRatio: 3 / 2,
     alt: "Sequential cinematic keyframe reference for Juliette's yo-yo performance",
   },
   fairyWorldFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
     aspectRatio: 3 / 2,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/video.mp4?updatedAt=1795537646348",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/video.mp4?updatedAt=1795537646348",
     alt: "A fairy-like girl and a small fox share a quiet moment above an enchanted forest",
   },
   fairyWorldReference: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/fairy-world/ref1.png?updatedAt=1795537704414",
     aspectRatio: 3 / 2,
     alt: "Fairy girl and fox character reference in an enchanted forest",
   },
   cityVlogFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/image.webp?updatedAt=1795534346216",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/image.webp?updatedAt=1795534346216",
     aspectRatio: 16 / 9,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/video.mp4?updatedAt=1795534250403",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/video.mp4?updatedAt=1795534250403",
     alt: "A one-day city travel vlog: breakfast, metro, rain and a rooftop view at golden hour",
   },
   cityVlogCharacter: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/image.webp?updatedAt=1795534346216",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/girl-riding-cycle/image.webp?updatedAt=1795534346216",
     aspectRatio: 3 / 4,
     alt: "Full-body reference of a young woman in burgundy glasses, a navy graphic T-shirt, gray cargo pants and a plaid backpack",
   },
@@ -178,23 +199,28 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     alt: "Close-up and full-body reference of a woman with a high black ponytail, silver collar necklace and green mesh top",
   },
   maskTiktokFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1.png",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1.png",
     aspectRatio: 9 / 16,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/02178155548441800000000000000000000ffffc0a8712ae47537.mp4",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/02178155548441800000000000000000000ffffc0a8712ae47537.mp4",
     alt: "A woman in a white tank puts on a glowing red LED face mask in a warm bathroom and shows off her skin",
   },
   maskTiktokModelA: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1.png",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1.png",
     aspectRatio: 4 / 5,
     alt: "Model reference: a woman with a claw clip holding a glowing LED face mask",
   },
   maskTiktokModelB: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1(1).png",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1(1).png",
     aspectRatio: 4 / 5,
     alt: "Model reference: a woman with a claw clip tapping her cheek beside a glowing LED face mask",
   },
   maskTiktokMaskA: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1(2).png",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/tiktok-girl-with-mask/gpt-image-2-1(2).png",
     aspectRatio: 4 / 5,
     alt: "Product reference: a glowing red LED face mask on a marble vanity",
   },
@@ -204,20 +230,24 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
     alt: "Product reference: a glowing red LED face mask among skincare bottles and a candle",
   },
   stadiumCamFilm: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/0bd0dac4f73598b70f4b87a58e1b0345_1775665887837_b34d590f.jpg",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/0bd0dac4f73598b70f4b87a58e1b0345_1775665887837_b34d590f.jpg",
     aspectRatio: 16 / 9,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/02177864445026500000000000000000000ffffc0a8b51c839c22.mp4",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/02177864445026500000000000000000000ffffc0a8b51c839c22.mp4",
     alt: "A fan spotted on the stadium big screen vaults the railing and scores a top-corner goal in heels",
   },
   stadiumCamCharacter: {
-    image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/0bd0dac4f73598b70f4b87a58e1b0345_1775665887837_b34d590f.jpg",
+    image:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/stadium-live-girl/0bd0dac4f73598b70f4b87a58e1b0345_1775665887837_b34d590f.jpg",
     aspectRatio: 735 / 900,
     alt: "Identity reference: a dark-haired woman in a white ribbed tank top with arm tattoos",
   },
   mechaWarFilm: {
     image: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/dragons-war/0.png",
     aspectRatio: 1672 / 941,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/dragons-war/02177878124737000000000000000000000ffffc0a8845bacc0ad.mp4",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/dragons-war/02177878124737000000000000000000000ffffc0a8845bacc0ad.mp4",
     alt: "A giant mech rises from a crater and opens fire on an alien swarm under a violet storm sky",
   },
   mechaWarBattlefield: {
@@ -248,27 +278,72 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
   },
   templateGhibli: { ...bundled(templateGhibli), alt: "Hand-painted fantasy animation portrait in a glowing forest" },
   templateGhibliDuo: { ...bundled(templateGhibliDuo), alt: "Two friends in a hand-painted fantasy forest" },
-  templateGhibliSky: { ...bundled(templateGhibliSky), alt: "A dark-haired traveler flying above a magical seaside town" },
+  templateGhibliSky: {
+    ...bundled(templateGhibliSky),
+    alt: "A dark-haired traveler flying above a magical seaside town",
+  },
   templateManRef: { ...bundled(templateManRef), alt: "Male portrait reference for a personalized Jaipur travel photo" },
-  templateWomanRef: { ...bundled(templateWomanRef), alt: "Portrait reference of a dark-haired woman for a fantasy adventure" },
-  templateJaipur: { ...bundled(templateJaipur), alt: "Photorealistic portrait of a man in front of Jaipur's Hawa Mahal" },
-  templateProductHero: { ...bundled(templateProductHero), alt: "Premium serum bottle in a luxury clean-beauty campaign" },
-  templateProductRef: { ...bundled(templateProductRef), alt: "Neutral product reference photo of an amber serum bottle" },
-  templateFashionAfterdark: { ...bundled(templateFashionAfterdark), alt: "Black satin evening fashion portrait on a city rooftop", objectPosition: "center 12%" },
-  templateFashionResort: { ...bundled(templateFashionResort), alt: "Elegant teal resort fashion portrait at sunset", objectPosition: "center 12%" },
-  templateFashionCrimson: { ...bundled(templateFashionCrimson), alt: "Crimson evening gown in a dramatic hotel corridor", objectPosition: "center 12%" },
+  templateWomanRef: {
+    ...bundled(templateWomanRef),
+    alt: "Portrait reference of a dark-haired woman for a fantasy adventure",
+  },
+  templateJaipur: {
+    ...bundled(templateJaipur),
+    alt: "Photorealistic portrait of a man in front of Jaipur's Hawa Mahal",
+  },
+  templateProductHero: {
+    ...bundled(templateProductHero),
+    alt: "Premium serum bottle in a luxury clean-beauty campaign",
+  },
+  templateProductRef: {
+    ...bundled(templateProductRef),
+    alt: "Neutral product reference photo of an amber serum bottle",
+  },
+  templateFashionAfterdark: {
+    ...bundled(templateFashionAfterdark),
+    alt: "Black satin evening fashion portrait on a city rooftop",
+    objectPosition: "center 12%",
+  },
+  templateFashionResort: {
+    ...bundled(templateFashionResort),
+    alt: "Elegant teal resort fashion portrait at sunset",
+    objectPosition: "center 12%",
+  },
+  templateFashionCrimson: {
+    ...bundled(templateFashionCrimson),
+    alt: "Crimson evening gown in a dramatic hotel corridor",
+    objectPosition: "center 12%",
+  },
   templateFashionChrome: { ...bundled(templateFashionChrome), alt: "Futuristic silver fashion editorial portrait" },
-  templateMakeupSoftglam: { ...bundled(templateMakeupSoftglam), alt: "Soft glam makeup transformation with bronze eyes and rose gloss" },
+  templateMakeupSoftglam: {
+    ...bundled(templateMakeupSoftglam),
+    alt: "Soft glam makeup transformation with bronze eyes and rose gloss",
+  },
   templateRooftopAfterglow: {
     ...bundled(templateRooftopAfterglow),
     alt: "South Asian fashion model in a coral silk blouse at sunset",
     objectPosition: "center 12%",
   },
-  templateAfterdarkRef: { ...bundled(templateAfterdarkRef), alt: "Portrait reference of an adult Black woman with natural coils" },
-  templateResortRef: { ...bundled(templateResortRef), alt: "Portrait reference of an adult East Asian woman with a black bob" },
-  templateCrimsonRef: { ...bundled(templateCrimsonRef), alt: "Portrait reference of an adult South Asian woman with dark waves" },
-  templateChromeRef: { ...bundled(templateChromeRef), alt: "Portrait reference of an adult red-haired woman with freckles" },
-  templateMakeupBlackRef: { ...bundled(templateMakeupBlackRef), alt: "Bare-face portrait reference of an adult Black woman with braids" },
+  templateAfterdarkRef: {
+    ...bundled(templateAfterdarkRef),
+    alt: "Portrait reference of an adult Black woman with natural coils",
+  },
+  templateResortRef: {
+    ...bundled(templateResortRef),
+    alt: "Portrait reference of an adult East Asian woman with a black bob",
+  },
+  templateCrimsonRef: {
+    ...bundled(templateCrimsonRef),
+    alt: "Portrait reference of an adult South Asian woman with dark waves",
+  },
+  templateChromeRef: {
+    ...bundled(templateChromeRef),
+    alt: "Portrait reference of an adult red-haired woman with freckles",
+  },
+  templateMakeupBlackRef: {
+    ...bundled(templateMakeupBlackRef),
+    alt: "Bare-face portrait reference of an adult Black woman with braids",
+  },
   templateChestupEditorial: {
     ...bundled(templateChestupEditorial),
     alt: "Chest-up rooftop fashion portrait in an emerald satin neckline",
@@ -371,14 +446,22 @@ export const landingAssets: Record<MediaId, LandingAsset> = {
 
 /** Text-to-video templates have a clip but no still image. */
 export const videoOnlyAssets: Record<VideoOnlyMediaId, VideoOnlyAsset> = {
+  candlelightFilm: {
+    aspectRatio: 16 / 9,
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/vintage-scene/video.mp4?updatedAt=1795534338222",
+    alt: "Two lovers hold each other by candlelight in a stone chamber",
+  },
   frozenHuntFilm: {
     aspectRatio: 16 / 9,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/frozen-hunt/02177622029673200000000000000000000ffffc0a86cda2455bb.mp4",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/frozen-hunt/02177622029673200000000000000000000ffffc0a86cda2455bb.mp4",
     alt: "A rider in antler armor lassos a charging ice beast across a frozen plain at dawn",
   },
   canyonWrathFilm: {
     aspectRatio: 16 / 9,
-    video: "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/canyon-wrath/02177552546884900000000000000000000ffffc0a88f202cefea.mp4",
+    video:
+      "https://cdn.pixelbin.io/v2/dummy-cloudname/original/input1/Templates/Videos/canyon-wrath/02177552546884900000000000000000000ffffc0a88f202cefea.mp4",
     alt: "A warrior draws her bow above a canyon where a herd of huge beasts stampedes in golden light",
   },
 };

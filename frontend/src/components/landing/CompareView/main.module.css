@@ -1,0 +1,97 @@
+.compare {
+  --pos: 55%;
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.compare[data-variant="full"] {
+  cursor: ew-resize;
+}
+
+.before {
+  clip-path: inset(0 calc(100% - var(--pos)) 0 0);
+}
+
+.soft {
+  filter: blur(3px) saturate(0.7) contrast(0.9);
+}
+
+.line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos);
+  z-index: 1;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--primary);
+  box-shadow: 0 0 20px var(--primary);
+}
+
+.compare[data-variant="full"] .line {
+  background: var(--foreground);
+  box-shadow: none;
+}
+
+.knob {
+  display: grid;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--background);
+  background: var(--foreground);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.label {
+  display: inline-flex;
+  position: absolute;
+  top: 16px;
+  z-index: 2;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--on-media);
+  background: color-mix(in srgb, var(--media-ink) 50%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.beforeLabel {
+  left: 16px;
+}
+
+.afterLabel {
+  right: 16px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  z-index: 2;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  color: var(--on-media);
+  background: color-mix(in srgb, var(--media-ink) 45%, transparent);
+  backdrop-filter: blur(8px);
+  transform: translateX(-50%);
+  transition: opacity 0.3s;
+}
+
+.compare:hover .hint {
+  opacity: 0;
+}

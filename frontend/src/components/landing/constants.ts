@@ -1,4 +1,18 @@
-import type { LandingModel, TemplateItem, MediaId, TemplateFilters } from "@/types/landing";
+import type {
+  AccentTitle,
+  AdFormat,
+  BeforeAfterPair,
+  HeroChapter,
+  InfluencerPerson,
+  LandingModel,
+  MediaId,
+  ModelChip,
+  ShortcutTile,
+  StudioCard,
+  TemplateCategory,
+  TemplateFilters,
+  TemplateItem,
+} from "@/types/landing";
 
 /** Landing-page examples only; generation belongs to the separate product. */
 export const templateModels: readonly LandingModel[] = [
@@ -349,242 +363,6 @@ From inside the crater, Mechanoid slowly rises, towering over the battlefield li
 
 The Verth swarm erupts into motion, crawling from caves, leaping from crystal cliffs, and charging across toxic rivers. Mechanoid activates Titan Barrage Mode. Its left-arm six-barrel rotary Gatling cannon spins violently and fires streams of blue-white plasma rounds, ripping through the first wave in explosive bursts of green alien energy.`,
   },
-  {
-    id: "neon",
-    title: "Neon muse",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Kling",
-    categories: ["video", "portraits"],
-    description: "A close-up with a story to tell.",
-    tag: "Portrait",
-  },
-  {
-    id: "desert",
-    title: "Desert drift",
-    asset: "desert",
-    mediaType: "video",
-    model: "Veo",
-    categories: ["video"],
-    description: "Wide-open movie energy.",
-    tag: "Cinematic",
-  },
-  {
-    id: "product",
-    title: "The soft launch",
-    asset: "product",
-    mediaType: "image",
-    model: "FLUX",
-    categories: ["image", "marketing"],
-    description: "A product, beautifully reimagined.",
-    tag: "Product",
-  },
-  {
-    id: "ocean",
-    title: "Out of office",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "An instant escape.",
-    tag: "Travel",
-  },
-  {
-    id: "dream",
-    title: "Otherworldly",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Wan",
-    categories: ["video"],
-    description: "A new shade of surreal.",
-    tag: "Experimental",
-    filter: "hue-rotate(65deg) saturate(1.3)",
-  },
-  {
-    id: "editorial",
-    title: "Cover story",
-    asset: "portrait",
-    mediaType: "image",
-    model: "GPT Image 2",
-    categories: ["image", "portraits"],
-    description: "Find your main-character moment.",
-    tag: "Editorial",
-    filter: "grayscale(1) contrast(1.1)",
-  },
-  {
-    id: "golden",
-    title: "Golden hour cut",
-    asset: "desert",
-    mediaType: "video",
-    model: "Kling",
-    categories: ["video", "marketing"],
-    description: "Your next campaign opener.",
-    tag: "Campaign",
-    filter: "sepia(.25) saturate(1.2)",
-  },
-  {
-    id: "bloom",
-    title: "Botanical dream",
-    asset: "product",
-    mediaType: "video",
-    model: "Veo",
-    categories: ["video", "marketing"],
-    description: "A softer product story.",
-    tag: "Beauty",
-  },
-  {
-    id: "coastal",
-    title: "Coastal state",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "An easygoing little film.",
-    tag: "Lifestyle",
-    filter: "sepia(.2)",
-  },
-  {
-    id: "after",
-    title: "After hours",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Wan",
-    categories: ["video", "portraits"],
-    description: "Night lights, your way.",
-    tag: "Nightlife",
-    filter: "hue-rotate(25deg)",
-  },
-  {
-    id: "object",
-    title: "Object of desire",
-    asset: "product",
-    mediaType: "image",
-    model: "FLUX",
-    categories: ["image", "marketing"],
-    description: "Elevate the everyday.",
-    tag: "Still life",
-    filter: "grayscale(.85)",
-  },
-  {
-    id: "postcard",
-    title: "A perfect nowhere",
-    asset: "desert",
-    mediaType: "image",
-    model: "GPT Image 2",
-    categories: ["image"],
-    description: "Scenes worth getting lost in.",
-    tag: "Landscape",
-    filter: "sepia(.3)",
-  },
-  {
-    id: "midnight-portrait",
-    title: "Midnight portrait",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Kling",
-    categories: ["video", "portraits"],
-    description: "A little light. A whole new mood.",
-    tag: "Portrait",
-    filter: "hue-rotate(18deg)",
-  },
-  {
-    id: "the-blue-cut",
-    title: "The blue cut",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "A little cinematic wanderlust.",
-    tag: "Travel",
-    filter: "saturate(.75)",
-  },
-  {
-    id: "seedance-two",
-    title: "The open road",
-    asset: "desert",
-    mediaType: "video",
-    model: "Seedance 2.0",
-    categories: ["video"],
-    description: "Follow a moment somewhere new.",
-    tag: "Adventure",
-    filter: "sepia(.15)",
-  },
-  {
-    id: "kling-four",
-    title: "A closer feeling",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Kling 4.0",
-    categories: ["video", "portraits"],
-    description: "An intimate cinematic point of view.",
-    tag: "Cinema",
-    filter: "saturate(.8)",
-  },
-];
-
-const seedanceCollection: readonly TemplateItem[] = [
-  {
-    id: "seed-ocean",
-    title: "Ocean reverie",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "An escape with a point of view.",
-    tag: "Travel",
-  },
-  {
-    id: "seed-desert",
-    title: "The scenic route",
-    asset: "desert",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "Make a moment feel like a movie.",
-    tag: "Cinema",
-  },
-  {
-    id: "seed-portrait",
-    title: "Afterglow",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video", "portraits"],
-    description: "A little movement. A new mood.",
-    tag: "Portrait",
-  },
-  {
-    id: "seed-product",
-    title: "The slow reveal",
-    asset: "product",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video", "marketing"],
-    description: "Give your product the spotlight.",
-    tag: "Product",
-  },
-  {
-    id: "seed-blue",
-    title: "Blue hour drift",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "A world between waking and dreaming.",
-    tag: "Atmosphere",
-    filter: "hue-rotate(20deg) saturate(.8)",
-  },
-  {
-    id: "seed-away",
-    title: "A world away",
-    asset: "desert",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["video"],
-    description: "Your next opening scene.",
-    tag: "Adventure",
-    filter: "sepia(.25)",
-  },
 ];
 
 const marketingCollection: readonly TemplateItem[] = [
@@ -609,16 +387,6 @@ const marketingCollection: readonly TemplateItem[] = [
     tag: "Social",
   },
   {
-    id: "market-beauty",
-    title: "Beauty in motion",
-    asset: "product",
-    mediaType: "video",
-    model: "Veo",
-    categories: ["marketing", "video"],
-    description: "A product film with a softer side.",
-    tag: "Beauty ad",
-  },
-  {
     id: "market-bloom",
     title: "A brand in bloom",
     asset: "flowers",
@@ -627,26 +395,6 @@ const marketingCollection: readonly TemplateItem[] = [
     categories: ["marketing", "image"],
     description: "A softer seasonal campaign.",
     tag: "Brand story",
-  },
-  {
-    id: "market-travel",
-    title: "Sell the feeling",
-    asset: "ocean",
-    mediaType: "video",
-    model: "Seedance 2.5",
-    categories: ["marketing", "video"],
-    description: "A little wanderlust goes a long way.",
-    tag: "Travel ad",
-  },
-  {
-    id: "market-founder",
-    title: "The face of the story",
-    asset: "portrait",
-    mediaType: "video",
-    model: "Kling",
-    categories: ["marketing", "video", "portraits"],
-    description: "Put a person behind the brand.",
-    tag: "Social reel",
   },
 ];
 
@@ -659,141 +407,433 @@ function variations(items: readonly TemplateItem[], names: readonly string[]): T
   }));
 }
 
-const imageCollectionOpeningOrder = [
-  "image-gta-vice-city",
-  "image-satin-neckline",
-  "image-ceramics-campaign",
-  "image-ghibli-portrait",
-  "image-cheese-pull-editorial",
-  "image-loud-drop-poster",
-  "image-octopus-portrait",
-  "image-skincare-campaign",
-  "image-ghibli-friends",
-  "image-swimwear-campaign",
-  "image-pet-royal-portrait",
-  "image-sneaker-launch",
-  "image-tokyo-snowglobe",
-  "image-basketball-manga",
-  "image-iceland-highlands",
-  "image-quiet-park",
-  "image-korean-mini-super",
-  "image-tech-couture-elevator",
-  "image-ghibli-sky-journey",
-  "image-soft-glam",
-  "image-jaipur-portrait",
-];
-
-export const imageTemplates: readonly TemplateItem[] = [...imageCollection].sort((a, b) => {
-  const aOrder = imageCollectionOpeningOrder.indexOf(a.id);
-  const bOrder = imageCollectionOpeningOrder.indexOf(b.id);
-  return (
-    (aOrder < 0 ? imageCollectionOpeningOrder.length : aOrder) -
-    (bOrder < 0 ? imageCollectionOpeningOrder.length : bOrder)
-  );
-});
-
-export const seedanceTemplates: readonly TemplateItem[] = [
-  ...seedanceCollection,
-  ...variations(seedanceCollection, ["Postcard in motion", "The long way home", "A closer look", "Soft focus story"]),
-];
-
 export const marketingTemplates: readonly TemplateItem[] = [
   ...marketingCollection,
-  ...variations(marketingCollection, ["The signature shot", "Collection launch", "A softer sell", "The seasonal edit"]),
+  ...variations(marketingCollection, ["The signature shot", "Collection launch", "A softer sell"]),
 ];
 
-export type CreativeTool = {
-  id: string;
-  name: string;
-  description: string;
-  label: string;
-  headline: readonly [string, string];
-  artwork: "collage" | "motion" | "product" | "character";
-  tone: "paper" | "forest" | "dark" | "plum" | "peach" | "sage";
-  assets: readonly MediaId[];
-  href: "#templates" | "#gpt-image-2" | "#marketing" | "/image?model=gpt2_generate" | "/video";
-  filters?: TemplateFilters;
+/* ───────── Home page sections ─────────
+ * Everything the home page says and shows. Each block feeds one section component in `components/landing/`, so a
+ * section's words, pictures and links change here without touching its layout. */
+
+/** Shows every template. */
+export const allTemplates: TemplateFilters = { category: "all", model: "all" };
+
+/**
+ * Where "Marketing Studio" links lead. It opens the ad templates until the studio has its own page; then change
+ * `href` (and drop `filters`) here and every Marketing link on the home page follows.
+ */
+export const marketingStudioLink: { href: string; filters?: TemplateFilters } = {
+  href: "#templates",
+  filters: { category: "marketing", model: "all" },
 };
 
-export const creativeTools = [
+/** 1 · The wide studio cards at the top of the page. */
+export const studioCards: readonly StudioCard[] = [
   {
     id: "image",
-    name: "Image generator",
-    description: "A thought, a reference, a whole new visual.",
-    label: "Your image studio",
-    headline: ["Dream it.", "See it."],
-    artwork: "collage",
-    tone: "paper",
-    assets: ["architecture", "flowers", "product"],
+    title: "Image studio",
+    description: "A thought or a reference becomes a picture, in any style",
+    headline: { title: "Dream it.", accent: "See it." },
     href: "/image?model=gpt2_generate",
+    artwork: {
+      kind: "slides",
+      intervalMs: 2200,
+      slides: [
+        { asset: "templateGhibliSky" },
+        { asset: "templateFashionCrimson", objectPosition: "center 3%" },
+        { asset: "templateGhibli", objectPosition: "center 30%" },
+        { asset: "templateOctopusPortrait", objectPosition: "center 38%" },
+      ],
+    },
   },
   {
     id: "video",
-    name: "Video generator",
-    description: "Give your next idea its first frame.",
-    label: "The motion edit",
-    headline: ["Make it", "move."],
-    artwork: "motion",
-    tone: "forest",
-    assets: ["desert"],
-    href: "/video",
+    title: "Seedance 2.5 in Video",
+    description: "Cinematic clips with sound, from a prompt or a first frame",
+    headline: { title: "Make it", accent: "move." },
+    href: "/video?model=seedance25_generate",
+    badge: "New",
+    featured: true,
+    artwork: { kind: "clip", asset: "forestRescueFilm" },
   },
   {
-    id: "seedance",
-    name: "Seedance 2.0",
-    description: "Take a still. Tell a different story.",
-    label: "Seedance 2.0",
-    headline: ["One frame.", "A whole story."],
-    artwork: "motion",
-    tone: "forest",
-    assets: ["ocean"],
-    href: "#templates",
-    filters: { category: "video", model: "Seedance 2.0" },
+    id: "upscale",
+    title: "Upscale to 4K",
+    description: "Sharper faces and fine detail, from any photo",
+    headline: { title: "Every pixel,", accent: "sharper." },
+    href: "/upscale",
+    badge: "Move to compare",
+    artwork: { kind: "compare", asset: "templateIcelandHighlands" },
   },
   {
-    id: "kling",
-    name: "Kling 4.0",
-    description: "Start directing your next cinematic idea.",
-    label: "Kling 4.0",
-    headline: ["Direct the", "unexpected."],
-    artwork: "motion",
-    tone: "dark",
-    assets: ["portrait"],
-    href: "#templates",
-    filters: { category: "video", model: "Kling 4.0" },
+    id: "influencer",
+    title: "AI Influencer",
+    description: "Design a character once, then put them anywhere",
+    headline: { title: "Same face.", accent: "Every scene." },
+    href: "/influencer",
+    artwork: {
+      kind: "slides",
+      intervalMs: 2600,
+      slides: [
+        { asset: "maskTiktokModelA", objectPosition: "center 14%" },
+        { asset: "maskTiktokModelB", objectPosition: "center 14%" },
+      ],
+    },
   },
   {
     id: "marketing",
-    name: "Marketing Studio",
-    description: "From product photo to campaign direction.",
-    label: "Marketing Studio",
-    headline: ["From product", "to obsession."],
-    artwork: "product",
-    tone: "plum",
-    assets: ["product"],
-    href: "#marketing",
+    title: "Marketing Studio",
+    description: "One product photo becomes ads for every channel and size",
+    headline: { title: "Your product.", accent: "Their obsession." },
+    ...marketingStudioLink,
+    artwork: { kind: "clip", asset: "maskTiktokFilm" },
+  },
+];
+
+/** 2 · The hero banner's chapters. They advance on their own and can be picked by hand. */
+export const heroChapters: readonly HeroChapter[] = [
+  {
+    id: "cinema",
+    label: "Cinema",
+    heading: { title: "Make something", accent: "worth stopping for." },
+    description:
+      "Films with a feeling. Images with a point of view. Discover something that makes you want to make something.",
+    filters: { category: "video", model: "all" },
+    backdrop: { asset: "candlelightFilm", layout: "cover" },
   },
   {
-    id: "character",
-    name: "Character lab",
-    description: "Same person. A whole new point of view.",
-    label: "The character edit",
-    headline: ["Meet your", "next self."],
-    artwork: "character",
-    tone: "peach",
-    assets: ["portrait", "portrait"],
-    href: "#templates",
+    id: "imagery",
+    label: "Imagery",
+    heading: { title: "Pictures with", accent: "a point of view." },
+    description: "Editorial portraits, campaigns and covers — your face or your product, in a look you’d frame.",
     filters: { category: "portraits", model: "all" },
+    backdrop: { asset: "templateFashionAfterdark", layout: "side" },
   },
   {
-    id: "gpt",
-    name: "GPT Image 2",
-    description: "Find a look that could only be yours.",
-    label: "GPT Image 2",
-    headline: ["Every pixel.", "Your vision."],
-    artwork: "collage",
-    tone: "sage",
-    assets: ["sneakers", "architecture", "flowers"],
-    href: "/image?model=gpt2_generate",
+    id: "escapes",
+    label: "Escapes",
+    heading: { title: "Escape in", accent: "five seconds flat." },
+    description: "Ice fields, canyons and skylines that move. Pick a place and press play.",
+    filters: { category: "video", model: "all" },
+    backdrop: { asset: "frozenHuntFilm", layout: "cover" },
   },
-] as const satisfies readonly CreativeTool[];
+];
+
+export const heroCopy = {
+  signature: "Pixel Magic / The original edit",
+  edition: "Curated · Vol. 01",
+  caption: "A little perspective changes everything.",
+  chapterMs: 7000,
+};
+
+/** The films "Watch the reel" plays. */
+export const reelScenes = [
+  { asset: "candlelightFilm", label: "Candlelight" },
+  { asset: "frozenHuntFilm", label: "The hunt" },
+  { asset: "canyonWrathFilm", label: "Canyon wrath" },
+  { asset: "fairyWorldFilm", label: "Firefly promise" },
+  { asset: "maskTiktokFilm", label: "Glow mask" },
+] as const;
+
+/** The four shortcut tiles under the hero. */
+export const shortcutTiles: readonly ShortcutTile[] = [
+  {
+    title: "Video templates",
+    description: "A scene worth imagining",
+    href: "#templates",
+    icon: "film",
+    reveal: "julietteYoYoFilm",
+    filters: { category: "video", model: "all" },
+  },
+  {
+    title: "Marketing Studio",
+    description: "Made to stop the scroll",
+    href: "#marketing",
+    icon: "megaphone",
+    reveal: "templateSneakerLaunch",
+  },
+  {
+    title: "Seedance 2.5",
+    description: "Find a little more motion",
+    href: "/video?model=seedance25_generate",
+    icon: "waves",
+    reveal: "fairyWorldFilm",
+  },
+  {
+    title: "GPT Image 2",
+    description: "From thought to frame",
+    href: "/image?model=gpt2_generate",
+    icon: "sparkle",
+    reveal: "templateGtaViceCity",
+  },
+];
+
+/** 3 · The template gallery. */
+export const templateSection = {
+  eyebrow: "Trending video templates",
+  heading: { title: "Press play on a", accent: "new story." } satisfies AccentTitle,
+  description: "Pick a clip you love, add your face or your product, and make it yours.",
+  /** Templates shown before the gallery fades out; "Explore all templates" shows the rest. */
+  previewCount: 16,
+  fadeNote: "More scenes, ready for your photo.",
+};
+
+/** Tabs over the video templates. A filter for any other category shows them all. */
+export const templateTabs: readonly { key: TemplateCategory; label: string }[] = [
+  { key: "all", label: "All videos" },
+  { key: "portraits", label: "Portraits" },
+  { key: "marketing", label: "Ads" },
+];
+
+/** 4 · Before and after. */
+export const beforeAfterSection = {
+  eyebrow: "Before → after",
+  heading: { title: "See what", accent: "changes." } satisfies AccentTitle,
+  description: "Move across the picture. Every result here started as the photo underneath.",
+  pairMs: 5000,
+};
+
+export const beforeAfterPairs: readonly BeforeAfterPair[] = [
+  {
+    id: "restyle",
+    name: "Restyle a portrait",
+    note: "Photo → hand-painted adventure",
+    before: "templateWomanRef",
+    after: "templateGhibliSky",
+    beforeLabel: "Your photo",
+    afterLabel: "Image studio",
+  },
+  {
+    id: "upscale",
+    name: "Upscale to 4K",
+    note: "Soft → sharp, nothing invented",
+    before: "templateIcelandHighlands",
+    after: "templateIcelandHighlands",
+    beforeLabel: "1024 px",
+    afterLabel: "4K",
+    softenBefore: true,
+  },
+  {
+    id: "product",
+    name: "Product to campaign",
+    note: "Plain shot → hero ad",
+    before: "templateProductRef",
+    after: "templateProductHero",
+    beforeLabel: "Your product",
+    afterLabel: "Marketing Studio",
+  },
+  {
+    id: "makeup",
+    name: "Soft-glam makeup",
+    note: "Bare face → finished look",
+    before: "templateMakeupBlackRef",
+    after: "templateMakeupSoftglam",
+    beforeLabel: "Bare",
+    afterLabel: "Soft glam",
+  },
+  {
+    id: "pet",
+    name: "Pet portrait",
+    note: "Snapshot → old-master painting",
+    before: "templateCatReference",
+    after: "templatePetRoyal",
+    beforeLabel: "Snapshot",
+    afterLabel: "Royal portrait",
+  },
+];
+
+/** 5 · Marketing Studio. */
+export const marketingSection = {
+  eyebrow: "From product to possibility",
+  heading: { title: "Marketing Studio.", accent: "One photo, a campaign." } satisfies AccentTitle,
+  description:
+    "Upload your product once. Get feed posts, stories, banners and ad videos in your brand’s look, ready to post.",
+  points: ["Product ads", "Brand stories", "Every social size", "UGC videos"],
+  cta: "Start with an ad template",
+  hint: "Hover to spread the campaign",
+};
+
+export const adFormats: readonly AdFormat[] = [
+  { id: "banner", label: "16:9 · Banner", asset: "templateSneakerLaunch", shape: "banner" },
+  { id: "story", label: "9:16 · Story", asset: "templateSneakerLaunch", shape: "story", objectPosition: "55% 50%" },
+  { id: "post", label: "4:5 · Post", asset: "templateSneakerLaunch", shape: "post", objectPosition: "45% 50%" },
+  { id: "source", label: "Your photo", asset: "sneakers", shape: "source" },
+];
+
+/** 6 · AI Influencer. */
+export const influencerSection = {
+  eyebrow: "AI Influencer",
+  heading: { title: "Pick a face.", accent: "Put it anywhere." } satisfies AccentTitle,
+  description: "Characters that stay themselves in every scene, outfit and light.",
+  cta: { label: "Create your character", href: "/influencer" },
+  faceMs: 4500,
+};
+
+export const influencerPeople: readonly InfluencerPerson[] = [
+  {
+    id: "ama",
+    name: "Ama",
+    reference: "templateAfterdarkRef",
+    scenes: [
+      { asset: "templateFashionAfterdark", label: "Rooftop", objectPosition: "center 6%" },
+      { asset: "templateChestupEditorial", label: "Editorial" },
+      { asset: "templateRooftopAfterglow", label: "Golden hour" },
+    ],
+  },
+  {
+    id: "mei",
+    name: "Mei",
+    reference: "templateResortRef",
+    scenes: [
+      { asset: "templateFashionResort", label: "Resort", objectPosition: "center 6%" },
+      { asset: "templatePlusSize", label: "Campaign" },
+      { asset: "templateSwimwearCampaign", label: "Beach" },
+    ],
+  },
+  {
+    id: "riya",
+    name: "Riya",
+    reference: "templateCrimsonRef",
+    scenes: [
+      { asset: "templateFashionCrimson", label: "Evening", objectPosition: "center 6%" },
+      { asset: "templateBridalEditorial", label: "Bridal" },
+      { asset: "templateGhibliSaree", label: "Storybook" },
+    ],
+  },
+  {
+    id: "isla",
+    name: "Isla",
+    reference: "templateChromeRef",
+    scenes: [
+      { asset: "templateFashionChrome", label: "Chrome", objectPosition: "center 6%" },
+      { asset: "templateTechCouture", label: "Couture" },
+      { asset: "templateLoudDrop", label: "Streetwear" },
+    ],
+  },
+  {
+    id: "mina",
+    name: "Mina",
+    reference: "maskTiktokModelA",
+    scenes: [
+      { asset: "maskTiktokModelA", label: "Skincare", objectPosition: "center 10%" },
+      { asset: "maskTiktokModelB", label: "Vanity" },
+      { asset: "templateMakeupSoftglam", label: "Glam" },
+    ],
+  },
+];
+
+/** 7 · Models. Each chip opens its studio with that model picked. */
+export const modelSection = {
+  eyebrow: "The models",
+  heading: { title: "Top models,", accent: "one place." } satisfies AccentTitle,
+  description: "Switch between them in any studio. No extra accounts.",
+};
+
+export const modelRails: readonly { id: string; label: string; models: readonly ModelChip[] }[] = [
+  {
+    id: "video",
+    label: "Video models",
+    models: [
+      {
+        mark: "S",
+        name: "Seedance 2.5",
+        description: "Multi-shot clips with sound",
+        href: "/video?model=seedance25_generate",
+        isNew: true,
+      },
+      { mark: "K", name: "Kling 3.0", description: "Cinematic camera moves", href: "/video?model=klingv3_generate" },
+      {
+        mark: "V",
+        name: "Veo 3.1 Fast",
+        description: "Scenes with sound, quickly",
+        href: "/video?model=veo31Fast_generate",
+      },
+      { mark: "S", name: "Sora 2", description: "Story-driven scenes", href: "/video?model=sora2_generate" },
+      {
+        mark: "W",
+        name: "Wan 2.6",
+        description: "Characters that stay consistent",
+        href: "/video?model=wan26_generate",
+      },
+      { mark: "H", name: "Hailuo 2.3", description: "Fast, fluid motion", href: "/video?model=hailuo23_generate" },
+      {
+        mark: "P",
+        name: "PixVerse 6",
+        description: "Style presets and camera control",
+        href: "/video?model=pixverse6_generate",
+      },
+    ],
+  },
+  {
+    id: "image",
+    label: "Image and upscale models",
+    models: [
+      {
+        mark: "G",
+        name: "GPT Image 2",
+        description: "Everyday ideas, reimagined",
+        href: "/image?model=gpt2_generate",
+        isNew: true,
+      },
+      {
+        mark: "N",
+        name: "Nano Banana Pro",
+        description: "Edits that follow your words",
+        href: "/image?model=nanoBananaPro_generate",
+      },
+      {
+        mark: "S",
+        name: "Seedream 5.0 Pro",
+        description: "Bold, vivid looks",
+        href: "/image?model=seedream5Pro_generate",
+      },
+      { mark: "F", name: "Flux.2 Pro", description: "Photoreal detail", href: "/image?model=flux2Pro_generate" },
+      { mark: "Q", name: "Qwen Image 3", description: "Clean, sharp renders", href: "/image?model=qwen3_generate" },
+      { mark: "T", name: "Topaz Upscale", description: "Up to 4K, detail intact", href: "/upscale" },
+      { mark: "S", name: "SeedVR2 Upscale", description: "Restore soft photos", href: "/upscale" },
+    ],
+  },
+];
+
+/** 8 · Community gallery. */
+export const communitySection = {
+  eyebrow: "Made with Pixel Magic",
+  heading: { title: "Ideas made to", accent: "stop the scroll." } satisfies AccentTitle,
+  description: "Open any piece to make your own version.",
+  previewCount: 22,
+  /** Height before the gallery fades out, in px. */
+  fadeHeight: 1500,
+  cta: "Explore the gallery",
+};
+
+/** 9 · The closing banner, over a slowly drifting wall of results. */
+export const finalSection = {
+  eyebrow: "Your turn",
+  heading: { title: "Make something", accent: "worth stopping for." } satisfies AccentTitle,
+  description: "Pick a studio and make your first one today.",
+  cta: { label: "Start creating", href: "/image?model=gpt2_generate" },
+};
+
+export const mosaicAssets: readonly MediaId[] = [
+  "templateGtaViceCity",
+  "templateFashionAfterdark",
+  "templateCeramicsCampaign",
+  "templateQuietPark",
+  "templateLoudDrop",
+  "templateCheesePullEditorial",
+  "templateOctopusPortrait",
+  "templateSwimwearCampaign",
+  "templateGhibliDuo",
+  "templatePetRoyal",
+  "templateBasketballManga",
+  "templateTokyoSnowglobe",
+  "templateKoreanMiniSuper",
+  "templateIcelandHighlands",
+  "templateBridalEditorial",
+  "templateFashionResort",
+  "templatePlusSize",
+  "templateGhibliSaree",
+  "templateRooftopAfterglow",
+  "templateChestupEditorial",
+];

@@ -27,7 +27,7 @@ export function LandingProvider({ children }: { children: ReactNode }) {
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
   const pageVisible = useSyncExternalStore(subscribePageVisibility, getPageVisibility, getServerPageVisibility);
   const motionEnabled = (motionOverride ?? !reducedMotion) && pageVisible;
-  const [filters, setFilters] = useState<TemplateFilters>({ category: "video", model: "all" });
+  const [filters, setFilters] = useState<TemplateFilters>({ category: "all", model: "all" });
   const motion = useMemo(
     () => ({
       motionEnabled,

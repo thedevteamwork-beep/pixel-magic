@@ -1,0 +1,98 @@
+.marquee {
+  padding: 4px 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.track {
+  display: flex;
+  gap: 10px;
+  width: max-content;
+  /* One trailing gap, so half the track is exactly one copy and the loop never jumps. */
+  padding-right: 10px;
+  animation: slide 46s linear infinite;
+}
+
+.track[data-reverse="true"] {
+  margin-top: 10px;
+  animation-direction: reverse;
+  animation-duration: 54s;
+}
+
+.marquee:hover .track,
+.marquee:focus-within .track {
+  animation-play-state: paused;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 74px;
+  padding: 0 26px 0 14px;
+  border-radius: 999px;
+  color: var(--foreground);
+  text-decoration: none;
+  background: var(--surface);
+  transition: background 0.3s;
+}
+
+.chip:hover {
+  background: var(--surface-raised);
+}
+
+.mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--primary);
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  background: var(--surface-raised);
+}
+
+.chip b {
+  display: block;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.chip small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.new {
+  margin-left: 8px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: var(--primary-foreground);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  background: var(--primary);
+}
+
+@keyframes slide {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    overflow-x: auto;
+  }
+  .track {
+    animation: none;
+  }
+}

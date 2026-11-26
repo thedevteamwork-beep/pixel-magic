@@ -2,7 +2,7 @@
 
 import { Media } from "@/ui/Media";
 import { ArrowUpRight, ImagePlus, Type } from "lucide-react";
-import { landingAssets } from "@/constants/landing-media";
+import { templateAsset } from "@/constants/landing-media";
 import { imageTemplates } from "@/constants/image-templates";
 import type { TemplateItem } from "@/types/landing";
 import { welcomeTemplates } from "./constants";
@@ -41,7 +41,7 @@ export function ImageWelcome({ onExplore, onSelectTemplate }: ImageWelcomeProps)
       </div>
       <div className={styles.templates} aria-label="GPT Image 2 templates">
         {templates.map(({ template, start: { icon: Icon, label } }) => {
-          const asset = landingAssets[template.asset];
+          const asset = templateAsset(template.asset);
           return (
             <button
               type="button"
@@ -50,11 +50,13 @@ export function ImageWelcome({ onExplore, onSelectTemplate }: ImageWelcomeProps)
               onClick={() => onSelectTemplate(template)}
               aria-label={`Use the “${template.title}” template. ${label}.`}
             >
-              <Media
-                media={{ kind: "image", src: asset.image, alt: asset.alt }}
-                fill
-                sizes="(max-width: 600px) 44vw, (max-width: 1000px) 42vw, 260px"
-              />
+              {asset.image && (
+                <Media
+                  media={{ kind: "image", src: asset.image, alt: asset.alt }}
+                  fill
+                  sizes="(max-width: 600px) 44vw, (max-width: 1000px) 42vw, 260px"
+                />
+              )}
               <span className={styles.shade} aria-hidden="true" />
               <span className={styles.templateTag}>{template.tag}</span>
               <span className={styles.templateCopy}>

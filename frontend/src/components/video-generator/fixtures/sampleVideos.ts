@@ -9,7 +9,7 @@ import sample from "./sampleVideos.json";
  * response; its video URLs are `sample:<media id>` tokens for the landing
  * page's clips, and each sample has that clip's poster.
  */
-const SAMPLE_MEDIA: readonly MediaId[] = ["desert", "ocean", "portrait", "product"];
+const SAMPLE_MEDIA: readonly MediaId[] = ["fairyWorldFilm", "mechaWarFilm", "manchesterDerbyFilm", "maskTiktokFilm"];
 
 function resolve(url: string | undefined): { url?: string; poster?: string } {
   if (!url?.startsWith("sample:")) return { url };

@@ -1,33 +1,44 @@
-import { ArrowUpRight, Clapperboard, Megaphone, Sparkles, Waves } from "lucide-react";
+"use client";
+
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { shortcutTiles } from "@/components/landing/constants";
+import { Icon } from "@/ui/Icon";
+import { LandingMedia } from "../LandingMedia";
+import { useTemplateFilters } from "../LandingProvider";
 import styles from "./main.module.css";
 
-const shortcuts = [
-  { title: "Video templates", description: "A scene worth imagining", href: "#templates", icon: Clapperboard },
-  { title: "Marketing Studio", description: "Made to stop the scroll", href: "#marketing", icon: Megaphone },
-  {
-    title: "Seedance 2.5",
-    description: "Find a little more motion",
-    href: "/video?model=seedance25_generate",
-    icon: Waves,
-  },
-  { title: "GPT Image 2", description: "From thought to frame", href: "/image?model=gpt2_generate", icon: Sparkles },
-] as const;
-
+/** Four shortcuts under the hero. Pointing at one reveals its picture or plays its clip behind it. */
 export function CollectionShortcuts() {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const { setFilters } = useTemplateFilters();
+
   return (
-    <nav className={styles.shortcuts} aria-label="Template collections">
-      {shortcuts.map(({ title, description, href, icon: Icon }, index) => (
-        <a href={href} key={href}>
-          <Icon size={20} className={styles.shortcutIcon} aria-hidden="true" />
-          <span>
-            <strong>{title}</strong>
-            <small>{description}</small>
+    <nav className={styles.tiles} aria-label="Shortcuts">
+      {shortcutTiles.map((tile, index) => (
+        <Link
+          href={tile.href}
+          key={tile.title}
+          className={styles.tile}
+          onClick={() => tile.filters && setFilters(tile.filters)}
+          onPointerEnter={() => setHovered(index)}
+          onPointerLeave={() => setHovered(null)}
+          onFocus={() => setHovered(index)}
+          onBlur={() => setHovered(null)}
+        >
+          <span className={styles.reveal} aria-hidden="true">
+            <LandingMedia asset={tile.reveal} alt="" behavior="hover" active={hovered === index} sizes="25vw" />
           </span>
-          <span className={styles.shortcutNumber} aria-hidden="true">
-            0{index + 1}
+          <span className={styles.icon}>
+            <Icon name={tile.icon} className="size-[19px]" />
           </span>
-          <ArrowUpRight className={styles.shortcutArrow} size={16} aria-hidden="true" />
-        </a>
+          <span className={styles.text}>
+            <b>{tile.title}</b>
+            <small>{tile.description}</small>
+          </span>
+          <ArrowUpRight className={styles.go} size={16} aria-hidden="true" />
+        </Link>
       ))}
     </nav>
   );

@@ -1,94 +1,88 @@
-.finalBanner {
+.banner {
+  display: grid;
   position: relative;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-  padding: clamp(26px, 4vw, 58px);
+  height: 480px;
+  place-items: center;
   overflow: hidden;
+  isolation: isolate;
   border-radius: var(--radius-panel);
-  background: var(--primary);
-  color: var(--primary-foreground);
+  text-align: center;
 }
 
-.finalBanner::after {
+/* Keeps the words readable over the pictures. */
+.banner::before {
   position: absolute;
+  inset: 0;
   z-index: -1;
-  right: -60px;
-  top: -140px;
-  content: "✳";
-  color: color-mix(in srgb, var(--primary-foreground) 6%, transparent);
-  font-size: 600px;
-  line-height: 1;
-  pointer-events: none;
+  content: "";
+  background: radial-gradient(
+    60% 70% at 50% 50%,
+    color-mix(in srgb, var(--background) 92%, transparent) 30%,
+    color-mix(in srgb, var(--background) 55%, transparent) 100%
+  );
 }
 
-.finalBanner h2 {
-  margin: 0;
-  font-family: var(--font-space-grotesk), sans-serif;
-  font-size: clamp(28px, 3vw, 45px);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.06em;
+.mosaic {
+  display: grid;
+  position: absolute;
+  inset: -80px;
+  z-index: -2;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  opacity: 0.55;
+  transform: rotate(-8deg);
 }
 
-.finalBanner h2 em {
-  font-family: var(--font-editorial);
-  font-weight: 400;
-  letter-spacing: var(--editorial-tracking);
-}
-
-.finalBanner p:not(.finalEyebrow) {
-  margin: 15px 0 0;
-  font-size: 12px;
-}
-
-.finalEyebrow {
+.column {
   display: flex;
-  align-items: center;
-  gap: 9px;
-  margin: 0 0 22px;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  flex-direction: column;
+  gap: 10px;
+  animation: drift var(--drift-duration, 50s) linear infinite;
 }
 
-.finalBanner a {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 28px;
-  min-height: 48px;
-  padding: 14px 20px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-foreground);
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 500;
-  transition: transform 0.2s;
+.column:nth-child(even) {
+  animation-direction: reverse;
 }
 
-.finalBanner a:hover {
-  transform: translateY(-3px);
+.tile {
+  display: block;
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-card);
 }
 
-@media (max-width: 760px) {
-  .finalBanner {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 24px;
+.content {
+  padding: 0 24px;
+}
+
+.title {
+  margin: 14px 0;
+  font-size: clamp(44px, 5.4vw, 80px);
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+}
+
+.description {
+  margin: 0 0 30px;
+  color: var(--subtle);
+  font-size: var(--fs-xl);
+}
+
+@keyframes drift {
+  to {
+    transform: translateY(-50%);
   }
 }
 
-@media (max-width: 600px) {
-  .finalEyebrow {
-    line-height: 1.6;
-    font-size: 8px;
-    gap: 8px;
+@media (max-width: 720px) {
+  .banner {
+    height: 440px;
   }
-  .finalBanner h2 {
-    font-size: 31px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .column {
+    animation: none;
   }
 }

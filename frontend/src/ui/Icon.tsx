@@ -9,6 +9,7 @@ import {
   ImageIcon,
   Images,
   ImageUpscale,
+  Megaphone,
   Mic,
   Play,
   Plus,
@@ -16,6 +17,7 @@ import {
   User,
   Video,
   WandSparkles,
+  Waves,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +47,8 @@ const icons = {
   file: FileImage,
   layers: Layers,
   sliders: SlidersHorizontal,
+  megaphone: Megaphone,
+  waves: Waves,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof icons;

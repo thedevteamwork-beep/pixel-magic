@@ -1,49 +1,115 @@
 .hero {
+  --spot-x: 70%;
+  --spot-y: 40%;
+  --drift-x: 0px;
+  --drift-y: 0px;
   position: relative;
-  isolation: isolate;
+  height: 560px;
+  margin-top: 56px;
   overflow: hidden;
-  min-height: 520px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl, 20px);
-  background: var(--art-forest);
+  isolation: isolate;
+  border-radius: var(--radius-panel);
   color: var(--on-media);
+  background: var(--media-ink);
 }
 
-.hero::after {
+/* Darkens the left and the bottom, where the words sit. */
+.hero::before {
   position: absolute;
-  z-index: -1;
   inset: 0;
+  z-index: -1;
   content: "";
-  pointer-events: none;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--media-ink) 78%, transparent), transparent 95%),
-    linear-gradient(0deg, color-mix(in srgb, var(--media-ink) 94%, transparent), transparent 85%);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--media-ink) 88%, transparent) 0%,
+      color-mix(in srgb, var(--media-ink) 50%, transparent) 45%,
+      transparent 75%
+    ),
+    linear-gradient(to top, color-mix(in srgb, var(--media-ink) 70%, transparent), transparent 40%);
+}
+
+.backdrops {
+  position: absolute;
+  inset: -24px;
+  z-index: -2;
+  transform: translate(var(--drift-x), var(--drift-y));
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .backdrop {
   position: absolute;
-  z-index: -2;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.backdrop[data-active="true"] {
+  opacity: 1;
+}
+
+.backdropMedia {
+  display: block;
+  position: absolute;
   inset: 0;
 }
 
-.topline {
+/* A portrait stands on the right at a natural size; its left and top edges fade into a warm dark. */
+.backdrop[data-layout="side"] {
+  background: radial-gradient(
+    70% 120% at 80% 30%,
+    color-mix(in srgb, var(--art-peach) 16%, var(--media-ink)),
+    var(--media-ink) 72%
+  );
+}
+
+.backdrop[data-layout="side"] .backdropMedia {
+  top: 40px;
+  right: 0;
+  left: auto;
+  bottom: auto;
+  height: 150%;
+  aspect-ratio: 2 / 3;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 38%), linear-gradient(to bottom, transparent, #000 9%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 38%), linear-gradient(to bottom, transparent, #000 9%);
+  mask-composite: intersect;
+}
+
+.spotlight {
   position: absolute;
-  top: 28px;
-  left: 36px;
-  right: 36px;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    420px circle at var(--spot-x) var(--spot-y),
+    color-mix(in srgb, var(--primary) 10%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.inner {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  height: 100%;
+  padding: 40px 44px 34px;
+}
+
+.topline {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
 }
 
 .signature {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.15em;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -52,157 +118,126 @@
 }
 
 .edition {
-  border: 1px solid color-mix(in srgb, var(--on-media) 32%, transparent);
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--media-ink) 40%, transparent);
-  padding: 6px 10px;
-  font-size: 9px;
-  letter-spacing: 0.05em;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.copy {
-  position: relative;
-  max-width: 1060px;
-  padding: 115px 36px 112px;
+  background: color-mix(in srgb, var(--on-media) 12%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .title {
-  margin: 0 0 22px;
-  font-size: clamp(42px, 5.3vw, 80px);
-  font-weight: 500;
-  line-height: 1.01;
-  letter-spacing: -0.065em;
-  text-wrap: balance;
+  min-height: 1.96em;
+  margin: auto 0 18px;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(48px, 5.8vw, 86px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+/* Each line rises out of its own mask when the chapter changes. */
+.line {
+  display: block;
+  padding-bottom: 0.06em;
+  overflow: hidden;
+}
+
+.line > * {
+  display: inline-block;
+  animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.line:nth-child(2) > * {
+  animation-delay: 90ms;
 }
 
 .title em {
   color: var(--primary);
   font-family: var(--font-editorial);
+  font-size: 1.1em;
   font-weight: 400;
-  letter-spacing: var(--editorial-tracking);
+  letter-spacing: -0.02em;
 }
 
 .description {
-  max-width: 445px;
-  margin: 0 0 24px;
-  color: var(--on-media-muted);
-  font-size: 13px;
-  line-height: 1.7;
+  min-height: 3em;
+  max-width: 440px;
+  margin: 0 0 26px;
+  color: color-mix(in srgb, var(--on-media) 80%, transparent);
+  font-size: var(--fs-lg);
 }
 
 .actions {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 11px;
+  gap: 12px;
 }
 
-.reelTrigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  border: 1px solid color-mix(in srgb, var(--on-media) 40%, transparent);
-  border-radius: var(--radius-sm, 9px);
-  background: color-mix(in srgb, var(--media-ink) 38%, transparent);
-  padding: 11px 16px;
-  color: var(--on-media);
-  font-size: 12px;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-  transition:
-    background 180ms ease,
-    border-color 180ms ease;
-}
-
-.reelTrigger:hover {
-  border-color: var(--on-media);
-  background: color-mix(in srgb, var(--on-media) 15%, var(--media-ink));
-}
-
-.bottomline {
-  position: absolute;
-  left: 36px;
-  right: 36px;
-  bottom: 27px;
+.bottom {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  margin-top: 34px;
 }
 
 .chapters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
 
-.chapters button {
-  display: inline-flex;
+.chapter {
+  display: flex;
+  position: relative;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
-  border: 1px solid color-mix(in srgb, var(--on-media) 30%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--media-ink) 48%, transparent);
-  padding: 8px 12px;
-  color: var(--on-media);
-  font-size: 11px;
-  transition:
-    background 180ms ease,
-    color 180ms ease;
+  height: 40px;
+  padding: 0 16px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--on-media) 75%, transparent);
+  font-size: var(--fs-md);
+  background: color-mix(in srgb, var(--on-media) 10%, transparent);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: color 0.3s;
 }
 
-.chapters button:hover {
-  border-color: var(--on-media);
-}
-
-.chapters button[aria-pressed="true"] {
-  border-color: var(--secondary);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-}
-
-.chapterNumber {
+.chapter small {
+  font-size: var(--fs-2xs);
   opacity: 0.6;
-  font-size: 9px;
 }
 
-.filmControls {
-  display: flex;
-  align-items: center;
-  gap: 18px;
+.chapter[aria-pressed="true"] {
+  color: var(--media-ink);
+  background: var(--on-media);
+}
+
+.progress {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary-foreground);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: fill var(--chapter-ms, 7s) linear forwards paused;
+}
+
+.progress[data-running="true"] {
+  animation-play-state: running;
 }
 
 .caption {
-  color: var(--on-media-muted);
+  color: color-mix(in srgb, var(--on-media) 80%, transparent);
   font-family: var(--font-editorial);
-  font-size: 15px;
+  font-size: 19px;
   font-style: italic;
-}
-
-.pause {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border: 1px solid color-mix(in srgb, var(--on-media) 40%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--media-ink) 48%, transparent);
-  color: var(--on-media);
-  transition: background 180ms ease;
-}
-
-.pause:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--on-media) 22%, var(--media-ink));
-}
-
-.pause:disabled {
-  opacity: 0.5;
 }
 
 .reelPlayer {
@@ -226,136 +261,74 @@
   align-items: center;
   gap: 8px;
   min-height: 38px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface-raised);
-  padding: 8px 11px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
   color: var(--foreground);
-  font-size: 11px;
+  font-size: var(--fs-sm);
+  background: var(--surface-raised);
+  cursor: pointer;
 }
 
 .reelScenes button span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
 }
 
 .reelScenes button[aria-pressed="true"] {
-  border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
 }
 
-@media (max-width: 800px) {
+.reelScenes button[aria-pressed="true"] span {
+  color: inherit;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(110%);
+  }
+}
+
+@keyframes fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    height: 620px;
+    margin-top: 36px;
+  }
+  .backdrop[data-layout="side"] .backdropMedia {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
+    aspect-ratio: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .inner {
+    padding: 26px 22px;
+  }
+  .edition,
   .caption {
     display: none;
   }
-}
-
-@media (max-width: 600px) {
-  .hero {
-    min-height: 500px;
-    border-radius: var(--radius-lg, 15px);
-  }
-
-  .topline {
-    top: 21px;
-    left: 20px;
-    right: 20px;
-    gap: 10px;
-  }
-
-  .signature {
-    font-size: 8px;
-    letter-spacing: 0.09em;
-    gap: 6px;
-  }
-
-  .signature svg {
-    width: 12px;
-  }
-
-  .edition {
-    padding: 5px 7px;
-    font-size: 7px;
-  }
-
-  .copy {
-    padding: 112px 20px 108px;
-  }
-
-  .title {
-    margin-bottom: 19px;
-    font-size: clamp(35px, 8.7vw, 51px);
-    line-height: 1.04;
-  }
-
-  .description {
-    margin-bottom: 24px;
-    font-size: 12px;
-    line-height: 1.65;
-  }
-
-  .actions {
-    gap: 8px;
-  }
-
-  .actions a,
-  .reelTrigger {
-    min-height: 42px;
-    padding: 10px 12px;
-    font-size: 11px;
-  }
-
-  .actions a svg,
-  .reelTrigger svg {
-    width: 14px;
-  }
-
-  .bottomline {
-    left: 20px;
-    right: 20px;
-    bottom: 21px;
-    gap: 10px;
-  }
-
-  .chapters {
-    gap: 5px;
-  }
-
-  .chapters button {
-    min-height: 36px;
-    gap: 5px;
-    padding: 8px 9px;
-    font-size: 10px;
-  }
-
-  .chapterNumber {
-    font-size: 8px;
-  }
-
-  .pause {
-    width: 34px;
-    height: 34px;
-  }
-
-  .reelScenes {
-    padding: 14px;
-  }
-}
-
-@media (max-width: 365px) {
-  .chapterNumber {
-    display: none;
-  }
-
-  .edition {
-    display: none;
+  .bottom {
+    margin-top: 24px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reelTrigger,
-  .chapters button,
-  .pause {
+  .backdrops,
+  .backdrop {
     transition: none;
+  }
+  .line > * {
+    animation: none;
   }
 }
