@@ -1,5 +1,5 @@
 import type { CSSProperties, RefObject } from "react";
-import { landingAssets } from "@/constants/landing-media";
+import { templateAsset } from "@/constants/landing-media";
 import type { TemplateItem } from "@/types/landing";
 import { TemplateCard } from "./TemplateCard";
 import styles from "./main.module.css";
@@ -57,7 +57,7 @@ export function MasonryGrid({
 }: MasonryGridProps) {
   const ratios = items.map(
     (item, index) =>
-      item.aspectRatio ?? (fullImages ? landingAssets[item.asset].aspectRatio : cardRatios[index]) ?? 16 / 9,
+      item.aspectRatio ?? (fullImages ? templateAsset(item.asset).aspectRatio : cardRatios[index]) ?? 16 / 9,
   );
   const counts = horizontal ? [6] : [4, 3, 2];
   const layouts = counts.map((count) => ({ count, ...getLayout(ratios, count) }));

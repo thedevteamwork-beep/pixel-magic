@@ -2,8 +2,8 @@
 
 import { Media } from "@/ui/Media";
 import { useEffect, useRef, useState } from "react";
-import { landingAssets } from "@/constants/landing-media";
-import type { MediaId } from "@/types/landing";
+import { templateAsset } from "@/constants/landing-media";
+import type { TemplateMediaId } from "@/types/landing";
 import { useLandingMotion } from "../LandingProvider";
 import styles from "./main.module.css";
 
@@ -26,7 +26,7 @@ function observeVisibility(element: Element, callback: VisibilityCallback) {
 }
 
 type LandingMediaProps = {
-  asset: MediaId;
+  asset: TemplateMediaId;
   alt?: string;
   behavior?: "ambient" | "hover" | "still";
   active?: boolean;
@@ -46,55 +46,68 @@ export function LandingMedia({
   sizes = "(max-width: 600px) 50vw, 25vw",
   filter,
 }: LandingMediaProps) {
-  const media = landingAssets[asset];
+  const media = templateAsset(asset);
   const { motionEnabled } = useLandingMotion();
   const containerRef = useRef<HTMLSpanElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [readyAsset, setReadyAsset] = useState<TemplateMediaId>();
+  const ready = readyAsset === asset;
+  const hasClip = !!media.video && behavior !== "still";
   const shouldPlay =
-    !!media.video && motionEnabled && visible && (behavior === "ambient" || (behavior === "hover" && active));
+    hasClip && motionEnabled && visible && (behavior === "ambient" || (behavior === "hover" && active));
 
   useEffect(() => {
     const element = containerRef.current;
-    if (!element || !media.video || behavior === "still") return;
-    return observeVisibility(element, setVisible);
-  }, [media.video, behavior]);
+    if (!element || !hasClip) return;
+    return observeVisibility(element, (isVisible) => {
+      setVisible(isVisible);
+      if (isVisible) setMounted(true);
+    });
+  }, [hasClip]);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     if (shouldPlay) void video.play().catch(() => {});
-    else video.pause();
-  }, [shouldPlay, asset]);
+    else {
+      video.pause();
+      // Back to the first frame, so the card rests on the same picture each time.
+      if (video.currentTime > 0.2) video.currentTime = 0.1;
+    }
+  }, [shouldPlay, asset, ready]);
 
   return (
     <span ref={containerRef} className={`${styles.media} ${className}`} style={filter ? { filter } : undefined}>
-      <Media
-        media={{ kind: "image", src: media.image, alt: alt ?? media.alt }}
-        fill
-        sizes={sizes}
-        plain
-        imageProps={{
-          loading: priority ? "eager" : "lazy",
-          fetchPriority: priority ? "high" : undefined,
-          className: styles.image,
-          style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
-        }}
-      />
-      {media.video && behavior !== "still" && (shouldPlay || playing) && (
+      {media.image && (
+        <Media
+          media={{ kind: "image", src: media.image, alt: alt ?? media.alt }}
+          fill
+          sizes={sizes}
+          plain
+          imageProps={{
+            loading: priority ? "eager" : "lazy",
+            fetchPriority: priority ? "high" : undefined,
+            className: styles.image,
+            style: media.objectPosition ? { objectPosition: media.objectPosition } : undefined,
+          }}
+        />
+      )}
+      {/* The clip loads once the card is near the screen. Its first frame replaces the still; hover plays it. */}
+      {hasClip && mounted && (
         <video
           key={asset}
           ref={videoRef}
-          src={media.video}
+          src={`${media.video}#t=0.1`}
           muted
           loop
           playsInline
-          preload="none"
+          preload="metadata"
           aria-hidden="true"
           tabIndex={-1}
-          className={`${styles.video} ${shouldPlay && playing ? styles.visible : ""}`}
-          onPlaying={() => setPlaying(true)}
-          onError={() => setPlaying(false)}
+          className={`${styles.video} ${ready ? styles.visible : ""}`}
+          onLoadedData={() => setReadyAsset(asset)}
+          onError={() => setReadyAsset(undefined)}
         />
       )}
     </span>
